@@ -45,7 +45,8 @@ function validarSenha(senha: string): validacaoSenha {
 }
 
 function validarEmail(email: string): boolean {
-  return true; // TODO Validar email
+  const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return pattern.test(email);
 }
 
 function TelaCadastro(): React.JSX.Element {
@@ -53,23 +54,21 @@ function TelaCadastro(): React.JSX.Element {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [valSenha, setValSenha] = useState<validacaoSenha>(() => validarSenha(""));
+  const [valEmail, setValEmail] = useState<boolean>(() => false);
 
   return (
     <View>
-      <StatusBar/>
       <Text style={{color: "white"}}>Email</Text>
-      <TextInput placeholder="endereço de email" autoComplete="email" onChangeText={next => setEmail(next)}></TextInput>
+      <TextInput placeholder="endereço de email" autoComplete="email" onChangeText={next => {
+        setEmail(next);
+        setValEmail(validarEmail(next));
+      }}></TextInput>
       <Text style={{color: "white"}}>Senha</Text>
       <TextInput placeholder="senha" onChangeText={next => {
         setSenha(next);
-        setValSenha(validarSenha(next))
+        setValSenha(validarSenha(next)); 
       }}></TextInput>
 
-      <Text>tamanhoValido: {valSenha.tamanhoValido ? "true" : "false"}</Text>
-      <Text>contemMinuscula: {valSenha.contemMinuscula ? "true" : "false"}</Text>
-      <Text>contemMaiuscula: {valSenha.contemMaiuscula ? "true" : "false"}</Text>
-      <Text>contemNumero: {valSenha.contemNumero ? "true" : "false"}</Text>
-      <Text>contemSimbolo: {valSenha.contemNumero ? "true" : "false"}</Text>
     </View>
   )
 }

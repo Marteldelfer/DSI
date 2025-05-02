@@ -25,6 +25,7 @@ import TelaCadastro from './telas/TelaCadastro';
 function App(): React.JSX.Element {
   return (
     <View>
+      <StatusBar/>
       <TelaCadastro></TelaCadastro>
     </View>
   );
