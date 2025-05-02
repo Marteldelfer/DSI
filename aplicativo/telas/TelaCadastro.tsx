@@ -8,6 +8,8 @@ import {
   useColorScheme,
   View,
   TextInput,
+  Button,
+  Alert,
 } from 'react-native';
 
 import {
@@ -49,6 +51,21 @@ function validarEmail(email: string): boolean {
   return pattern.test(email);
 }
 
+function cadastrarUsuario(email: string, senha: string): boolean {
+  const valEmail = validarEmail(email);
+  const valSenha = validarSenha(senha);
+  if (!(valEmail && valSenha.tamanhoValido)) {
+    return false;
+  }
+  const forcaSenha: number = Object.values(valSenha).filter((bool) => bool).length;
+
+  if (forcaSenha < 3) {
+    // TODO gerar alerta de senha fraca
+  }
+  // TODO Salvar no banco de dados
+  return true;
+}
+
 function TelaCadastro(): React.JSX.Element {
 
   const [email, setEmail] = useState("");
@@ -68,7 +85,10 @@ function TelaCadastro(): React.JSX.Element {
         setSenha(next);
         setValSenha(validarSenha(next)); 
       }}></TextInput>
-
+      <Button title="Cadastrar" onPress={() => {
+        console.log(cadastrarUsuario(email, senha));
+        // TODO ir para proxima tela
+      }} ></Button>
     </View>
   )
 }
