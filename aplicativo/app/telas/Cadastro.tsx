@@ -20,6 +20,8 @@ import {
   ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
 
+import { useRouter, Link } from 'expo-router';
+
 type validacaoSenha = {
     tamanhoValido: boolean;
     contemMinuscula: boolean;
@@ -72,14 +74,20 @@ function validarCadastro(nome: string, email: string, senha: string, confirmarSe
     email: email,
     senha: senha // TODO criptografar senha
   }
-  // TODO Salvar no banco de dados
+  // TODO Salvar no banco de 
   return true;
 }
 
 function cadastrarUsuario(nome: string, email: string, senha: string, confirmarSenha: string): boolean {
-  // TODO Salvar no banco de dados
-  return true;
+  if (validarCadastro(nome, email, senha, confirmarSenha)) {
+    // TODO Salvar no banco de dados
+    router.navigate("/telas/Home");
+    return true;
+  }
+  return false;
 }
+
+const router = useRouter();
 
 function TelaCadastro(): React.JSX.Element {
 
@@ -90,30 +98,27 @@ function TelaCadastro(): React.JSX.Element {
 
   return (
     <View>
-      <Text style={{color: "white"}}>Nome</Text>
       <TextInput placeholder="Nome" onChangeText={next => {
         setNome(next);
       }}></TextInput>
 
-      <Text style={{color: "white"}}>Email</Text>
       <TextInput placeholder="E-mail" autoComplete="email" onChangeText={next => {
         setEmail(next);
       }}></TextInput>
 
-      <Text style={{color: "white"}}>Senha</Text>
       <TextInput placeholder="Senha" secureTextEntry={true} onChangeText={next => {
         setSenha(next);
+        console.log(senha);
       }}></TextInput>
 
-      <Text style={{color: "white"}}>Senha</Text>
       <TextInput placeholder="Confirmar Senha" secureTextEntry={true} onChangeText={next => {
         setConfirmarSenha(next);
       }}></TextInput>
       
       <Button title="Cadastrar" onPress={() => {
-        console.log(cadastrarUsuario(nome, email, senha, confirmarSenha), nome, email, senha, confirmarSenha);
-        // TODO ir para proxima tela
+        cadastrarUsuario(nome, email, senha, confirmarSenha);
       }} ></Button>
+      <Text>Já possui uma conta? <Link href={"/telas/Login"}>Faça Login!</Link></Text>
     </View>
   )
 }
