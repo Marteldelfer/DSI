@@ -25,7 +25,7 @@ function Home(): React.JSX.Element {
 
     return (
         <View>
-            Ola
+            <Text>Ola</Text>
         </View>
     );
 }

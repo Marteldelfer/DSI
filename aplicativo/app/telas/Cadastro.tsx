@@ -22,6 +22,35 @@ import {
 
 import { useRouter, Link } from 'expo-router';
 
+import { Ionicons, AntDesign } from '@expo/vector-icons';
+
+import { Nunito_400Regular, useFonts } from '@expo-google-fonts/nunito';
+
+const styles = StyleSheet.create({
+  textInput: {
+    padding: 8,
+    backgroundColor: '#eaeaea',
+    flexDirection: 'row',
+    marginTop: 4,
+    marginBottom: 4,
+    marginLeft: "auto",
+    marginRight: "auto",
+    borderRadius: 26,
+    width: 300,
+    fontFamily: "Nunito_400Regular"
+  },
+  userPic: {
+    width: 110,
+    height: 110,
+    backgroundColor: '#eaeaea',
+    justifyContent: "center",
+    flexDirection: "row",
+    marginLeft: "auto",
+    marginRight: "auto",
+    borderRadius: 55
+  }
+});
+
 type validacaoSenha = {
     tamanhoValido: boolean;
     contemMinuscula: boolean;
@@ -90,37 +119,58 @@ function cadastrarUsuario(nome: string, email: string, senha: string, confirmarS
 const router = useRouter();
 
 function TelaCadastro(): React.JSX.Element {
-
+  
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("")
+  
+  const [fontsLoaded] = useFonts([Nunito_400Regular]);
 
+  if (!fontsLoaded) {
+    return <></>;
+  } else {
   return (
-    <View>
-      <TextInput placeholder="Nome" onChangeText={next => {
-        setNome(next);
-      }}></TextInput>
+    <View style={{backgroundColor: "#005F6B", height:"100%", justifyContent: "center"}}>
 
-      <TextInput placeholder="E-mail" autoComplete="email" onChangeText={next => {
-        setEmail(next);
-      }}></TextInput>
+      <View style={styles.userPic}>
+        <AntDesign name="user" size={100} color="black"/>
+      </View>
 
-      <TextInput placeholder="Senha" secureTextEntry={true} onChangeText={next => {
-        setSenha(next);
-        console.log(senha);
-      }}></TextInput>
+      <View style={{padding: 12}}>
+        <View style={styles.textInput}>
+        <AntDesign name="user" size={36} color="black" />
+          <TextInput placeholder="Nome" style={{paddingLeft: 12}} onChangeText={next => {
+            setNome(next);
+          }}></TextInput>
+        </View>
+        <View style={styles.textInput}>
+          <AntDesign name="mail" size={36} color="black" />
+          <TextInput placeholder="E-mail" autoComplete="email" style={{padding: 0, paddingLeft: 12}} onChangeText={next => {
+            setEmail(next);
+          }}></TextInput>
+        </View>
+        <View style={styles.textInput}>
+          <AntDesign name="lock" size={36} color="black" />
+          <TextInput placeholder="Senha" secureTextEntry={true} style={{paddingLeft: 12}} onChangeText={next => {
+            setSenha(next);
+            console.log(senha);
+          }}></TextInput>
+        </View>
+        <View style={styles.textInput}>
+          <AntDesign name="lock" size={36} color="black" />
+          <TextInput placeholder="Confirmar Senha" secureTextEntry={true} style={{paddingLeft: 12}} onChangeText={next => {
+            setConfirmarSenha(next);
+          }}></TextInput>
+        </View>
+      </View>
 
-      <TextInput placeholder="Confirmar Senha" secureTextEntry={true} onChangeText={next => {
-        setConfirmarSenha(next);
-      }}></TextInput>
-      
       <Button title="Cadastrar" onPress={() => {
         cadastrarUsuario(nome, email, senha, confirmarSenha);
       }} ></Button>
       <Text>Já possui uma conta? <Link href={"/telas/Login"}>Faça Login!</Link></Text>
     </View>
-  )
+  )}
 }
 
 export default TelaCadastro;
