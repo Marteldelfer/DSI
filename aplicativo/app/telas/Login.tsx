@@ -70,14 +70,16 @@ function TelaLogin(): React.JSX.Element {
 		<View style={{backgroundColor: "#005F6B", height:"100%", justifyContent: "center"}}>
 			<View style={styles.textInput}>
 				<AntDesign name="mail" size={36} color="black" />
-				<TextInput placeholder="E-mail" autoComplete="email" onChangeText={(next) => {
-					setEmail(next);
+				<TextInput placeholder="E-mail" autoComplete="email" placeholderTextColor={"black"} style={{color: "black"}}
+					onChangeText={(next) => {
+						setEmail(next);
 				}}></TextInput>
 			</View>
 			<View style={styles.textInput}>
 				<AntDesign name="lock" size={36} color="black" />
-				<TextInput placeholder="Senha" secureTextEntry={true} onChangeText={(next) => {
-					setSenha(next);
+				<TextInput placeholder="Senha" secureTextEntry={true} placeholderTextColor={"black"} style={{color: "black"}}
+					onChangeText={(next) => {
+						setSenha(next);
 				}}></TextInput>
 			</View>
 

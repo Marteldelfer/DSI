@@ -38,7 +38,8 @@ const styles = StyleSheet.create({
     marginRight: "auto",
     borderRadius: 26,
     width: 300,
-    fontFamily: "Nunito_400Regular"
+    color: "black",
+    fontFamily: "Nunito_400Regular",
   },
   userPic: {
     width: 110,
@@ -140,7 +141,6 @@ function BarraForcaSenha(senha: string): React.JSX.Element {
   ];
   const valSenha = validarSenha(senha);
   const forcaSenha = valSenha.tamanhoValido ? Object.values(valSenha).filter((v) => v).length - 1 : 0;
-  {console.log(forcaSenha)};
   return (
     <View style={{
       width: 300,
@@ -191,29 +191,34 @@ function TelaCadastro(): React.JSX.Element {
       <View style={{padding: 12}}>
         <View style={[styles.textInput, {marginBottom: 10}]}>
         <AntDesign name="user" size={36} color="black" />
-          <TextInput placeholder="Nome" style={{paddingLeft: 12}} onChangeText={next => {
-            setNome(next);
+          <TextInput placeholder="Nome" style={{paddingLeft: 12, color: "black"}} placeholderTextColor={"black"}
+            onChangeText={next => {
+              setNome(next);
           }}></TextInput>
         </View>
+
         <View style={[styles.textInput, {marginBottom: 10}]}>
           <AntDesign name="mail" size={36} color="black" />
-          <TextInput placeholder="E-mail" autoComplete="email" style={{padding: 0, paddingLeft: 12}} onChangeText={next => {
-            setEmail(next);
-          }}></TextInput>
+          <TextInput placeholder="E-mail" autoComplete="email" placeholderTextColor={"black"} style={{padding: 0, paddingLeft: 12, color: "black"}} 
+            onChangeText={next => {
+              setEmail(next);
+            }}></TextInput>
         </View>
+
         <View style={styles.textInput}>
           <AntDesign name="lock" size={36} color="black" />
-          <TextInput placeholder="Senha" secureTextEntry={true} style={{paddingLeft: 12}} onChangeText={next => {
-            setSenha(next);
-            console.log(senha);
+          <TextInput placeholder="Senha" secureTextEntry={true} style={{paddingLeft: 12, color: "black"}} placeholderTextColor={"black"}
+            onChangeText={next => {
+              setSenha(next);
           }}></TextInput>
         </View>
         {BarraForcaSenha(senha)}
 
         <View style={styles.textInput}>
           <AntDesign name="lock" size={36} color="black" />
-          <TextInput placeholder="Confirmar Senha" secureTextEntry={true} style={{paddingLeft: 12}} onChangeText={next => {
-            setConfirmarSenha(next);
+          <TextInput placeholder="Confirmar Senha" placeholderTextColor={"black"} secureTextEntry={true} style={{paddingLeft: 12, color: "black"}} 
+            onChangeText={next => {
+              setConfirmarSenha(next);
           }}></TextInput>
         </View>
       </View>
