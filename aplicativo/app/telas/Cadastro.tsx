@@ -10,6 +10,7 @@ import {
   TextInput,
   Button,
   Alert,
+  Pressable
 } from 'react-native';
 
 import {
@@ -48,6 +49,17 @@ const styles = StyleSheet.create({
     marginLeft: "auto",
     marginRight: "auto",
     borderRadius: 55
+  },
+  Botao: {
+    backgroundColor: "#007a74",
+    padding: 8,
+    marginTop: 4,
+    marginBottom: 4,
+    marginLeft: "auto",
+    marginRight: "auto",
+    borderRadius: 26,
+    width: 300,
+    color: "#eaeaea",
   }
 });
 
@@ -116,6 +128,40 @@ function cadastrarUsuario(nome: string, email: string, senha: string, confirmarS
   return false;
 }
 
+function BarraForcaSenha(senha: string): React.JSX.Element {
+
+  const cores = ["#eaeaea", "red", "orange", "yellow", "#7CFC00"];
+  const mensages = [
+    "Senha Inválida",
+    "Senha Fraca",
+    "Senha Média",
+    "Senha Boa",
+    "Senha Forte"
+  ];
+  const valSenha = validarSenha(senha);
+  const forcaSenha = valSenha.tamanhoValido ? Object.values(valSenha).filter((v) => v).length - 1 : 0;
+  {console.log(forcaSenha)};
+  return (
+    <View style={{
+      width: 300,
+      margin: "auto",
+    }}>
+      <View style={{
+        flexDirection: "row",
+        height: 14,
+        backgroundColor: "#dbdbdb",
+        borderRadius: 5
+      }}>
+        <View style={{backgroundColor: forcaSenha > 0 ? cores[1] : "#eaeaea", flex: 1, margin: 4, borderRadius: 3}}></View>
+        <View style={{backgroundColor: forcaSenha > 1 ? cores[2] : "#eaeaea", flex: 1, margin: 4, borderRadius: 3}}></View>
+        <View style={{backgroundColor: forcaSenha > 2 ? cores[3] : "#eaeaea", flex: 1, margin: 4, borderRadius: 3}}></View>
+        <View style={{backgroundColor: forcaSenha > 3 ? cores[4] : "#eaeaea", flex: 1, margin: 4, borderRadius: 3}}></View>
+      </View>
+      <Text style={{fontSize: 10, textAlign: "right", color: cores[forcaSenha], fontWeight: "bold"}}>{mensages.at(forcaSenha)}</Text>
+    </View>
+  );
+} 
+
 const router = useRouter();
 
 function TelaCadastro(): React.JSX.Element {
@@ -132,19 +178,24 @@ function TelaCadastro(): React.JSX.Element {
   } else {
   return (
     <View style={{backgroundColor: "#005F6B", height:"100%", justifyContent: "center"}}>
+      <View style={{width: 300, marginLeft: "auto", marginRight: "auto"}}>
+        <Link href={"/telas/Home"}>
+          <AntDesign name="arrowleft" size={36} color="black" />
+        </Link>
+      </View>
 
       <View style={styles.userPic}>
         <AntDesign name="user" size={100} color="black"/>
       </View>
 
       <View style={{padding: 12}}>
-        <View style={styles.textInput}>
+        <View style={[styles.textInput, {marginBottom: 10}]}>
         <AntDesign name="user" size={36} color="black" />
           <TextInput placeholder="Nome" style={{paddingLeft: 12}} onChangeText={next => {
             setNome(next);
           }}></TextInput>
         </View>
-        <View style={styles.textInput}>
+        <View style={[styles.textInput, {marginBottom: 10}]}>
           <AntDesign name="mail" size={36} color="black" />
           <TextInput placeholder="E-mail" autoComplete="email" style={{padding: 0, paddingLeft: 12}} onChangeText={next => {
             setEmail(next);
@@ -157,6 +208,8 @@ function TelaCadastro(): React.JSX.Element {
             console.log(senha);
           }}></TextInput>
         </View>
+        {BarraForcaSenha(senha)}
+
         <View style={styles.textInput}>
           <AntDesign name="lock" size={36} color="black" />
           <TextInput placeholder="Confirmar Senha" secureTextEntry={true} style={{paddingLeft: 12}} onChangeText={next => {
@@ -164,11 +217,14 @@ function TelaCadastro(): React.JSX.Element {
           }}></TextInput>
         </View>
       </View>
-
-      <Button title="Cadastrar" onPress={() => {
-        cadastrarUsuario(nome, email, senha, confirmarSenha);
-      }} ></Button>
-      <Text>Já possui uma conta? <Link href={"/telas/Login"}>Faça Login!</Link></Text>
+      <Pressable onPress={() => {cadastrarUsuario(nome, email, senha, confirmarSenha);}}>
+        <View style={styles.Botao}>
+          <Text style={{color: "#ffffff", fontWeight: "bold", textAlign: "center"}}>Cadastrar</Text>
+        </View>
+      </Pressable>
+      <Text style={{color: "#ff7f50", fontWeight: "bold", width: 300, textAlign: "center", marginLeft: "auto", marginRight: "auto"}}>
+        Já possui uma conta? <Link href={"/telas/Login"}><Text style={{color: "#007a74"}}>Faça Login!</Text></Link>
+      </Text>
     </View>
   )}
 }
