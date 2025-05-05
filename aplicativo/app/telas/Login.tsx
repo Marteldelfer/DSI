@@ -11,7 +11,8 @@ import {
   TextInput,
   Button,
   Alert,
-	Pressable
+	Pressable,
+	Image,
 } from 'react-native';
 
 import {
@@ -68,6 +69,11 @@ function TelaLogin(): React.JSX.Element {
 
 	return (
 		<View style={{backgroundColor: "#005F6B", height:"100%", justifyContent: "center"}}>
+			<Image 
+				style={{width:300, height: 250, marginLeft: "auto", marginRight: "auto", resizeMode: "contain"}}
+				source={require("../../assets/images/filmeia-logo.png")}
+			></Image>
+			<Text style={{width:300, marginLeft: "auto", marginRight: "auto", fontSize:48, fontWeight: "bold", color: "#ff7f50"}}>Login</Text>
 			<View style={styles.textInput}>
 				<AntDesign name="mail" size={36} color="black" />
 				<TextInput placeholder="E-mail" autoComplete="email" placeholderTextColor={"black"} style={{color: "black"}}
