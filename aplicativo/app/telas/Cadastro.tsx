@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     borderRadius: 55
   },
   Botao: {
-    backgroundColor: "#007a74",
+    backgroundColor: "#3E9C9C",
     padding: 8,
     marginTop: 4,
     marginBottom: 4,
@@ -61,6 +61,14 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     width: 300,
     color: "#eaeaea",
+  },
+  msgVal: {
+    marginLeft: "auto",
+    marginRight: "auto",
+    width: 300,
+    color: "#FFF380",
+    fontSize: 12,
+    fontWeight: "bold"
   }
 });
 
@@ -76,6 +84,13 @@ type usuario = {
   nome: string,
   email: string,
   senha: string
+}
+
+type mensageValidacao = {
+  mensagemNome: string,
+  mensagemEmail: string,
+  mensagemSenha: string,
+  mensagemConfirmacao: string
 }
 
 function validarSenha(senha: string): validacaoSenha {
@@ -162,6 +177,28 @@ function BarraForcaSenha(senha: string): React.JSX.Element {
   );
 } 
 
+function gerarMensagemValidacao(nome: string, email: string, senha: string, confirmarSenha: string): mensageValidacao {
+  const msgVal: mensageValidacao = {
+    mensagemNome: "",
+    mensagemEmail: "",
+    mensagemSenha: "",
+    mensagemConfirmacao: ""
+  }
+  if (nome.length === 0) {
+    msgVal.mensagemNome = "Nome é obrigatório";
+  }
+  if (!validarEmail(email)) {
+    msgVal.mensagemEmail = "Email inválido";
+  }
+  if (!validarSenha(senha).tamanhoValido) {
+    msgVal.mensagemSenha = "Senha muito curta!";
+  }
+  if (senha !== confirmarSenha) {
+    msgVal.mensagemConfirmacao = "Senha diferente da confirmação";
+  }
+  return msgVal;
+}
+
 const router = useRouter();
 
 function TelaCadastro(): React.JSX.Element {
@@ -169,69 +206,71 @@ function TelaCadastro(): React.JSX.Element {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [confirmarSenha, setConfirmarSenha] = useState("")
-  
-  const [fontsLoaded] = useFonts([Nunito_400Regular]);
+  const [confirmarSenha, setConfirmarSenha] = useState("");
 
-  if (!fontsLoaded) {
-    return <></>;
-  } else {
+  const [msgVal, setMsgVal] = useState<mensageValidacao>(
+    {mensagemSenha: "", mensagemEmail: "", mensagemNome: "", mensagemConfirmacao: ""}
+  );
+  
   return (
-    <View style={{backgroundColor: "#005F6B", height:"100%", justifyContent: "center"}}>
-      <View style={{width: 300, marginLeft: "auto", marginRight: "auto"}}>
-        <Link href={"/telas/Home"}>
-          <AntDesign name="arrowleft" size={36} color="black" />
-        </Link>
-      </View>
+    <View style={{backgroundColor: "#2E3D50", height:"100%", justifyContent: "center"}}>
 
       <View style={styles.userPic}>
         <AntDesign name="user" size={100} color="black"/>
       </View>
 
       <View style={{padding: 12}}>
-        <View style={[styles.textInput, {marginBottom: 10}]}>
+        <View style={[styles.textInput, {marginBottom: msgVal.mensagemNome ? 0 : 12}]}>
         <AntDesign name="user" size={36} color="black" />
           <TextInput placeholder="Nome" style={{paddingLeft: 12, color: "black"}} placeholderTextColor={"black"}
             onChangeText={next => {
               setNome(next);
           }}></TextInput>
         </View>
+        <Text style={styles.msgVal}>{msgVal.mensagemNome}</Text>
 
-        <View style={[styles.textInput, {marginBottom: 10}]}>
+        <View style={[styles.textInput, {marginBottom: msgVal.mensagemEmail ? 0 : 16}]}>
           <AntDesign name="mail" size={36} color="black" />
           <TextInput placeholder="E-mail" autoComplete="email" placeholderTextColor={"black"} style={{padding: 0, paddingLeft: 12, color: "black"}} 
             onChangeText={next => {
               setEmail(next);
             }}></TextInput>
         </View>
+        <Text style={styles.msgVal}>{msgVal.mensagemEmail}</Text>
 
         <View style={styles.textInput}>
           <AntDesign name="lock" size={36} color="black" />
-          <TextInput placeholder="Senha" secureTextEntry={true} style={{paddingLeft: 12, color: "black"}} placeholderTextColor={"black"}
+          <TextInput placeholder="Senha" secureTextEntry={true} style={{paddingLeft: 16, color: "black"}} placeholderTextColor={"black"}
             onChangeText={next => {
               setSenha(next);
           }}></TextInput>
         </View>
         {BarraForcaSenha(senha)}
 
-        <View style={styles.textInput}>
+        <View style={[styles.textInput, {marginBottom: msgVal.mensagemConfirmacao ? 0 : 16}]}>
           <AntDesign name="lock" size={36} color="black" />
           <TextInput placeholder="Confirmar Senha" placeholderTextColor={"black"} secureTextEntry={true} style={{paddingLeft: 12, color: "black"}} 
             onChangeText={next => {
               setConfirmarSenha(next);
           }}></TextInput>
         </View>
+        <Text style={styles.msgVal}>{msgVal.mensagemConfirmacao}</Text>
+
       </View>
-      <Pressable onPress={() => {cadastrarUsuario(nome, email, senha, confirmarSenha);}}>
+      <Pressable onPress={() => {
+        setMsgVal(gerarMensagemValidacao(nome, email, senha, confirmarSenha));
+        console.log("OK")
+        cadastrarUsuario(nome, email, senha, confirmarSenha);
+      }}>
         <View style={styles.Botao}>
           <Text style={{color: "#ffffff", fontWeight: "bold", textAlign: "center"}}>Cadastrar</Text>
         </View>
       </Pressable>
-      <Text style={{color: "#ff7f50", fontWeight: "bold", width: 300, textAlign: "center", marginLeft: "auto", marginRight: "auto"}}>
-        Já possui uma conta? <Link href={"/telas/Login"}><Text style={{color: "#007a74"}}>Faça Login!</Text></Link>
+      <Text style={{color: "#eaeaea", fontWeight: "bold", width: 300, textAlign: "center", marginLeft: "auto", marginRight: "auto"}}>
+        Já possui uma conta? <Link href={"/telas/Login"}><Text style={{color: "#FFF380"}}>Faça Login!</Text></Link>
       </Text>
     </View>
-  )}
+  )
 }
 
 export default TelaCadastro;

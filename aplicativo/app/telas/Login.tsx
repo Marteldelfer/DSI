@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#eaeaea',
         flexDirection: 'row',
         marginTop: 4,
-        marginBottom: 4,
+        marginBottom: 16,
         marginLeft: "auto",
         marginRight: "auto",
         borderRadius: 26,
@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
         fontFamily: "Nunito_400Regular"
       },
 			Botao: {
-				backgroundColor: "#007a74",
+				backgroundColor: "#3E9C9C",
 				padding: 8,
 				marginTop: 4,
 				marginBottom: 4,
@@ -68,24 +68,23 @@ function TelaLogin(): React.JSX.Element {
 	const [senha, setSenha] = useState("");
 
 	return (
-		<View style={{backgroundColor: "#005F6B", height:"100%", justifyContent: "center"}}>
+		<View style={{backgroundColor: "#2E3D50", height:"100%", justifyContent: "center"}}>
 			<Image 
 				style={{width:300, height: 250, marginLeft: "auto", marginRight: "auto", resizeMode: "contain"}}
 				source={require("../../assets/images/filmeia-logo.png")}
 			></Image>
-			<Text style={{width:300, marginLeft: "auto", marginRight: "auto", fontSize:48, fontWeight: "bold", color: "#ff7f50"}}>Login</Text>
 			<View style={styles.textInput}>
 				<AntDesign name="mail" size={36} color="black" />
-				<TextInput placeholder="E-mail" autoComplete="email" placeholderTextColor={"black"} style={{color: "black"}}
-					onChangeText={(next) => {
-						setEmail(next);
+				<TextInput placeholder="E-mail" autoComplete="email" placeholderTextColor={"black"} style={{padding: 0, paddingLeft: 12, color: "black"}} 
+				onChangeText={next => {
+					setEmail(next);
 				}}></TextInput>
 			</View>
 			<View style={styles.textInput}>
 				<AntDesign name="lock" size={36} color="black" />
-				<TextInput placeholder="Senha" secureTextEntry={true} placeholderTextColor={"black"} style={{color: "black"}}
-					onChangeText={(next) => {
-						setSenha(next);
+				<TextInput placeholder="Senha" secureTextEntry={true} style={{paddingLeft: 16, color: "black"}} placeholderTextColor={"black"}
+				onChangeText={next => {
+					setSenha(next);
 				}}></TextInput>
 			</View>
 
@@ -95,8 +94,8 @@ function TelaLogin(): React.JSX.Element {
 				</View>
 			</Pressable>
 
-			<Text style={{color: "#ff7f50", fontWeight: "bold", width: 300, textAlign: "center", marginLeft: "auto", marginRight: "auto"}}>
-			Não possui uma conta? <Link href={"/telas/Cadastro"}><Text style={{color: "#007a74"}}>Criar uma conta</Text></Link>
+			<Text style={{color: "#eaeaea", fontWeight: "bold", width: 300, textAlign: "center", marginLeft: "auto", marginRight: "auto"}}>
+			Não possui uma conta? <Link href={"/telas/Cadastro"}><Text style={{color: "#FFF380"}}>Criar uma conta</Text></Link>
 			</Text>
 		</View>
 	);

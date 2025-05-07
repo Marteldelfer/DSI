@@ -12,6 +12,7 @@ import {
   Button,
   Alert,
   Image,
+  Pressable
 } from 'react-native';
 
 import {
@@ -55,22 +56,28 @@ function fetchLinkFilmes(): string[] {
 
 function ComponenteFilme({imageLink}: {imageLink: string}): React.JSX.Element {
 
+  const [clicado, setClicado] = useState(false);
+  const estiloPequeno = {width:100, height: 150, borderRadius: 12};
+  const estiloGrande = {width:130, height: 195, borderRadius: 16}
+
   return (
     <View style={{padding: 4}}>
-      <Image 
-        source={{uri: imageLink}}
-        style={{width:100, height: 150, borderRadius: 12}}
-      />
-      <View style={{flexDirection: "row"}}>
-        <View style={{width: 24, height: 24, borderRadius: 12, backgroundColor: "#eaeaea", margin: "auto", marginTop:4}}>
-          <AntDesign name="check" size={18} color="black" style={{margin: "auto"}}/>
+      <Pressable onPress={() => setClicado(!clicado)}>
+        <Image
+          source={{uri: imageLink}}
+          style={clicado ? estiloGrande : estiloPequeno}
+        />
+      </Pressable>
+      {(clicado) ? <View style={{flexDirection: "row"}}>
+        <View style={{width: 34, height: 34, borderRadius: 17, backgroundColor: "#3E9C9C", margin: "auto", marginTop:4}}>
+          <AntDesign name="like2" size={26} color="black" style={{margin: "auto"}}/>
         </View>
-        <View style={{width: 24, height: 24, borderRadius: 12, backgroundColor: "#eaeaea", margin: "auto", marginTop:4}}>
-          <AntDesign name="close" size={18} color="black" style={{margin: "auto"}}/>
+        <View style={{width: 34, height: 34, borderRadius: 17, backgroundColor: "#3E9C9C", margin: "auto", marginTop:4}}>
+          <AntDesign name="dislike2" size={26} color="#black" style={{margin: "auto"}}/>
         </View>
-        <View style={{width: 24, height: 24, borderRadius: 12, backgroundColor: "#eaeaea", margin: "auto", marginTop:4}}>
-          <AntDesign name="star" size={18} color="black" style={{margin: "auto"}}/></View>  
-      </View>
+        <View style={{width: 34, height: 34, borderRadius: 17, backgroundColor: "#3E9C9C", margin: "auto", marginTop:4}}>
+          <AntDesign name="staro" size={26} color="#black" style={{margin: "auto"}}/></View>  
+      </View> : null}
     </View>
   );
 }
@@ -81,13 +88,13 @@ function Home(): React.JSX.Element {
   const linkFilmes = fetchLinkFilmes();
 
   return (
-    <View style={{backgroundColor: "#005F6B", height:"100%", flexDirection: "column"}}>
+    <View style={{backgroundColor: "#2E3D50", height:"100%", flexDirection: "column"}}>
       <View style={{width: 300, marginLeft: "auto", marginRight: "auto", marginTop: 36, flex: 1}}>
 
         <ScrollView>
           <Image
-            source={require("../../assets/images/filmeia-logo.png")}
-            style={{width: 200, height: 150, resizeMode: "contain", marginLeft: "auto", marginRight: "auto"}}>
+            source={require("../../assets/images/filmeia-logo2.png")}
+            style={{width: 300, height: 150, resizeMode: "contain", marginLeft: "auto", marginRight: "auto"}}>
           </Image>
           <View style={[styles.textInput, {marginBottom: 10}]}>
             <AntDesign name="search1" size={36} color="black" />
@@ -107,8 +114,11 @@ function Home(): React.JSX.Element {
             </ScrollView>
           </View>
           <Text style={{color: "#eaeaea", fontWeight: "bold", fontSize: 18}}>Seu Perfil Cinematográfico</Text>
+          <Image
+            source={require("../../assets/images/stats.png")}
+            style={{width: 300, height: 80, resizeMode: "stretch", marginLeft: "auto", marginRight: "auto"}}>
+          </Image>
         </ScrollView>
-
         <TabBar></TabBar>
       </View>
     </View>

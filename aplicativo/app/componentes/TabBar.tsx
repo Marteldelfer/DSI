@@ -22,32 +22,35 @@ import {
   ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
 
-import { AntDesign, Ionicons } from '@expo/vector-icons';
+import { AntDesign, Entypo } from '@expo/vector-icons';
 
 function TabBar(): React.JSX.Element {
 
   return (
     <View style={{
-			position: "fixed", bottom: 0, flexDirection: "row", justifyContent: "center", padding: 10, paddingBottom: 40, backgroundColor: "#004F5B"
+			position: "fixed", bottom: 0, flexDirection: "row", justifyContent: "center", padding: 10, paddingBottom: 40, backgroundColor: "#1A2B3E"
 		}}>
 			<Link href={"/telas/Home"}>
-				<View style={{flex: 1, width: 100, justifyContent: "center"}}>
-					<AntDesign name="home" size={24} color="#eaeaea" style={{margin: "auto"}}/>
-					<Text style={{fontSize: 12, margin: "auto", color: "#eaeaea", fontWeight: "bold"}}>Recomendações</Text>
+				<View style={{flex: 1, width: 75, justifyContent: "center"}}>
+					<AntDesign name="home" size={28} color="#eaeaea" style={{margin: "auto"}}/>
 				</View>
 			</Link>
 
 			<Link href={"/telas/Home"}>
-				<View style={{flex: 1, width: 100}}>
-					<AntDesign name="videocamera" size={24} color="#eaeaea" style={{margin: "auto"}}/>
-					<Text style={{fontSize: 12, margin: "auto", color: "#eaeaea", fontWeight: "bold"}}>Meus Filmes</Text>
+				<View style={{flex: 1, width: 75}}>
+					<AntDesign name="videocamera" size={28} color="#eaeaea" style={{margin: "auto"}}/>
+				</View>
+			</Link>
+
+			<Link href={"/telas/Home"}>
+				<View style={{flex: 1, width: 75}}>
+					<Entypo name="map" size={28} color="#eaeaea" style={{margin: "auto"}}/>
 				</View>
 			</Link>
 
 			<Link href={"/telas/Login"}>
-				<View style={{flex: 1, width: 100}}>
-					<AntDesign name="user" size={24} color="#eaeaea" style={{margin: "auto"}}/>
-					<Text style={{fontSize: 12, margin: "auto", color: "#eaeaea", fontWeight: "bold"}}>Perfil</Text>
+				<View style={{flex: 1, width: 75}}>
+					<AntDesign name="user" size={28} color="#eaeaea" style={{margin: "auto"}}/>
 				</View>
 			</Link>
     </View>
