@@ -10,7 +10,9 @@ import {
   TextInput,
   Button,
   Alert,
-  Pressable
+  Platform,
+  Pressable,
+  KeyboardAvoidingView
 } from 'react-native';
 
 import {
@@ -138,7 +140,7 @@ function validarCadastro(nome: string, email: string, senha: string, confirmarSe
 function cadastrarUsuario(nome: string, email: string, senha: string, confirmarSenha: string): boolean {
   if (validarCadastro(nome, email, senha, confirmarSenha)) {
     // TODO Salvar no banco de dados
-    router.navigate("/telas/Home");
+    router.replace("/telas/Home");
     return true;
   }
   return false;
@@ -213,23 +215,25 @@ function TelaCadastro(): React.JSX.Element {
   );
   
   return (
-    <View style={{backgroundColor: "#2E3D50", height:"100%", justifyContent: "center"}}>
+    <KeyboardAvoidingView 
+      behavior={'padding'}
+      style={{backgroundColor: "#2E3D50", height:"100%", justifyContent: "center"}}>
 
       <View style={styles.userPic}>
         <AntDesign name="user" size={100} color="black"/>
       </View>
 
       <View style={{padding: 12}}>
-        <View style={[styles.textInput, {marginBottom: msgVal.mensagemNome ? 0 : 12}]}>
+        <View style={[styles.textInput, {marginBottom: msgVal.mensagemNome ? 0 : 4}]}>
         <AntDesign name="user" size={36} color="black" />
-          <TextInput placeholder="Nome" style={{paddingLeft: 12, color: "black"}} placeholderTextColor={"black"}
+          <TextInput placeholder="Nome" style={{paddingLeft: 12, color: "black"}} placeholderTextColor={"#000000"}
             onChangeText={next => {
               setNome(next);
           }}></TextInput>
         </View>
-        <Text style={styles.msgVal}>{msgVal.mensagemNome}</Text>
+        <Text style={[styles.msgVal]}>{msgVal.mensagemNome}</Text>
 
-        <View style={[styles.textInput, {marginBottom: msgVal.mensagemEmail ? 0 : 16}]}>
+        <View style={[styles.textInput, {marginBottom: msgVal.mensagemEmail ? 0 : 4}]}>
           <AntDesign name="mail" size={36} color="black" />
           <TextInput placeholder="E-mail" autoComplete="email" placeholderTextColor={"black"} style={{padding: 0, paddingLeft: 12, color: "black"}} 
             onChangeText={next => {
@@ -247,7 +251,7 @@ function TelaCadastro(): React.JSX.Element {
         </View>
         {BarraForcaSenha(senha)}
 
-        <View style={[styles.textInput, {marginBottom: msgVal.mensagemConfirmacao ? 0 : 16}]}>
+        <View style={[styles.textInput, {marginBottom: msgVal.mensagemConfirmacao ? 0 : 4}]}>
           <AntDesign name="lock" size={36} color="black" />
           <TextInput placeholder="Confirmar Senha" placeholderTextColor={"black"} secureTextEntry={true} style={{paddingLeft: 12, color: "black"}} 
             onChangeText={next => {
@@ -269,7 +273,7 @@ function TelaCadastro(): React.JSX.Element {
       <Text style={{color: "#eaeaea", fontWeight: "bold", width: 300, textAlign: "center", marginLeft: "auto", marginRight: "auto"}}>
         Já possui uma conta? <Link href={"/telas/Login"}><Text style={{color: "#FFF380"}}>Faça Login!</Text></Link>
       </Text>
-    </View>
+    </KeyboardAvoidingView>
   )
 }
 

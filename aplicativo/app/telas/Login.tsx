@@ -13,6 +13,7 @@ import {
   Alert,
 	Pressable,
 	Image,
+	KeyboardAvoidingView
 } from 'react-native';
 
 import {
@@ -56,7 +57,7 @@ const router = useRouter();
 function login(email: string, senha: string): boolean {
     // Validar login na base de dados
     if (email.length > 0 && senha.length > 0) {
-        router.navigate("/telas/Home");
+        router.replace("/telas/Home");
         return true;
     }
     return false;
@@ -68,7 +69,9 @@ function TelaLogin(): React.JSX.Element {
 	const [senha, setSenha] = useState("");
 
 	return (
-		<View style={{backgroundColor: "#2E3D50", height:"100%", justifyContent: "center"}}>
+		<KeyboardAvoidingView 
+			behavior={'padding'}
+			style={{backgroundColor: "#2E3D50", height:"100%", justifyContent: "center"}}>
 			<Image 
 				style={{width:300, height: 250, marginLeft: "auto", marginRight: "auto", resizeMode: "contain"}}
 				source={require("../../assets/images/filmeia-logo.png")}
@@ -97,7 +100,7 @@ function TelaLogin(): React.JSX.Element {
 			<Text style={{color: "#eaeaea", fontWeight: "bold", width: 300, textAlign: "center", marginLeft: "auto", marginRight: "auto"}}>
 			Não possui uma conta? <Link href={"/telas/Cadastro"}><Text style={{color: "#FFF380"}}>Criar uma conta</Text></Link>
 			</Text>
-		</View>
+		</KeyboardAvoidingView>
 	);
 }
 

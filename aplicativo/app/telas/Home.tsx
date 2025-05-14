@@ -119,8 +119,8 @@ function Home(): React.JSX.Element {
             style={{width: 300, height: 80, resizeMode: "stretch", marginLeft: "auto", marginRight: "auto"}}>
           </Image>
         </ScrollView>
-        <TabBar></TabBar>
       </View>
+      <TabBar></TabBar>
     </View>
   );
 }
