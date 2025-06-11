@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.anonymous.aplicativo'
+    namespace 'com.filmeia.app'
     defaultConfig {
-        applicationId 'com.anonymous.aplicativo'
+        applicationId 'com.filmeia.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
