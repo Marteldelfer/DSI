@@ -16,27 +16,22 @@ import TabBar from '../componentes/TabBar';
 function TelaPerfil(): React.JSX.Element {
   const router = useRouter();
 
-  // Dados mockados do usuário por enquanto
   const userName = "Nome do Usuário";
   const userEmail = "example@email.com";
 
   const handleAtualizarFoto = () => {
-    // Lógica para atualizar a foto
     console.log("Atualizar Foto clicado");
   };
 
   const handleAtualizarNome = () => {
-    // Lógica para atualizar o nome
     console.log("Atualizar Nome clicado");
   };
 
   const handleRedefinirSenha = () => {
-    // Lógica para redefinir a senha
     console.log("Redefinir Senha clicado");
   };
 
   const handleExcluirConta = () => {
-    // Lógica para excluir a conta
     console.log("Excluir Conta clicado");
   };
 
