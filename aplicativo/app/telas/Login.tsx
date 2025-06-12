@@ -6,28 +6,47 @@ import {
   TextInput,
 	Pressable,
 	Image,
-	KeyboardAvoidingView
+	KeyboardAvoidingView,
+  Alert
 } from 'react-native';
 
 import { AntDesign } from '@expo/vector-icons';
 
 import { styles } from '../styles';
 
-const router = useRouter();
+import { auth } from '../../config/firebaseConfig';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
-function login(email: string, senha: string): boolean {
-    // Validar login na base de dados
-    if (email.length > 0 && senha.length > 0) {
-        router.replace("/telas/Home");
-        return true;
-    }
-    return false;
-}
+const router = useRouter();
 
 function TelaLogin(): React.JSX.Element {
 
 	const [email, setEmail] = useState("");
 	const [senha, setSenha] = useState("");
+
+  const handleLogin = async () => {
+    if (email.length === 0 || senha.length === 0) {
+      Alert.alert("Erro", "Por favor, preencha todos os campos.");
+      return;
+    }
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, senha);
+      Alert.alert("Sucesso", "Login realizado com sucesso!");
+      router.replace("/telas/Home");
+    } catch (error: any) {
+      let errorMessage = "Ocorreu um erro ao fazer login. Por favor, tente novamente.";
+      if (error.code === 'auth/invalid-email') {
+        errorMessage = "E-mail inválido.";
+      } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        errorMessage = "Credenciais inválidas. Verifique seu e-mail e senha.";
+      } else {
+        errorMessage = `Erro: ${error.message}`;
+      }
+      Alert.alert("Erro", errorMessage);
+      console.error("Erro no login:", error);
+    }
+  };
 
 	return (
 		<KeyboardAvoidingView behavior={'padding'} style={styles.container}>
@@ -56,7 +75,7 @@ function TelaLogin(): React.JSX.Element {
 			</View>
 
 
-			<Pressable onPress={() => {login(email, senha)}}>
+			<Pressable onPress={handleLogin}>
 				<View style={styles.Botao}>
 					<Text style={styles.textoPadrao}>Login</Text>
 				</View>

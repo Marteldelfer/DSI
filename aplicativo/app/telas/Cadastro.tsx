@@ -4,27 +4,19 @@ import {
   View,
   TextInput,
   Pressable,
-  KeyboardAvoidingView
+  KeyboardAvoidingView,
+  Alert
 } from 'react-native';
 
 import { useRouter, Link } from 'expo-router';
-
 import { AntDesign } from '@expo/vector-icons';
 
 import { styles } from '../styles';
-
 import * as Validacao from '../validacao/Validacao';
-
 import { BarraForcaSenha } from '../componentes/BarraForcaSenha';
 
-function cadastrarUsuario(nome: string, email: string, senha: string, confirmarSenha: string): boolean {
-  if (Validacao.validarCadastro(nome, email, senha, confirmarSenha)) {
-    // TODO Salvar no banco de dados
-    router.replace("/telas/Home");
-    return true;
-  }
-  return false;
-}
+import { auth } from '../../config/firebaseConfig';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 const router = useRouter();
 
@@ -34,10 +26,35 @@ function TelaCadastro(): React.JSX.Element {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
-
   const [msgVal, setMsgVal] = useState<Validacao.mensageValidacao>(
     {mensagemSenha: "", mensagemEmail: "", mensagemNome: "", mensagemConfirmacao: ""}
   );
+
+  const handleCadastro = async () => {
+    const validacaoMensagens = Validacao.gerarMensagemValidacao(nome, email, senha, confirmarSenha);
+    setMsgVal(validacaoMensagens);
+
+    if (Object.values(validacaoMensagens).some(msg => msg !== "")) {
+      return;
+    }
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
+      Alert.alert("Sucesso", "Usuário cadastrado com sucesso!");
+      router.replace("/telas/Home");
+    } catch (error: any) {
+      let errorMessage = "Ocorreu um erro ao cadastrar. Por favor, tente novamente.";
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = "Este e-mail já está em uso. Por favor, use outro.";
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = "A senha é muito fraca. Por favor, use uma senha mais forte.";
+      } else {
+        errorMessage = `Erro: ${error.message}`;
+      }
+      Alert.alert("Erro", errorMessage);
+      console.error("Erro no cadastro:", error);
+    }
+  };
   
   return (
     <KeyboardAvoidingView behavior={'padding'} style={styles.container}>
@@ -87,11 +104,7 @@ function TelaCadastro(): React.JSX.Element {
         <Text style={styles.msgVal}>{msgVal.mensagemConfirmacao}</Text>
 
 
-      <Pressable onPress={() => {
-        setMsgVal(Validacao.gerarMensagemValidacao(nome, email, senha, confirmarSenha));
-        console.log("OK")
-        cadastrarUsuario(nome, email, senha, confirmarSenha);
-      }}>
+      <Pressable onPress={handleCadastro}>
         <View style={styles.Botao}>
           <Text style={{color: "#ffffff", fontWeight: "bold", textAlign: "center"}}>Cadastrar</Text>
         </View>
