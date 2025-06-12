@@ -48,7 +48,7 @@ function TabBar(): React.JSX.Element {
 				</View>
 			</Link>
 
-			<Link href={"/telas/Login"}>
+			<Link href={"/telas/Perfil"}>
 				<View style={{flex: 1}}>
 					<AntDesign name="user" size={28} color="#eaeaea" style={{margin: "auto"}}/>
 				</View>
