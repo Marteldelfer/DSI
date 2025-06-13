@@ -1,3 +1,4 @@
+// aplicativo/app/componentes/BarraForcaSenha.tsx
 import {
   Text,
   View
@@ -5,7 +6,7 @@ import {
 
 import { validarSenha } from "../validacao/Validacao"
 
-export function BarraForcaSenha(senha: string): React.JSX.Element {
+export function BarraForcaSenha({ senha }: { senha: string }): React.JSX.Element { // Adicionei desestruturação de props
 
   const cores = ["#eaeaea", "red", "orange", "yellow", "#7CFC00"];
   const mensages = [
@@ -37,4 +38,4 @@ export function BarraForcaSenha(senha: string): React.JSX.Element {
       <Text style={{fontSize: 10, textAlign: "right", color: cores[forcaSenha], fontWeight: "bold"}}>{mensages.at(forcaSenha)}</Text>
     </View>
   );
-} 
+}

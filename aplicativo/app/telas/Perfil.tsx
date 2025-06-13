@@ -10,8 +10,8 @@ import {
 import { useRouter } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
 
-import { styles } from '../styles';
-import TabBar from '../componentes/TabBar';
+import { styles } from '../../src/styles';
+import TabBar from '../../src/componentes/TabBar';
 
 function TelaPerfil(): React.JSX.Element {
   const router = useRouter();

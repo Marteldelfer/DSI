@@ -25,7 +25,7 @@ import {
 
 import { AntDesign } from '@expo/vector-icons';
 
-import TabBar from '../componentes/TabBar';
+import TabBar from '../../src/componentes/TabBar';
 
 const styles = StyleSheet.create({
   textInput: {
