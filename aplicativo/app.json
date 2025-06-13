@@ -39,6 +39,18 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "SEU_PROJECT_ID_DO_EAS"
+      },
+      "firebaseApiKey": "AIzaSyBSJKGvUTTElI9k5slFAMiU-SzR_zNxQTE",
+      "firebaseAuthDomain": "filmeia.firebaseapp.com",
+      "firebaseProjectId": "filmeia",
+      "firebaseStorageBucket": "filmeia.firebasestorage.app",
+      "firebaseMessagingSenderId": "915638218391",
+      "firebaseAppId": "1:915638218391:web:6491d04d221150fae583d2",
+      "firebaseMeasurementId": "G-DKDVLKMXFE"
     }
   }
 }
