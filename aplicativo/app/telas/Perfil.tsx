@@ -1,3 +1,4 @@
+// aplicativo/app/telas/Perfil.tsx
 import React from 'react';
 import {
   Text,
@@ -10,8 +11,8 @@ import {
 import { useRouter } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
 
-import { styles } from '../../src/styles';
-import TabBar from '../../src/componentes/TabBar';
+import { styles } from '../../src/styles'; // Caminho de importação ajustado
+import TabBar from '../../src/componentes/TabBar'; // Caminho de importação ajustado
 
 function TelaPerfil(): React.JSX.Element {
   const router = useRouter();

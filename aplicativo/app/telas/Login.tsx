@@ -8,16 +8,13 @@ import {
   Pressable,
   Image,
   KeyboardAvoidingView,
-  Alert // Importa Alert para exibir mensagens de erro
+  Alert
 } from 'react-native';
 
 import { AntDesign } from '@expo/vector-icons';
 
-import { styles } from '../../src/styles'; // Seus estilos globais
-
-// Importa a instância de autenticação do Firebase
-import { auth } from '../../src/config/firebaseConfig';
-// Importa a função de login com e-mail e senha
+import { styles } from '../../src/styles'; // Caminho de importação ajustado
+import { auth } from '../../src/config/firebaseConfig'; // Caminho de importação ajustado
 import { signInWithEmailAndPassword } from 'firebase/auth';
 
 const router = useRouter();
@@ -33,13 +30,10 @@ function TelaLogin(): React.JSX.Element {
     }
 
     try {
-      // Tenta fazer login com e-mail e senha usando o Firebase
       await signInWithEmailAndPassword(auth, email, password);
-      // Se o login for bem-sucedido:
       Alert.alert('Sucesso', 'Login realizado com sucesso!');
-      router.replace('/telas/Home'); // Redireciona para a tela Home após o login
+      router.replace('/telas/Home');
     } catch (error: any) {
-      // Tratar erros de login do Firebase
       let errorMessage = 'Ocorreu um erro ao fazer login.';
       if (error.code) {
         switch (error.code) {
@@ -77,7 +71,7 @@ function TelaLogin(): React.JSX.Element {
           placeholder="E-mail"
           autoComplete="email"
           placeholderTextColor={'black'}
-          style={styles.input} // Usando o estilo 'input' de styles.tsx
+          style={styles.input}
           onChangeText={setEmail}
           value={email}
         />
@@ -88,7 +82,7 @@ function TelaLogin(): React.JSX.Element {
         <TextInput
           placeholder="Senha"
           secureTextEntry={true}
-          style={styles.input} // Usando o estilo 'input' de styles.tsx
+          style={styles.input}
           placeholderTextColor={'black'}
           onChangeText={setPassword}
           value={password}

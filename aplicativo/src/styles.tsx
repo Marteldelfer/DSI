@@ -1,4 +1,4 @@
-// aplicativo/app/styles.tsx
+// aplicativo/src/styles.tsx
 import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
@@ -23,7 +23,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     marginLeft: "auto",
     marginRight: "auto",
-    borderRadius: 55, // Use um valor numérico para borderRadius em React Native
+    borderRadius: 55,
   },
   Botao: {
     backgroundColor: "#3E9C9C",
@@ -34,7 +34,6 @@ export const styles = StyleSheet.create({
     marginRight: "auto",
     borderRadius: 26,
     width: 300,
-    color: "#eaeaea", // Esta propriedade 'color' aqui no View não faz efeito visualmente
   },
   msgVal: {
     marginLeft: "auto",
@@ -43,7 +42,7 @@ export const styles = StyleSheet.create({
     color: "#FFF380",
     fontSize: 12,
     fontWeight: "bold",
-    marginBottom: 4, // Adicionei um margin-bottom para espaçamento consistente
+    marginBottom: 4,
   },
   container: {
     backgroundColor: "#2E3D50",
@@ -56,7 +55,6 @@ export const styles = StyleSheet.create({
     marginLeft: "auto",
     marginRight: "auto",
   },
-  // Estilos adicionais para consistência e clareza se forem usados diretamente
   title: {
     color: "#eaeaea",
     fontSize: 28,
@@ -64,12 +62,12 @@ export const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 20,
   },
-  input: { // Geralmente usado para o estilo do TextInput, caso não use textInput do styles.tsx
+  input: {
     paddingLeft: 12,
     color: "black",
-    flex: 1, // Para preencher o espaço dentro do View de input
+    flex: 1,
   },
-  linkText: { // Estilo para o texto do link
+  linkText: {
     color: "#FFF380",
     fontWeight: "bold",
   }

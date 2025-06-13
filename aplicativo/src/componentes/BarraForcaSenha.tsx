@@ -1,12 +1,12 @@
-// aplicativo/app/componentes/BarraForcaSenha.tsx
+// aplicativo/src/componentes/BarraForcaSenha.tsx
 import {
   Text,
   View
 } from 'react-native';
 
-import { validarSenha } from "../validacao/Validacao"
+import { validarSenha } from "../validacao/Validacao" // Caminho de importação ajustado
 
-export function BarraForcaSenha({ senha }: { senha: string }): React.JSX.Element { // Adicionei desestruturação de props
+export function BarraForcaSenha({ senha }: { senha: string }): React.JSX.Element {
 
   const cores = ["#eaeaea", "red", "orange", "yellow", "#7CFC00"];
   const mensages = [

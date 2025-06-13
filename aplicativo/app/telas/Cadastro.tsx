@@ -6,20 +6,17 @@ import {
   TextInput,
   Pressable,
   KeyboardAvoidingView,
-  Alert // Importa Alert para exibir mensagens de erro
+  Alert
 } from 'react-native';
 
 import { useRouter, Link } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
 
-import { styles } from '../../src/styles'; // Seus estilos globais
+import { styles } from '../../src/styles'; // Caminho de importação ajustado
+import * as Validacao from '../../src/validacao/Validacao'; // Caminho de importação ajustado
+import { BarraForcaSenha } from '../../src/componentes/BarraForcaSenha'; // Caminho de importação ajustado
 
-import * as Validacao from '../../src/validacao/Validacao'; // Suas funções de validação
-import { BarraForcaSenha } from '../../src/componentes/BarraForcaSenha'; // Seu componente BarraForcaSenha
-
-// Importa a instância de autenticação do Firebase
-import { auth } from '../../src/config/firebaseConfig';
-// Importa a função de criação de usuário com e-mail e senha
+import { auth } from '../../src/config/firebaseConfig'; // Caminho de importação ajustado
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 const router = useRouter();
@@ -38,7 +35,6 @@ function TelaCadastro(): React.JSX.Element {
   });
 
   const handleCadastro = async () => {
-    // Validação usando suas funções existentes
     const validationMessages = Validacao.gerarMensagemValidacao(
       nome,
       email,
@@ -47,7 +43,6 @@ function TelaCadastro(): React.JSX.Element {
     );
     setMsgVal(validationMessages);
 
-    // Verifica se há alguma mensagem de erro de validação local
     const hasLocalValidationErrors = Object.values(validationMessages).some(
       (msg) => msg !== ''
     );
@@ -58,13 +53,10 @@ function TelaCadastro(): React.JSX.Element {
     }
 
     try {
-      // Tenta criar um novo usuário com e-mail e senha usando o Firebase Authentication
       await createUserWithEmailAndPassword(auth, email, password);
-      // Se o cadastro for bem-sucedido, exibe um alerta e redireciona para a tela Home
       Alert.alert('Sucesso', 'Conta criada com sucesso!');
-      router.replace('/telas/Home'); // Redireciona para a tela Home após o cadastro
+      router.replace('/telas/Home');
     } catch (error: any) {
-      // Captura e trata os erros específicos do Firebase Authentication
       let errorMessage = 'Ocorreu um erro ao criar a conta.';
       if (error.code) {
         switch (error.code) {
@@ -78,11 +70,11 @@ function TelaCadastro(): React.JSX.Element {
             errorMessage = 'E-mail inválido.';
             break;
           default:
-            errorMessage = `Erro: ${error.message}`; // Mensagem de erro genérica para outros casos
+            errorMessage = `Erro: ${error.message}`;
         }
       }
       Alert.alert('Erro no Cadastro', errorMessage);
-      console.error('Erro de cadastro:', error); // Loga o erro completo para depuração
+      console.error('Erro de cadastro:', error);
     }
   };
 
@@ -128,7 +120,6 @@ function TelaCadastro(): React.JSX.Element {
           value={password}
         />
       </View>
-      {/* Correção: Chamar BarraForcaSenha como um componente JSX */}
       <BarraForcaSenha senha={password} />
 
       <View style={[styles.textInput, { marginBottom: msgVal.mensagemConfirmacao ? 0 : 4 }]}>

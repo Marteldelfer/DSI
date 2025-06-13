@@ -1,26 +1,10 @@
+// aplicativo/src/componentes/TabBar.tsx
 import { useRouter, Link } from 'expo-router';
-import React, { use, useState } from 'react';
-import type {PropsWithChildren} from 'react';
+import React from 'react';
 import {
-  ScrollView,
-  StatusBar,
-  StyleSheet,
   Text,
-  useColorScheme,
   View,
-  TextInput,
-  Button,
-  Alert,
-  Image,
 } from 'react-native';
-
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
 
 import { AntDesign, Entypo } from '@expo/vector-icons';
 
@@ -28,7 +12,15 @@ function TabBar(): React.JSX.Element {
 
   return (
     <View style={{
-			position: "fixed", bottom: 0, flexDirection: "row", justifyContent: "space-evenly", padding: 10, paddingBottom: 40, backgroundColor: "#1A2B3E", width: "100%"
+            // CORREÇÃO: Mudar 'fixed' para 'absolute'
+			position: "absolute", // Alterado de "fixed" para "absolute"
+            bottom: 0,
+            flexDirection: "row",
+            justifyContent: "space-evenly",
+            padding: 10,
+            paddingBottom: 40,
+            backgroundColor: "#1A2B3E",
+            width: "100%"
 		}}>
 			<Link href={"/telas/Home"}>
 				<View style={{flex: 1}}>
