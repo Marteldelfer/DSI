@@ -17,7 +17,7 @@ import * as Validacao from '../../src/validacao/Validacao'; // Caminho de import
 import { BarraForcaSenha } from '../../src/componentes/BarraForcaSenha'; // Caminho de importação ajustado
 
 import { auth } from '../../src/config/firebaseConfig'; // Caminho de importação ajustado
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'; // Adicionei updateProfile aqui!
 
 const router = useRouter();
 
@@ -53,7 +53,14 @@ function TelaCadastro(): React.JSX.Element {
     }
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      // Cria o usuário com e-mail e senha
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+
+      // AQUI É A MUDANÇA: Atualiza o perfil do usuário com o nome de exibição (displayName)
+      if (userCredential.user) {
+        await updateProfile(userCredential.user, { displayName: nome });
+      }
+
       Alert.alert('Sucesso', 'Conta criada com sucesso!');
       router.replace('/telas/Home');
     } catch (error: any) {
