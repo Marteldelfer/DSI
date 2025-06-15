@@ -1,10 +1,10 @@
-// SUBSTITUA O CONTEÚDO DE: aplicativo/app/(tabs)/Perfil.tsx
+// GARANTA QUE ESTE É O CONTEÚDO DE: aplicativo/app/(tabs)/Perfil.tsx
 import React, { useState, useEffect } from 'react';
 import { Text, View, Pressable, Image, Alert, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { styles } from '../../src/styles';
+import { styles } from '../styles';
 import { auth } from '../../src/config/firebaseConfig';
 
 function TelaPerfil() {
@@ -42,13 +42,13 @@ function TelaPerfil() {
         <Text style={perfilStyles.userEmail}>{emailUsuario}</Text>
 
         <View style={perfilStyles.buttonContainer}>
-          <Pressable style={styles.button} onPress={handleAtualizarFoto}><Text style={styles.buttonText}>Atualizar Foto</Text></Pressable>
-          <Pressable style={styles.button} onPress={handleAtualizarNome}><Text style={styles.buttonText}>Atualizar Nome</Text></Pressable>
-          <Pressable style={styles.button} onPress={handleRedefinirSenha}><Text style={styles.buttonText}>Redefinir Senha</Text></Pressable>
+          <Pressable style={styles.Botao} onPress={handleAtualizarFoto}><Text style={styles.textoBotao}>Atualizar Foto</Text></Pressable>
+          <Pressable style={styles.Botao} onPress={handleAtualizarNome}><Text style={styles.textoBotao}>Atualizar Nome</Text></Pressable>
+          <Pressable style={styles.Botao} onPress={handleRedefinirSenha}><Text style={styles.textoBotao}>Redefinir Senha</Text></Pressable>
         </View>
 
-        <Pressable style={[styles.button, perfilStyles.deleteButton]} onPress={handleExcluirConta}>
-          <Text style={styles.buttonText}>Excluir a conta</Text>
+        <Pressable style={[styles.Botao, perfilStyles.deleteButton]} onPress={handleExcluirConta}>
+          <Text style={styles.textoBotao}>Excluir a conta</Text>
         </Pressable>
       </View>
     </View>
