@@ -4,7 +4,7 @@ import {
   View
 } from 'react-native';
 
-import { validarSenha } from "../validacao/Validacao" // Caminho de importação ajustado
+import { validarSenha } from "../../src/validacao/Validacao" 
 
 export function BarraForcaSenha({ senha }: { senha: string }): React.JSX.Element {
 
@@ -17,7 +17,17 @@ export function BarraForcaSenha({ senha }: { senha: string }): React.JSX.Element
     "Senha Forte"
   ];
   const valSenha = validarSenha(senha);
-  const forcaSenha = valSenha.tamanhoValido ? Object.values(valSenha).filter((v) => v).length - 1 : 0;
+
+  const forcaSenha = valSenha.tamanhoValido 
+                     ? (valSenha.temMaiuscula ? 1 : 0) + 
+                       (valSenha.temMinuscula ? 1 : 0) + 
+                       (valSenha.temDigito ? 1 : 0) + 
+                       (valSenha.temCaractereEspecial ? 1 : 0) 
+                     : 0;
+
+  const indiceMensagem = Math.min(forcaSenha, mensages.length - 1);
+
+
   return (
     <View style={{
       width: 300,
@@ -30,12 +40,14 @@ export function BarraForcaSenha({ senha }: { senha: string }): React.JSX.Element
         backgroundColor: "#dbdbdb",
         borderRadius: 5
       }}>
-        <View style={{backgroundColor: forcaSenha > 0 ? cores[1] : "#eaeaea", flex: 1, margin: 4, borderRadius: 3}}></View>
-        <View style={{backgroundColor: forcaSenha > 1 ? cores[2] : "#eaeaea", flex: 1, margin: 4, borderRadius: 3}}></View>
-        <View style={{backgroundColor: forcaSenha > 2 ? cores[3] : "#eaeaea", flex: 1, margin: 4, borderRadius: 3}}></View>
-        <View style={{backgroundColor: forcaSenha > 3 ? cores[4] : "#eaeaea", flex: 1, margin: 4, borderRadius: 3}}></View>
+        <View style={{backgroundColor: forcaSenha >= 1 ? cores[1] : "#eaeaea", flex: 1, margin: 4, borderRadius: 3}}></View>
+        <View style={{backgroundColor: forcaSenha >= 2 ? cores[2] : "#eaeaea", flex: 1, margin: 4, borderRadius: 3}}></View>
+        <View style={{backgroundColor: forcaSenha >= 3 ? cores[3] : "#eaeaea", flex: 1, margin: 4, borderRadius: 3}}></View>
+        <View style={{backgroundColor: forcaSenha >= 4 ? cores[4] : "#eaeaea", flex: 1, margin: 4, borderRadius: 3}}></View>
       </View>
-      <Text style={{fontSize: 10, textAlign: "right", color: cores[forcaSenha], fontWeight: "bold"}}>{mensages.at(forcaSenha)}</Text>
+      <Text style={{fontSize: 10, textAlign: "right", color: cores[indiceMensagem], fontWeight: "bold"}}>
+        {mensages[indiceMensagem]}
+      </Text>
     </View>
   );
 }

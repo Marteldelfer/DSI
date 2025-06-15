@@ -1,161 +1,124 @@
 // aplicativo/app/telas/Cadastro.tsx
+import { Link, router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
-  Text,
-  View,
-  TextInput,
+  Alert,
+  Image,
   Pressable,
-  KeyboardAvoidingView,
-  Alert
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+  ActivityIndicator
 } from 'react-native';
 
-import { useRouter, Link } from 'expo-router';
-import { AntDesign } from '@expo/vector-icons';
+import { AntDesign, Feather } from '@expo/vector-icons';
+// MUDANÇA AQUI: Corrigido '=' para 'from'
+import { createUserWithEmailAndPassword } from 'firebase/auth'; 
+import { auth } from '../../src/config/firebaseConfig';
+import { styles } from '../../src/styles';
+import { BarraForcaSenha } from '../../src/componentes/BarraForcaSenha';
+import { validarSenha } from '../../src/validacao/Validacao';
 
-import { styles } from '../../src/styles'; // Caminho de importação ajustado
-import * as Validacao from '../../src/validacao/Validacao'; // Caminho de importação ajustado
-import { BarraForcaSenha } from '../../src/componentes/BarraForcaSenha'; // Caminho de importação ajustado
-
-import { auth } from '../../src/config/firebaseConfig'; // Caminho de importação ajustado
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'; // Adicionei updateProfile aqui!
-
-const router = useRouter();
-
-function TelaCadastro(): React.JSX.Element {
-  const [nome, setNome] = useState<string>('');
-  const [email, setEmail] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
-  const [confirmPassword, setConfirmarSenha] = useState<string>('');
-
-  const [msgVal, setMsgVal] = useState<Validacao.mensageValidacao>({
-    mensagemSenha: '',
-    mensagemEmail: '',
-    mensagemNome: '',
-    mensagemConfirmacao: '',
-  });
+function Cadastro(): React.JSX.Element {
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [visivel, setVisivel] = useState(false);
+  const [visivelConfirmar, setVisivelConfirmar] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleCadastro = async () => {
-    const validationMessages = Validacao.gerarMensagemValidacao(
-      nome,
-      email,
-      password,
-      confirmPassword
-    );
-    setMsgVal(validationMessages);
-
-    const hasLocalValidationErrors = Object.values(validationMessages).some(
-      (msg) => msg !== ''
-    );
-
-    if (hasLocalValidationErrors) {
-      Alert.alert('Erro de Validação', 'Por favor, corrija os campos inválidos.');
+    if (!validarSenha(senha).valido) {
+      Alert.alert("Erro de Senha", "A senha não atende aos requisitos de segurança.");
       return;
     }
 
+    if (senha !== confirmarSenha) {
+      Alert.alert("Erro", "As senhas não coincidem!");
+      return;
+    }
+
+    setLoading(true);
     try {
-      // Cria o usuário com e-mail e senha
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-
-      // AQUI É A MUDANÇA: Atualiza o perfil do usuário com o nome de exibição (displayName)
-      if (userCredential.user) {
-        await updateProfile(userCredential.user, { displayName: nome });
-      }
-
-      Alert.alert('Sucesso', 'Conta criada com sucesso!');
-      router.replace('/telas/Home');
+      await createUserWithEmailAndPassword(auth, email, senha);
+      console.log("Usuário cadastrado com sucesso!");
+      Alert.alert("Sucesso", "Usuário cadastrado com sucesso! Faça login.");
+      router.replace('/telas/Login');
     } catch (error: any) {
-      let errorMessage = 'Ocorreu um erro ao criar a conta.';
-      if (error.code) {
-        switch (error.code) {
-          case 'auth/email-already-in-use':
-            errorMessage = 'Este e-mail já está em uso.';
-            break;
-          case 'auth/weak-password':
-            errorMessage = 'A senha é muito fraca. Use pelo menos 6 caracteres.';
-            break;
-          case 'auth/invalid-email':
-            errorMessage = 'E-mail inválido.';
-            break;
-          default:
-            errorMessage = `Erro: ${error.message}`;
-        }
-      }
-      Alert.alert('Erro no Cadastro', errorMessage);
-      console.error('Erro de cadastro:', error);
+      console.error("Erro no cadastro:", error.message);
+      Alert.alert("Erro no Cadastro", "Houve um problema ao cadastrar. Tente novamente.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView behavior={'padding'} style={styles.container}>
-      <View style={styles.userPic}>
-        <AntDesign name="user" size={100} color="black" />
-      </View>
-
-      <View style={[styles.textInput, { marginBottom: msgVal.mensagemNome ? 0 : 4 }]}>
-        <AntDesign name="user" size={36} color="black" />
-        <TextInput
-          placeholder="Nome"
-          style={styles.input}
-          placeholderTextColor={'#000000'}
-          onChangeText={setNome}
-          value={nome}
-        />
-      </View>
-      <Text style={[styles.msgVal]}>{msgVal.mensagemNome}</Text>
-
-      <View style={[styles.textInput, { marginBottom: msgVal.mensagemEmail ? 0 : 4 }]}>
-        <AntDesign name="mail" size={36} color="black" />
-        <TextInput
-          placeholder="E-mail"
-          autoComplete="email"
-          placeholderTextColor={'black'}
-          style={styles.input}
-          onChangeText={setEmail}
-          value={email}
-        />
-      </View>
-      <Text style={styles.msgVal}>{msgVal.mensagemEmail}</Text>
-
-      <View style={styles.textInput}>
-        <AntDesign name="lock" size={36} color="black" />
-        <TextInput
-          placeholder="Senha"
-          secureTextEntry={true}
-          style={styles.input}
-          placeholderTextColor={'black'}
-          onChangeText={setPassword}
-          value={password}
-        />
-      </View>
-      <BarraForcaSenha senha={password} />
-
-      <View style={[styles.textInput, { marginBottom: msgVal.mensagemConfirmacao ? 0 : 4 }]}>
-        <AntDesign name="lock" size={36} color="black" />
-        <TextInput
-          placeholder="Confirmar Senha"
-          placeholderTextColor={'black'}
-          secureTextEntry={true}
-          style={styles.input}
-          onChangeText={setConfirmarSenha}
-          value={confirmPassword}
-        />
-      </View>
-      <Text style={styles.msgVal}>{msgVal.mensagemConfirmacao}</Text>
-
-      <Pressable onPress={handleCadastro}>
-        <View style={styles.Botao}>
-          <Text style={{ color: '#ffffff', fontWeight: 'bold', textAlign: 'center' }}>Cadastrar</Text>
+    <View style={{ backgroundColor: "#2E3D50", height: "100%", flexDirection: "column" }}>
+      <ScrollView>
+        <Image
+          source={require("../../assets/images/filmeia-logo2.png")}
+          style={{ width: 300, height: 150, resizeMode: "contain", marginLeft: "auto", marginRight: "auto", marginTop: 100 }}
+        ></Image>
+        <View style={{ width: 300, marginLeft: "auto", marginRight: "auto", marginTop: 10 }}>
+          <Text style={{ color: "#eaeaea", fontSize: 26, fontWeight: "bold", marginBottom: 30, textAlign: "center" }}>
+            Cadastro
+          </Text>
+          <View style={styles.textInput}>
+            <AntDesign name="mail" size={24} color="black" />
+            <TextInput
+              placeholder="Email"
+              style={styles.input}
+              placeholderTextColor={"black"}
+              onChangeText={setEmail}
+              value={email}
+            ></TextInput>
+          </View>
+          <View style={[styles.textInput, { flexDirection: "row", alignItems: "center" }]}>
+            <Feather name="lock" size={24} color="black" />
+            <TextInput
+              placeholder="Senha"
+              style={[styles.input, { flex: 1 }]}
+              placeholderTextColor={"black"}
+              onChangeText={setSenha}
+              value={senha}
+              secureTextEntry={!visivel}
+            ></TextInput>
+            <Pressable onPress={() => setVisivel(!visivel)} style={{ marginLeft: 10 }}>
+              <Feather name={visivel ? "eye" : "eye-off"} size={24} color="black" />
+            </Pressable>
+          </View>
+          <BarraForcaSenha senha={senha} />
+          <View style={[styles.textInput, { flexDirection: "row", alignItems: "center" }]}>
+            <Feather name="lock" size={24} color="black" />
+            <TextInput
+              placeholder="Confirmar Senha"
+              style={[styles.input, { flex: 1 }]}
+              placeholderTextColor={"black"}
+              onChangeText={setConfirmarSenha}
+              value={confirmarSenha}
+              secureTextEntry={!visivelConfirmar}
+            ></TextInput>
+            <Pressable onPress={() => setVisivelConfirmar(!visivelConfirmar)} style={{ marginLeft: 10 }}>
+              <Feather name={visivelConfirmar ? "eye" : "eye-off"} size={24} color="black" />
+            </Pressable>
+          </View>
+          <Pressable style={styles.button} onPress={handleCadastro} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color="#eaeaea" />
+            ) : (
+              <Text style={styles.buttonText}>Cadastrar</Text>
+            )}
+          </Pressable>
+          <Link href={"/telas/Login"} style={{ width: 150, marginLeft: "auto", marginRight: "auto" }}>
+            <Text style={styles.link}>Já tem conta?</Text>
+          </Link>
         </View>
-      </Pressable>
-
-      <Text style={styles.textoPadrao}>
-        Já possui uma conta?{' '}
-        <Link href={'/telas/Login'}>
-          <Text style={styles.linkText}>Faça Login</Text>
-        </Link>
-      </Text>
-    </KeyboardAvoidingView>
+      </ScrollView>
+      <StatusBar style="auto" />
+    </View>
   );
 }
 
-export default TelaCadastro;
+export default Cadastro;
