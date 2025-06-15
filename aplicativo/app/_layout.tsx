@@ -47,7 +47,10 @@ export default function RootLayout() {
       <Stack.Screen name="telas/Cadastro" options={{ headerShown: false }} />
       <Stack.Screen name="telas/CriarPlaylist" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="telas/DetalhesPlaylist" options={{ headerShown: false }} />
-      <Stack.Screen name="telas/ListaPlaylists" options={{ headerShown: false }} />
+      {/* Nova tela para adicionar filme externo */}
+      <Stack.Screen name="telas/AdicionarFilmeExterno" options={{ headerShown: false, presentation: 'modal' }} />
+      {/* Nova tela para detalhes de filme externo/avaliado */}
+      <Stack.Screen name="telas/DetalhesFilmeExterno" options={{ headerShown: false, presentation: 'modal' }} />
     </Stack>
   );
 }

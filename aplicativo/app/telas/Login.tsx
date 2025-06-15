@@ -20,7 +20,6 @@ import { AntDesign, Feather } from '@expo/vector-icons';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { styles } from '../../src/styles';
 import { auth } from '../../src/config/firebaseConfig';
-import { BarraForcaSenha } from '../../src/componentes/BarraForcaSenha';
 
 // --- SOLUÇÃO DEFINITIVA USANDO ALIAS DE CAMINHO ---
 import logoFilmeia from '@/assets/images/filmeia-logo2.png';
@@ -80,8 +79,6 @@ function Login(): React.JSX.Element {
             <Feather name={visivel ? "eye" : "eye-off"} size={24} color="black" />
           </Pressable>
         </View>
-
-        <BarraForcaSenha senha={senha} />
 
         <Pressable style={[styles.button, { marginTop: 20 }]} onPress={handleLogin} disabled={loading}>
           {loading ? <ActivityIndicator color="#eaeaea" /> : <Text style={styles.buttonText}>Entrar</Text>}
