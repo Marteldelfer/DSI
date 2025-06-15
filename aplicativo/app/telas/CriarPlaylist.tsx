@@ -1,25 +1,15 @@
-// aplicativo/app/telas/CriarPlaylist.tsx
+// cole em: aplicativo/app/telas/CriarPlaylist.tsx
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, Image, TextInput, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, Image, TextInput, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
-import TabBar from '../../src/componentes/TabBar';
-import { styles } from '../../src/styles';
-import { addPlaylist, mockMovies } from './MeusFilmes';
+import { styles } from '../styles';
+import { addPlaylist, mockMovies, Movie } from '../../utils/mockData';
 
-// Interface para um filme
-interface Movie {
-  id: string;
-  title: string;
-  posterUrl: string | null;
-}
-
-function CriarPlaylist(): React.JSX.Element {
+function CriarPlaylist() {
   const router = useRouter();
   const [playlistName, setPlaylistName] = useState('');
   const [selectedMovieIds, setSelectedMovieIds] = useState<string[]>([]);
-  const [availableMovies, setAvailableMovies] = useState<Movie[]>(mockMovies);
-  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleSelectMovie = (movieId: string) => {
@@ -29,199 +19,84 @@ function CriarPlaylist(): React.JSX.Element {
   };
 
   const handleCreatePlaylist = () => {
-    if (playlistName.trim() === '') {
+    if (!playlistName.trim()) {
       Alert.alert('Erro', 'O nome da playlist não pode ser vazio.');
       return;
     }
-    if (selectedMovieIds.length === 0) {
-      Alert.alert('Erro', 'Selecione pelo menos um filme para a playlist.');
-      return;
-    }
-
-    const newPlaylistId = `p${Math.random().toString(36).substring(2, 9)}`;
-    const newPlaylistCover: string | null = availableMovies.find(m => m.id === selectedMovieIds[0])?.posterUrl || null;
-
-    addPlaylist({
-      id: newPlaylistId,
+    const newPlaylist = {
+      id: `p${Date.now()}`,
       name: playlistName.trim(),
       movieIds: selectedMovieIds,
-      coverImageUrl: newPlaylistCover,
-    });
-
-    Alert.alert('Sucesso', `Playlist "${playlistName}" criada com sucesso!`);
+      coverImageUrl: selectedMovieIds.length > 0 ? mockMovies.find(m => m.id === selectedMovieIds[0])?.posterUrl : null,
+    };
+    addPlaylist(newPlaylist);
+    Alert.alert('Sucesso', `Playlist "${playlistName}" criada!`);
     router.back();
   };
 
-  const filteredMovies = availableMovies.filter(movie =>
+  const filteredMovies = mockMovies.filter(movie =>
     movie.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={criarPlaylistStyles.header}>
+      <View style={criarStyles.header}>
         <Pressable onPress={() => router.back()} style={{ marginRight: 20 }}>
           <AntDesign name="arrowleft" size={24} color="#eaeaea" />
         </Pressable>
-        <Text style={criarPlaylistStyles.headerTitle}>Criar Nova Playlist</Text>
+        <Text style={criarStyles.headerTitle}>Criar Nova Playlist</Text>
       </View>
 
-      <ScrollView contentContainerStyle={criarPlaylistStyles.scrollViewContent} style={criarPlaylistStyles.scrollView}>
-        {/* Input para o nome da playlist */}
-        <View style={[styles.textInput, { marginBottom: 15, height: 50 }]}>
-            <TextInput
-                placeholder="Nome da Playlist"
-                placeholderTextColor={"black"}
-                style={styles.input}
-                onChangeText={setPlaylistName}
-                value={playlistName}
-            />
+      <ScrollView contentContainerStyle={criarStyles.scrollViewContent} style={criarStyles.scrollView}>
+        <TextInput
+            placeholder="Nome da Playlist"
+            placeholderTextColor={"#888"}
+            style={criarStyles.playlistInput}
+            onChangeText={setPlaylistName}
+            value={playlistName}
+        />
+        <TextInput
+            placeholder="Pesquisar filmes para adicionar"
+            placeholderTextColor={"#888"}
+            style={criarStyles.searchInput}
+            onChangeText={setSearchQuery}
+            value={searchQuery}
+        />
+        <View style={criarStyles.moviesGrid}>
+          {filteredMovies.map(movie => (
+            <Pressable key={movie.id} style={criarStyles.movieCard} onPress={() => handleSelectMovie(movie.id)}>
+                <Image source={movie.posterUrl ? { uri: movie.posterUrl } : require("../../assets/images/filmeia-logo2.png")} style={criarStyles.movieImage} />
+                <Text style={criarStyles.movieTitle} numberOfLines={2}>{movie.title}</Text>
+                {selectedMovieIds.includes(movie.id) && (
+                    <View style={criarStyles.checkbox}><AntDesign name="checkcircle" size={24} color="#3E9C9C" /></View>
+                )}
+            </Pressable>
+          ))}
         </View>
-
-        {/* Campo de pesquisa de filmes */}
-        <View style={[styles.textInput, { marginBottom: 15, height: 40, padding: 0, paddingLeft: 8 }]}>
-            <AntDesign name="search1" size={20} color="black" style={{marginRight: 5}}/>
-            <TextInput
-                placeholder="Pesquisar filmes"
-                placeholderTextColor={"black"}
-                style={styles.input}
-                onChangeText={setSearchQuery}
-                value={searchQuery}
-            />
-        </View>
-
-        <Text style={criarPlaylistStyles.sectionTitle}>Selecionar Filmes:</Text>
-
-        {loading ? (
-          <ActivityIndicator size="large" color="#3E9C9C" style={{ marginTop: 20 }} />
-        ) : (
-          <View style={criarPlaylistStyles.moviesGrid}>
-            {filteredMovies.length > 0 ? (
-                filteredMovies.map(movie => (
-                <Pressable
-                    key={movie.id}
-                    style={criarPlaylistStyles.movieCard}
-                    onPress={() => handleSelectMovie(movie.id)}
-                >
-                    <Image 
-                        source={movie.posterUrl ? { uri: movie.posterUrl } : require("../../assets/images/filmeia-logo2.png")} 
-                        style={criarPlaylistStyles.movieImage} 
-                    />
-                    <Text style={criarPlaylistStyles.movieTitle}>{movie.title}</Text>
-                    <View style={criarPlaylistStyles.checkbox}>
-                    {selectedMovieIds.includes(movie.id) ? (
-                        <AntDesign name="checkcircle" size={24} color="#3E9C9C" />
-                    ) : (
-                        <AntDesign name="checkcircleo" size={24} color="#eaeaea" />
-                    )}
-                    </View>
-                </Pressable>
-                ))
-            ) : (
-                <Text style={criarPlaylistStyles.noMoviesText}>Nenhum filme encontrado para seleção.</Text>
-            )}
-          </View>
-        )}
       </ScrollView>
 
-      {/* Botão Inserir */}
-      <Pressable style={criarPlaylistStyles.insertButton} onPress={handleCreatePlaylist}>
-        <Text style={styles.textoBotao}>Inserir</Text>
+      <Pressable style={criarStyles.createButton} onPress={handleCreatePlaylist}>
+        <Text style={styles.textoBotao}>Criar Playlist</Text>
       </Pressable>
 
-      <TabBar />
+      {/* A TabBar FOI REMOVIDA DAQUI */}
     </View>
   );
 }
 
 export default CriarPlaylist;
 
-const criarPlaylistStyles = StyleSheet.create({
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingTop: 40,
-        paddingBottom: 20,
-        backgroundColor: "#2E3D50",
-    },
-    headerTitle: {
-        color: "#eaeaea",
-        fontSize: 20,
-        fontWeight: "bold",
-        flex: 1,
-    },
-    scrollView: {
-        flex: 1,
-        backgroundColor: "#2E3D50",
-    },
-    scrollViewContent: {
-        padding: 10,
-        paddingBottom: 70,
-    },
-    sectionTitle: {
-        color: '#eaeaea',
-        fontWeight: 'bold',
-        fontSize: 16,
-        marginBottom: 10,
-    },
-    moviesGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-around',
-    },
-    movieCard: {
-        width: '30%',
-        margin: 5,
-        backgroundColor: '#1A2B3E',
-        borderRadius: 8,
-        alignItems: 'center',
-        padding: 5,
-        position: 'relative',
-    },
-    movieImage: {
-        width: '100%',
-        height: 120,
-        borderRadius: 5,
-        marginBottom: 5,
-        resizeMode: 'cover',
-    },
-    movieTitle: {
-        color: '#eaeaea',
-        fontSize: 10,
-        textAlign: 'center',
-        height: 30,
-    },
-    checkbox: {
-        position: 'absolute',
-        top: 5,
-        right: 5,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        borderRadius: 12,
-        padding: 2,
-    },
-    noMoviesText: {
-        color: '#eaeaea',
-        fontSize: 16,
-        textAlign: 'center',
-        marginTop: 20,
-        width: '100%',
-    },
-    insertButton: {
-        position: 'absolute',
-        bottom: 80,
-        width: '90%',
-        alignSelf: 'center',
-        backgroundColor: '#3E9C9C',
-        padding: 15,
-        borderRadius: 30,
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        zIndex: 10,
-    },
+const criarStyles = StyleSheet.create({
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 40, paddingBottom: 20, backgroundColor: "#2E3D50" },
+  headerTitle: { color: "#eaeaea", fontSize: 20, fontWeight: "bold", flex: 1 },
+  scrollView: { flex: 1, backgroundColor: "#2E3D50" },
+  scrollViewContent: { padding: 20, paddingBottom: 100 },
+  playlistInput: { backgroundColor: '#fff', borderRadius: 10, padding: 15, fontSize: 16, marginBottom: 20 },
+  searchInput: { backgroundColor: '#fff', borderRadius: 10, padding: 15, fontSize: 16, marginBottom: 20 },
+  moviesGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  movieCard: { width: '31%', marginBottom: 15, position: 'relative' },
+  movieImage: { width: '100%', height: 150, borderRadius: 8 },
+  movieTitle: { color: '#eaeaea', fontSize: 12, textAlign: 'center', marginTop: 5 },
+  checkbox: { position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 20 },
+  createButton: { position: 'absolute', bottom: 30, left: 20, right: 20, backgroundColor: '#3E9C9C', padding: 15, borderRadius: 30, alignItems: 'center', elevation: 5 },
 });

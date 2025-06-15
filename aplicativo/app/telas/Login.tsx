@@ -1,4 +1,4 @@
-// aplicativo/app/telas/Login.tsx
+// SUBSTITUA O CONTEÚDO DE: aplicativo/app/telas/Login.tsx
 import { Link, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
@@ -10,14 +10,20 @@ import {
   TextInput,
   View,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet
 } from 'react-native';
 
 import { AntDesign, Feather } from '@expo/vector-icons';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { styles } from '../../src/styles';
 import { auth } from '../../src/config/firebaseConfig';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import { BarraForcaSenha } from '../../src/componentes/BarraForcaSenha';
+
+// --- SOLUÇÃO DEFINITIVA USANDO ALIAS DE CAMINHO ---
+import logoFilmeia from '@/assets/images/filmeia-logo2.png';
 
 function Login(): React.JSX.Element {
   const [email, setEmail] = useState("");
@@ -26,13 +32,15 @@ function Login(): React.JSX.Element {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    if (!email || !senha) {
+      Alert.alert("Atenção", "Por favor, preencha todos os campos.");
+      return;
+    }
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, senha);
-      console.log("Usuário logado com sucesso!");
-      router.replace('/telas/Home');
-    } catch (error: any) {
-      console.error("Erro no login:", error.message);
+      router.replace('/Home');
+    } catch (error) {
       Alert.alert("Erro no Login", "Verifique seu e-mail e senha.");
     } finally {
       setLoading(false);
@@ -40,56 +48,80 @@ function Login(): React.JSX.Element {
   };
 
   return (
-    <View style={{ backgroundColor: "#2E3D50", height: "100%", flexDirection: "column" }}>
-      <ScrollView>
-        <Image
-          source={require("../../assets/images/filmeia-logo2.png")}
-          style={{ width: 300, height: 150, resizeMode: "contain", marginLeft: "auto", marginRight: "auto", marginTop: 100 }}
-        ></Image>
-        <View style={{ width: 300, marginLeft: "auto", marginRight: "auto", marginTop: 10 }}>
-          <Text style={{ color: "#eaeaea", fontSize: 26, fontWeight: "bold", marginBottom: 30, textAlign: "center" }}>
-            Login
-          </Text>
-          <View style={styles.textInput}>
-            <AntDesign name="mail" size={24} color="black" />
-            <TextInput
-              placeholder="Email"
-              style={styles.input}
-              placeholderTextColor={"black"}
-              onChangeText={setEmail}
-              value={email}
-            ></TextInput>
-          </View>
-          <View style={[styles.textInput, { flexDirection: "row", alignItems: "center" }]}>
-            <Feather name="lock" size={24} color="black" />
-            <TextInput
-              placeholder="Senha"
-              style={[styles.input, { flex: 1 }]}
-              placeholderTextColor={"black"}
-              onChangeText={setSenha}
-              value={senha}
-              secureTextEntry={!visivel}
-            ></TextInput>
-            <Pressable onPress={() => setVisivel(!visivel)} style={{ marginLeft: 10 }}>
-              <Feather name={visivel ? "eye" : "eye-off"} size={24} color="black" />
-            </Pressable>
-          </View>
-          <BarraForcaSenha senha={senha} />
-          <Pressable style={styles.button} onPress={handleLogin} disabled={loading}>
-            {loading ? (
-              <ActivityIndicator color="#eaeaea" />
-            ) : (
-              <Text style={styles.buttonText}>Entrar</Text>
-            )}
-          </Pressable>
-          <Link href={"/telas/Cadastro"} style={{ width: 150, marginLeft: "auto", marginRight: "auto" }}>
-            <Text style={styles.link}>Ainda não tem conta?</Text>
-          </Link>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
+      <View style={loginStyles.innerContainer}>
+        <Image source={logoFilmeia} style={loginStyles.logo} />
+        <Text style={loginStyles.title}>Login</Text>
+        
+        <View style={styles.textInput}>
+          <AntDesign name="mail" size={24} color="black" />
+          <TextInput
+            placeholder="Email"
+            style={styles.input}
+            placeholderTextColor={"black"}
+            onChangeText={setEmail}
+            value={email}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
         </View>
-      </ScrollView>
+
+        <View style={styles.textInput}>
+          <Feather name="lock" size={24} color="black" />
+          <TextInput
+            placeholder="Senha"
+            style={styles.input}
+            placeholderTextColor={"black"}
+            onChangeText={setSenha}
+            value={senha}
+            secureTextEntry={!visivel}
+          />
+          <Pressable onPress={() => setVisivel(!visivel)}>
+            <Feather name={visivel ? "eye" : "eye-off"} size={24} color="black" />
+          </Pressable>
+        </View>
+
+        <BarraForcaSenha senha={senha} />
+
+        <Pressable style={[styles.button, { marginTop: 20 }]} onPress={handleLogin} disabled={loading}>
+          {loading ? <ActivityIndicator color="#eaeaea" /> : <Text style={styles.buttonText}>Entrar</Text>}
+        </Pressable>
+        
+        <Link href="/telas/Cadastro" asChild>
+          <Pressable style={{ marginTop: 20 }}>
+            <Text style={{ color: '#eaeaea', textAlign: 'center' }}>
+              Não possui conta? <Text style={{ fontWeight: 'bold' }}>Cadastre-se!</Text>
+            </Text>
+          </Pressable>
+        </Link>
+      </View>
       <StatusBar style="auto" />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
+
+const loginStyles = StyleSheet.create({
+  innerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    width: '85%',
+    alignSelf: 'center',
+  },
+  logo: {
+    width: 280,
+    height: 140,
+    resizeMode: 'contain',
+    marginBottom: 20,
+    alignSelf: 'center',
+  },
+  title: {
+    color: "#eaeaea",
+    fontSize: 28,
+    fontWeight: "bold",
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+});
+
 
 export default Login;

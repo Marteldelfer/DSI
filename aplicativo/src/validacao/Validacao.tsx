@@ -1,30 +1,30 @@
-// aplicativo/src/validacao/Validacao.tsx
-export function validarSenha(senha: string) {
-    const minLength = 6;
-    const hasUpperCase = /[A-Z]/.test(senha);
-    const hasLowerCase = /[a-z]/.test(senha);
-    const hasDigit = /[0-9]/.test(senha);
-    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+/.test(senha);
+// SUBSTITUA O CONTEÚDO DE: aplicativo/src/validacao/Validacao.tsx
 
-    const isLongEnough = senha.length >= minLength;
-    const isComplex = hasUpperCase && hasLowerCase && hasDigit && hasSpecialChar;
-
-    let forca = 0;
-    if (isLongEnough) forca++;
-    if (hasUpperCase) forca++;
-    if (hasLowerCase) forca++;
-    if (hasDigit) forca++;
-    if (hasSpecialChar) forca++;
-
-    let valido = isLongEnough && forca >= 4;
-
+export const validarSenha = (senha: string) => {
+  // Verificação de segurança para prevenir o crash.
+  // Se a senha não for uma string válida, retorna um estado padrão.
+  if (!senha || typeof senha !== 'string') {
     return {
-        valido: valido,
-        tamanhoValido: isLongEnough,
-        temMaiuscula: hasUpperCase,
-        temMinuscula: hasLowerCase,
-        temDigito: hasDigit,
-        temCaractereEspecial: hasSpecialChar,
-        forca: forca
+      temMaiuscula: false,
+      temMinuscula: false,
+      temDigito: false,
+      temCaractereEspecial: false,
+      tamanhoValido: false,
     };
-}
+  }
+
+  // A partir daqui, o código só roda se 'senha' for uma string.
+  const temMaiuscula = !!senha.match(/[A-Z]/);
+  const temMinuscula = !!senha.match(/[a-z]/);
+  const temDigito = !!senha.match(/[0-9]/);
+  const temCaractereEspecial = !!senha.match(/[\W_]/); // Verifica qualquer caractere que não seja letra ou número
+  const tamanhoValido = senha.length >= 8;
+
+  return {
+    temMaiuscula,
+    temMinuscula,
+    temDigito,
+    temCaractereEspecial,
+    tamanhoValido,
+  };
+};
