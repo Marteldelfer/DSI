@@ -1,108 +1,124 @@
-// aplicativo/app/telas/Login.tsx
-import { useRouter, Link } from 'expo-router';
+// SUBSTITUA O CONTEÚDO DE: aplicativo/app/telas/Login.tsx
+import { Link, router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
-  Text,
-  View,
-  TextInput,
-  Pressable,
   Image,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+  Alert,
+  ActivityIndicator,
   KeyboardAvoidingView,
-  Alert
+  Platform,
+  StyleSheet
 } from 'react-native';
 
-import { AntDesign } from '@expo/vector-icons';
-
-import { styles } from '../../src/styles'; // Caminho de importação ajustado
-import { auth } from '../../src/config/firebaseConfig'; // Caminho de importação ajustado
+import { AntDesign, Feather } from '@expo/vector-icons';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { styles } from '../../src/styles';
+import { auth } from '../../src/config/firebaseConfig';
 
-const router = useRouter();
+// --- SOLUÇÃO DEFINITIVA USANDO ALIAS DE CAMINHO ---
+import logoFilmeia from '@/assets/images/filmeia-logo2.png';
 
-function TelaLogin(): React.JSX.Element {
-  const [email, setEmail] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
+function Login(): React.JSX.Element {
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [visivel, setVisivel] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (email === '' || password === '') {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos.');
+    if (!email || !senha) {
+      Alert.alert("Atenção", "Por favor, preencha todos os campos.");
       return;
     }
-
+    setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      Alert.alert('Sucesso', 'Login realizado com sucesso!');
-      router.replace('/telas/Home');
-    } catch (error: any) {
-      let errorMessage = 'Ocorreu um erro ao fazer login.';
-      if (error.code) {
-        switch (error.code) {
-          case 'auth/user-not-found':
-            errorMessage = 'Usuário não encontrado. Verifique seu e-mail.';
-            break;
-          case 'auth/wrong-password':
-            errorMessage = 'Senha incorreta.';
-            break;
-          case 'auth/invalid-email':
-            errorMessage = 'E-mail inválido.';
-            break;
-          case 'auth/too-many-requests':
-            errorMessage = 'Muitas tentativas de login. Tente novamente mais tarde.';
-            break;
-          default:
-            errorMessage = `Erro: ${error.message}`;
-        }
-      }
-      Alert.alert('Erro no Login', errorMessage);
-      console.error('Erro de login:', error);
+      await signInWithEmailAndPassword(auth, email, senha);
+      router.replace('/Home');
+    } catch (error) {
+      Alert.alert("Erro no Login", "Verifique seu e-mail e senha.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView behavior={'padding'} style={styles.container}>
-      <Image
-        style={{ width: 300, height: 250, marginLeft: 'auto', marginRight: 'auto', resizeMode: 'contain' }}
-        source={require('../../assets/images/filmeia-logo.png')}
-      />
-
-      <View style={styles.textInput}>
-        <AntDesign name="mail" size={36} color="black" />
-        <TextInput
-          placeholder="E-mail"
-          autoComplete="email"
-          placeholderTextColor={'black'}
-          style={styles.input}
-          onChangeText={setEmail}
-          value={email}
-        />
-      </View>
-
-      <View style={styles.textInput}>
-        <AntDesign name="lock" size={36} color="black" />
-        <TextInput
-          placeholder="Senha"
-          secureTextEntry={true}
-          style={styles.input}
-          placeholderTextColor={'black'}
-          onChangeText={setPassword}
-          value={password}
-        />
-      </View>
-
-      <Pressable onPress={handleLogin}>
-        <View style={styles.Botao}>
-          <Text style={styles.textoPadrao}>Login</Text>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
+      <View style={loginStyles.innerContainer}>
+        <Image source={logoFilmeia} style={loginStyles.logo} />
+        <Text style={loginStyles.title}>Login</Text>
+        
+        <View style={styles.textInput}>
+          <AntDesign name="mail" size={24} color="black" />
+          <TextInput
+            placeholder="Email"
+            style={styles.input}
+            placeholderTextColor={"black"}
+            onChangeText={setEmail}
+            value={email}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
         </View>
-      </Pressable>
 
-      <Text style={styles.textoPadrao}>
-        Não possui uma conta?{' '}
-        <Link href={'/telas/Cadastro'}>
-          <Text style={styles.linkText}>Criar uma conta</Text>
+        <View style={styles.textInput}>
+          <Feather name="lock" size={24} color="black" />
+          <TextInput
+            placeholder="Senha"
+            style={styles.input}
+            placeholderTextColor={"black"}
+            onChangeText={setSenha}
+            value={senha}
+            secureTextEntry={!visivel}
+          />
+          <Pressable onPress={() => setVisivel(!visivel)}>
+            <Feather name={visivel ? "eye" : "eye-off"} size={24} color="black" />
+          </Pressable>
+        </View>
+
+        <Pressable style={[styles.button, { marginTop: 20 }]} onPress={handleLogin} disabled={loading}>
+          {loading ? <ActivityIndicator color="#eaeaea" /> : <Text style={styles.buttonText}>Entrar</Text>}
+        </Pressable>
+        
+        <Link href="/telas/Cadastro" asChild>
+          <Pressable style={{ marginTop: 20 }}>
+            <Text style={{ color: '#eaeaea', textAlign: 'center' }}>
+              Não possui conta? <Text style={{ fontWeight: 'bold' }}>Cadastre-se!</Text>
+            </Text>
+          </Pressable>
         </Link>
-      </Text>
+      </View>
+      <StatusBar style="auto" />
     </KeyboardAvoidingView>
   );
 }
 
-export default TelaLogin;
+const loginStyles = StyleSheet.create({
+  innerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    width: '85%',
+    alignSelf: 'center',
+  },
+  logo: {
+    width: 280,
+    height: 140,
+    resizeMode: 'contain',
+    marginBottom: 20,
+    alignSelf: 'center',
+  },
+  title: {
+    color: "#eaeaea",
+    fontSize: 28,
+    fontWeight: "bold",
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+});
+
+
+export default Login;
