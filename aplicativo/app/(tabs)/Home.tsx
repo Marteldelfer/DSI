@@ -26,7 +26,15 @@ function ComponenteFilme({movie}: {movie: Movie}): React.JSX.Element {
   return (
     // 1. Contêiner com altura e largura fixas para não quebrar o layout
     <View style={homeStyles.movieWrapper}>
-      <Pressable onPress={() => setClicado(!clicado)}>
+      <Pressable onPress={() => {
+        if (!clicado) {setClicado(true)}
+        else {
+          router.push({
+            pathname: '/telas/DetalhesFilme',
+            params: { movieId: movie.id },
+        })
+        }
+      }}>
         <Image
           source={movie.posterUrl ? {uri: movie.posterUrl} : require("../../assets/images/filmeia-logo2.png")}
           // 2. Lógica de troca de estilo que você tinha antes

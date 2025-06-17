@@ -28,15 +28,13 @@ export interface Avaliacao {
   id?: string;
   movieId: string;
   content?: string;
-  comentarios?: string[];
   review: "like" | "dislike" | "favorite";
 }
 
 export interface Comentario {
   id: string;
-  userId: string;
+  avaliacaoId: string;
   content: string;
-  likes: number;
 }
 
 // Mock dos filmes existentes
@@ -62,6 +60,9 @@ let mockPlaylists: Playlist[] = [
 
 // Armazenamento em memória das avaliações
 let mockAvaliacoes: Avaliacao[] = [];
+
+// Armazenamento em memória dos comentarios
+let mockComentarios: Comentario[] = []
 
 // Funções CRUD para as playlists (sem alterações)
 export function getPlaylists(): Playlist[] {
@@ -149,6 +150,11 @@ export function getAvaliacoes() {
 }
 
 export function createAvaliacao(avaliacao: Avaliacao): void {
+  if (mockAvaliacoes.length > 0) {
+    avaliacao.id = (parseInt(mockAvaliacoes[mockAvaliacoes.length - 1].id) + 1).toString();
+  } else {
+    avaliacao.id = "0"
+  }
   mockAvaliacoes.push(avaliacao);
 }
 
@@ -167,4 +173,21 @@ export function deleteAvaliacao(id: string): void {
 export function getAvaliacaoById(id: string): Avaliacao {
   let index = mockAvaliacoes.findIndex(a => a.id === id);
   return mockAvaliacoes[index];
+}
+
+export function getAvaliacoesByMovieId(movieId: string) {
+  return mockAvaliacoes.filter(avaliacao => avaliacao.movieId === movieId)
+}
+
+// CRUD Comentario
+export function getComentariosByAvaliacaoId(avaliacaoId: string): Comentario[] {
+  return mockComentarios.filter(c => c.avaliacaoId === avaliacaoId);
+}
+
+export function createComentario(avaliacaoId: string, content: string) {
+  let index = "0"
+  if (mockComentarios.length > 0) {
+    index = (parseInt(mockComentarios[mockComentarios.length - 1].id) + 1).toString();
+  }
+  mockComentarios.push({id: index, avaliacaoId: avaliacaoId, content: content})
 }

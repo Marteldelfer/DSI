@@ -7,6 +7,10 @@ import {
   deleteAvaliacao,
   updateAvaliacao,
   getMovieById,
+	getComentariosByAvaliacaoId,
+	createComentario,
+	getAvaliacoesByMovieId,
+	Comentario,
 } from "@/utils/mockData";
 import {
   Alert,
@@ -24,13 +28,78 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { styles } from "@/app/styles";
 import { useState, useCallback } from "react";
 
-export default function CriarAvaliacao() {
-  const { movieId, preReview } = useLocalSearchParams();
+function ComentarioComponent({comentario}: {comentario: Comentario}): React.JSX.Element {
+	return (
+		<>
+			<View style={[styles.textInput, {width: 200, margin: 2, minHeight: 24}]}>
+				<Text>{"    " + comentario.content}</Text>
+			</View>
+		</>
+	)
+}
+
+
+function AvaliacaoComponent({avaliacao}: {avaliacao: Avaliacao}): React.JSX.Element {
+
+	const [respostas, setRespostas] = useState<Comentario[]>([]);
+	const [responding, setResponding] = useState<boolean>(false);
+	const [content, setContent] = useState<string>("");
+
+	function handleGetResponses() {
+		setRespostas([...getComentariosByAvaliacaoId(avaliacao.id as string)]);
+	}
+
+	function handleResponding() {
+		setResponding(true);
+	}
+
+	function handleCreateResponse() {
+		createComentario(avaliacao.id as string, content);
+		setResponding(false);
+		handleGetResponses();
+		console.log(avaliacao)
+		console.log(respostas)
+	}
+
+	return (
+		<>
+			<Pressable onPress={handleResponding}>
+				<View style={styles.textInput}>
+					<AntDesign name="user" size={24} color="black" />
+					<Text style={styles.input}>{avaliacao.content}</Text>
+				</View>
+			</Pressable>
+			{
+				responding ?  
+				<View style={{backgroundColor: "white", padding: 4, borderRadius: 8, flexDirection: "row"}}>
+					<TextInput
+						placeholder="reposta"
+						placeholderTextColor={"grey"}
+						onChangeText={e => setContent(e)}
+					></TextInput>
+					<Pressable onPress={handleCreateResponse}>
+						<Text>Enviar</Text>
+					</Pressable>
+				</View>
+				: null
+			}
+			{respostas.length === 0 ? 
+			<Pressable onPress={handleGetResponses}>
+				<Text style={{color: "white"}}>Ver respostas</Text>
+			</Pressable> : null
+			}
+			{respostas.length !== 0 ? respostas.map(r => <ComentarioComponent comentario={r}></ComentarioComponent>) : null}
+		</>
+	);
+}
+
+
+export default function DetalhesFilme() {
+  const { movieId } = useLocalSearchParams();
   const router = useRouter();
 
-  const [review, setReview] = useState<"like" | "dislike" | "favorite" | null>(null);
+	const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([])
   const [movie, setMovie] = useState<Movie | undefined>(undefined);
-  const [content, setContent] = useState("");
 
   useFocusEffect(
     useCallback(() => {
@@ -38,6 +107,7 @@ export default function CriarAvaliacao() {
         const foundMovie = getMovieById(movieId as string);
         if (foundMovie) {
           setMovie(foundMovie);
+					setAvaliacoes(getAvaliacoesByMovieId(movieId as string))
         } else {
           Alert.alert("Erro", "Filme não encontrado.");
           router.back();
@@ -46,36 +116,23 @@ export default function CriarAvaliacao() {
     }, [movieId])
   );
 
-	function handleCriarAvaliacao() {
-		if (review === null) {
-			Alert.alert("Erro", "Avaliação é nescessária");
-			return;
-		}
-		createAvaliacao({
-			movieId: movieId as string,
-			content: content,
-			review: review
-		});
-		router.back();
-	}
-
   if (!movie) return;
 
   return (
     <View style={styles.container}>
-      <View style={criarAvaliacao.header}>
+      <View style={detalhesFilme.header}>
         <Pressable onPress={() => router.back()} style={{ marginRight: 20 }}>
           <AntDesign name="arrowleft" size={24} color="#eaeaea" />
         </Pressable>
-        <Text style={criarAvaliacao.headerTitle} numberOfLines={1}>
-          Criar Avaliação
+        <Text style={detalhesFilme.headerTitle} numberOfLines={1}>
+          {movie.title}
         </Text>
       </View>
 
-      <ScrollView contentContainerStyle={criarAvaliacao.scrollViewContent}>
+      <ScrollView contentContainerStyle={detalhesFilme.scrollViewContent}>
         {movie.isExternal ? (
-          <View style={criarAvaliacao.externalMoviePlaceholderLarge}>
-            <Text style={criarAvaliacao.externalMovieTextLarge}>
+          <View style={detalhesFilme.externalMoviePlaceholderLarge}>
+            <Text style={detalhesFilme.externalMovieTextLarge}>
               Filme Externo
             </Text>
           </View>
@@ -86,79 +143,17 @@ export default function CriarAvaliacao() {
                 ? { uri: movie.posterUrl }
                 : require("../../assets/images/filmeia-logo2.png")
             }
-            style={criarAvaliacao.moviePoster}
+            style={detalhesFilme.moviePoster}
           />
         )}
-
-				<Text style={styles.textoBotao}>O que você achou deste filme?</Text>
-        <View style={styles.textInput}>
-          <TextInput
-            placeholder="Review"
-            placeholderTextColor={"grey"}
-            style={[styles.input, {height: 110, outline: "none"}]}
-            multiline={true}
-						onChangeText={(e) => setContent(e)}
-          />
-        </View>
-
-        <Text style={criarAvaliacao.avaliacaoTitle}>Avaliação:</Text>
-        <View style={criarAvaliacao.avaliacaoContainer}>
-          <Pressable
-            style={[
-              criarAvaliacao.avaliacaoButton,
-              review === "like" &&
-                criarAvaliacao.avaliacaoButtonSelected,
-            ]}
-            onPress={() => setReview("like")}
-          >
-            <AntDesign
-              name="like2"
-              size={30}
-              color={review === "like" ? "black" : "#eaeaea"}
-            />
-          </Pressable>
-          <Pressable
-            style={[
-              criarAvaliacao.avaliacaoButton,
-              review === "dislike" &&
-                criarAvaliacao.avaliacaoButtonSelected,
-            ]}
-            onPress={() => setReview("dislike")}
-          >
-            <AntDesign
-              name="dislike2"
-              size={30}
-              color={review === "dislike" ? "black" : "#eaeaea"}
-            />
-          </Pressable>
-          <Pressable
-            style={[
-              criarAvaliacao.avaliacaoButton,
-              review === "favorite" &&
-                criarAvaliacao.avaliacaoButtonSelected,
-            ]}
-            onPress={() => setReview("favorite")}
-          >
-            <AntDesign
-              name="staro"
-              size={30}
-              color={review === "favorite" ? "black" : "#eaeaea"}
-            />
-          </Pressable>
-        </View>
-
-        <Pressable
-          style={criarAvaliacao.saveButton}
-          onPress={handleCriarAvaliacao}
-        >
-          <Text style={styles.textoBotao}>Publicar Avaliação</Text>
-        </Pressable>
+				<Text style={styles.textoBotao}>Avaliações</Text>
+				{avaliacoes.map(a => <AvaliacaoComponent avaliacao={a} />)}
       </ScrollView>
     </View>
   );
 }
 
-const criarAvaliacao = StyleSheet.create({
+const detalhesFilme = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -181,8 +176,8 @@ const criarAvaliacao = StyleSheet.create({
     alignItems: "center",
   },
   moviePoster: {
-    width: 150,
-    height: 225,
+    width: 200,
+    height: 300,
     borderRadius: 12,
     marginBottom: 20,
     resizeMode: "cover",

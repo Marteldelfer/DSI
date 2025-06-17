@@ -52,6 +52,7 @@ export default function RootLayout() {
       {/* Nova tela para detalhes de filme externo/avaliado */}
       <Stack.Screen name="telas/DetalhesFilmeExterno" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="telas/CriarAvaliacao" options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen name="telas/DetalhesFilme" options={{ headerShown: false, presentation: 'modal' }} />
     </Stack>
   );
 }

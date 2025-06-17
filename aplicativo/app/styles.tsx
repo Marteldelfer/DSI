@@ -13,7 +13,7 @@ export const styles = StyleSheet.create({
         borderRadius: 26,
         paddingHorizontal: 15,
         marginVertical: 10,
-        height: 50,
+        minHeight: 50
     },
     input: {
         flex: 1,
