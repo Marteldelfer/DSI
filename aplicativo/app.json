@@ -50,7 +50,8 @@
       "firebaseStorageBucket": "filmeia.firebasestorage.app",
       "firebaseMessagingSenderId": "915638218391",
       "firebaseAppId": "1:915638218391:web:6491d04d221150fae583d2",
-      "firebaseMeasurementId": "G-DKDVLKMXFE"
+      "firebaseMeasurementId": "G-DKDVLKMXFE",
+      "tmdbApiKey": "61c4b858abcb463f369ef0aa3ab2cd31"
     }
   }
 }

@@ -1,4 +1,4 @@
-// aplicativo/app/(tabs)/MeusFilmes.tsx
+// ATUALIZADO: aplicativo/app/(tabs)/MeusFilmes.tsx
 import React, { useState } from 'react';
 import { ScrollView, View, Image, Pressable, Text, StyleSheet, TextInput } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -13,8 +13,8 @@ function ComponenteFilmeAvaliado({ movie, statusIcon }: { movie: Movie, statusIc
 
     const handlePress = () => {
         router.push({
-            pathname: '/telas/DetalhesFilmeExterno',
-            params: { movieId: movie.id },
+            pathname: '/telas/DetalhesFilmeAvaliadoTMDB', // ATUALIZADO: Navega para a tela de detalhes unificada
+            params: { movieId: movie.id }, // Passa o ID interno do filme (que pode ser TMDB ID ou ID externo)
         });
     };
 
@@ -51,14 +51,16 @@ function MeusFilmes() {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentFilter, setCurrentFilter] = useState<MovieFilterType>('all');
 
+    // useFocusEffect para recarregar filmes sempre que a tela MeusFilmes estiver em foco
     useFocusEffect(
         React.useCallback(() => {
             const movies = getFilteredAndRatedMovies(currentFilter);
             setAllMoviesBasedOnFilter(movies);
             applySearchFilter(movies, searchTerm);
-        }, [currentFilter])
+        }, [currentFilter]) // Dependência para re-executar quando o filtro mudar
     );
 
+    // useEffect para aplicar filtro de busca quando o termo de busca ou a lista de filmes mudar
     React.useEffect(() => {
         applySearchFilter(allMoviesBasedOnFilter, searchTerm);
     }, [searchTerm, allMoviesBasedOnFilter]);
