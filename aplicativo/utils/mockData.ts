@@ -24,19 +24,34 @@ export interface Playlist {
   coverImageUrl?: string | null;
 }
 
+export interface Avaliacao {
+  id?: string;
+  movieId: string;
+  content?: string;
+  comentarios?: string[];
+  review: "like" | "dislike" | "favorite";
+}
+
+export interface Comentario {
+  id: string;
+  userId: string;
+  content: string;
+  likes: number;
+}
+
 // Mock dos filmes existentes
 // **MUDANÇA AQUI: de 'const' para 'let'**
 export let mockMovies: Movie[] = [
-  { id: "100", title: "Lock, Stock and Two Smoking Barrels", posterUrl: "https://image.tmdb.org/t/p/w500/A0H8A2L4k0j7Y7k9q8J6r0b3g.jpg", status: "like2", isExternal: false },
-  { id: "101", title: "Léon: The Professional", posterUrl: "https://image.tmdb.org/t/p/w500/eNPWlP6pDqM8qR2p4b5J0v5o3a.jpg", status: "dislike2", isExternal: false },
-  { id: "102", title: "Open Hearts", posterUrl: "https://image.tmdb.org/t/p/w500/kY8p2k5s3r9i4t3i4t3i4t3i4t3i.jpg", status: "staro", isExternal: false },
-  { id: "103", title: "Taxi Driver", posterUrl: "https://image.tmdb.org/t/p/w500/h2m8L5wX3n4m8n3m8n3m8n3m8n3m.jpg", isExternal: false },
-  { id: "104", title: "Run Lola Run", posterUrl: "https://image.tmdb.org/t/p/w500/qX4r9aQ0x4r9aQ0x4r9aQ0x4r9aQ.jpg", isExternal: false },
-  { id: "105", title: "Back to the Future", posterUrl: "https://image.tmdb.org/t/p/w500/sT00g5WqA4f3S02R3o2e3rG9k.jpg", isExternal: false },
-  { id: "106", title: "Predator", posterUrl: "https://image.tmdb.org/t/p/w500/yQd4iF8L1jJ4Xw1g4u1d0N4S7J8.jpg", isExternal: false },
-  { id: "107", title: "Snatch", posterUrl: "https://image.tmdb.org/t/p/w500/gEU2Qjlnef7AM2rtPr49V19A1dL.jpg", isExternal: false },
-  { id: "108", title: "Three Colors: Blue", posterUrl: "https://image.tmdb.org/t/p/w500/dKqg3QyRk3p6Z2aV6q8S4K1a.jpg", isExternal: false },
-  { id: "109", title: "Three Colors: White", posterUrl: "https://image.tmdb.org/t/p/w500/1X6DqT5gVj2O2U9d6eQ6tW1s8Fk.jpg", isExternal: false },
+  { id: "100", title: "Lock, Stock and Two Smoking Barrels", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/6pJB2t3MbQUy9m5pFIBHXLqnqNd.jpg", status: "like2", isExternal: false },
+  { id: "101", title: "Léon: The Professional", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/yI6X2cCM5YPJtxMhUd3dPGqDAhw.jpg", status: "dislike2", isExternal: false },
+  { id: "102", title: "Open Hearts", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/hOrV2fCw2kmSiS4ZMGFPfXqr3lt.jpg", status: "staro", isExternal: false },
+  { id: "103", title: "Taxi Driver", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/ekstpH614fwDX8DUln1a2Opz0N8.jpg", isExternal: false },
+  { id: "104", title: "Run Lola Run", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/u34YzbFvX067IvJX1ocI4JBvYPa.jpg", isExternal: false },
+  { id: "105", title: "Back to the Future", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/vN5B5WgYscRGcQpVhHl6p9DDTP0.jpg", isExternal: false },
+  { id: "106", title: "Predator", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/k3mW4qfJo6SKqe6laRyNGnbB9n5.jpg", isExternal: false },
+  { id: "107", title: "Snatch", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/8KSDI7ijEv7QVZdIyrLw5Gnhhr8.jpg", isExternal: false },
+  { id: "108", title: "Three Colors: Blue", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/33wsWxzsNstI8N7dvuwzFmj1qBd.jpg", isExternal: false },
+  { id: "109", title: "Three Colors: White", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/fdIet3NSa27gobMbaUml66oCQNT.jpg", isExternal: false },
 ];
 
 // Armazenamento em memória das playlists (sem alterações)
@@ -44,6 +59,9 @@ let mockPlaylists: Playlist[] = [
   { id: "p1", name: "Minhas Favoritas", movieIds: ["100", "103"], coverImageUrl: mockMovies.find(m => m.id === "100")?.posterUrl },
   { id: "p2", name: "Ação e Aventura", movieIds: ["101", "105"], coverImageUrl: mockMovies.find(m => m.id === "101")?.posterUrl },
 ];
+
+// Armazenamento em memória das avaliações
+let mockAvaliacoes: Avaliacao[] = [];
 
 // Funções CRUD para as playlists (sem alterações)
 export function getPlaylists(): Playlist[] {
@@ -123,4 +141,30 @@ export function getFilteredAndRatedMovies(filterType: MovieFilterType = 'all'): 
     }
     // Agora filtra apenas os filmes que têm um status de avaliação
     return filteredBySource.filter(movie => movie.status !== undefined && movie.status !== null);
+}
+
+//CRUD de avaliações
+export function getAvaliacoes() {
+  return [...mockAvaliacoes];
+}
+
+export function createAvaliacao(avaliacao: Avaliacao): void {
+  mockAvaliacoes.push(avaliacao);
+}
+
+export function updateAvaliacao(newAvaliacao: Avaliacao): void {
+  let avaliacao = getAvaliacaoById(newAvaliacao.id as string);
+  avaliacao = {
+    ...avaliacao,
+    content: newAvaliacao.content,
+  }
+}
+
+export function deleteAvaliacao(id: string): void {
+  mockAvaliacoes.filter(movie => movie.id !== id);
+}
+
+export function getAvaliacaoById(id: string): Avaliacao {
+  let index = mockAvaliacoes.findIndex(a => a.id === id);
+  return mockAvaliacoes[index];
 }

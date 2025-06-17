@@ -4,34 +4,50 @@ import { ScrollView, Text, View, TextInput, Image, StyleSheet, Pressable } from 
 import { AntDesign } from '@expo/vector-icons';
 import { styles } from '../styles';
 import { mockMovies } from '../../utils/mockData';
+import {useRouter} from "expo-router";
+import {Movie} from "../../utils/mockData";
 
 // Usando a sua lógica original de troca de tamanho, com correções de layout
-function ComponenteFilme({imageLink, title}: {imageLink: string | null, title: string}) {
+function ComponenteFilme({movie}: {movie: Movie}): React.JSX.Element {
   const [clicado, setClicado] = useState(false);
+  const router = useRouter();
 
   // Estilos para o pôster pequeno e grande
   const estiloPequeno = { width: 100, height: 150, borderRadius: 12 };
   const estiloGrande = { width: 130, height: 195, borderRadius: 16 };
+
+  function handleAvaliacao(r: string) {
+        router.push({
+            pathname: '/telas/CriarAvaliacao',
+            params: { movieId: movie.id, review: r },
+        });
+    };
 
   return (
     // 1. Contêiner com altura e largura fixas para não quebrar o layout
     <View style={homeStyles.movieWrapper}>
       <Pressable onPress={() => setClicado(!clicado)}>
         <Image
-          source={imageLink ? {uri: imageLink} : require("../../assets/images/filmeia-logo2.png")}
+          source={movie.posterUrl ? {uri: movie.posterUrl} : require("../../assets/images/filmeia-logo2.png")}
           // 2. Lógica de troca de estilo que você tinha antes
           style={clicado ? estiloGrande : estiloPequeno}
         />
       </Pressable>
       
-      <Text style={homeStyles.movieTitle} numberOfLines={2}>{title}</Text>
+      <Text style={homeStyles.movieTitle} numberOfLines={2}>{movie.title}</Text>
 
       {clicado && (
         // 3. Ícones com estilo corrigido para ficarem juntos
         <View style={homeStyles.interactionIconsContainer}>
-          <View style={homeStyles.iconWrapper}><AntDesign name="like2" size={20} color="black" /></View>
-          <View style={homeStyles.iconWrapper}><AntDesign name="dislike2" size={20} color="black" /></View>
-          <View style={homeStyles.iconWrapper}><AntDesign name="staro" size={20} color="black" /></View>
+          <Pressable onPress={() => handleAvaliacao("like")}>
+            <View style={homeStyles.iconWrapper}><AntDesign name="like2" size={20} color="black"/></View>
+          </Pressable>
+          <Pressable onPress={() => handleAvaliacao("dislike")}>
+            <View style={homeStyles.iconWrapper}><AntDesign name="dislike2" size={20} color="black"/></View>
+          </Pressable>
+          <Pressable onPress={() => handleAvaliacao("star")}>
+            <View style={homeStyles.iconWrapper}><AntDesign name="staro" size={20} color="black"/></View>
+          </Pressable>
         </View>
       )}
     </View>
@@ -52,7 +68,7 @@ function Home() {
           <View style={homeStyles.sectionContainer}>
             <Text style={homeStyles.sectionTitle}>Recomendações</Text>
             <ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
-              {mockMovies.map((movie) => <ComponenteFilme key={movie.id} imageLink={movie.posterUrl} title={movie.title} />)}
+              {mockMovies.map((movie) => <ComponenteFilme key={movie.id} movie={movie} />)}
             </ScrollView>
           </View>
           <View style={homeStyles.sectionContainer}>
