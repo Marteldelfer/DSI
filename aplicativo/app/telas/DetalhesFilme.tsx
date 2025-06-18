@@ -7,10 +7,10 @@ import {
   deleteAvaliacao,
   updateAvaliacao,
   getMovieById,
-	getComentariosByAvaliacaoId,
-	createComentario,
-	getAvaliacoesByMovieId,
-	Comentario,
+  getComentariosByAvaliacaoId,
+  createComentario,
+  getAvaliacoesByMovieId,
+  Comentario,
 } from "@/utils/mockData";
 import {
   Alert,
@@ -27,78 +27,98 @@ import { AntDesign } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { styles } from "@/app/styles";
 import { useState, useCallback } from "react";
+import { ComentariosColapsaveis } from "../componentes/ComentariosColapsaveis";
 
-function ComentarioComponent({comentario}: {comentario: Comentario}): React.JSX.Element {
-	return (
-		<>
-			<View style={[styles.textInput, {width: 200, margin: 2, minHeight: 24}]}>
-				<Text>{"    " + comentario.content}</Text>
-			</View>
-		</>
-	)
+function AvaliacaoComponent({
+  avaliacao,
+}: {
+  avaliacao: Avaliacao;
+}): React.JSX.Element {
+  const [respostas, setRespostas] = useState<Comentario[]>([]);
+  const [responding, setResponding] = useState<boolean>(false);
+  const [content, setContent] = useState<string>("");
+
+  const simbolos = new Map<string, string>();
+  simbolos.set("like", "like2");
+  simbolos.set("dislike", "dislike2");
+  simbolos.set("favorite", "staro");
+
+
+  useFocusEffect(
+    useCallback(() => {
+      handleGetResponses();
+    }, [])
+  );
+
+  function handleGetResponses() {
+    setRespostas(getComentariosByAvaliacaoId(avaliacao.id as string));
+  }
+
+  function handleResponding() {
+    setResponding(!responding);
+  }
+
+  function handleCreateResponse() {
+    createComentario(avaliacao.id as string, content);
+    setResponding(false);
+    handleGetResponses();
+    console.log(avaliacao);
+    console.log(respostas);
+  }
+
+  return (
+    <>
+      <Pressable onPress={handleResponding}>
+        <View
+          style={{
+            backgroundColor: "#f2f2f2",
+            padding: 10,
+            margin: 12,
+            borderRadius: 8,
+            flexDirection: "row",
+            width: 300,
+          }}
+        >
+          <AntDesign name={simbolos.get(avaliacao.review)} size={24} color="black" />
+          <Text style={[styles.input, {width: 240}]}>{avaliacao.content}</Text>
+        </View>
+      </Pressable>
+      {responding ? (
+        <View
+          style={{
+            backgroundColor: "white",
+            padding: 4,
+            borderRadius: 8,
+            flexDirection: "row",
+            margin:4,
+            width: 260
+          }}
+        >
+          <TextInput
+            placeholder="responder..."
+            placeholderTextColor={"grey"}
+            onChangeText={(e) => setContent(e)}
+            style={{flex: 1}}
+          ></TextInput>
+          <Pressable onPress={handleCreateResponse} style={{padding: 9}}>
+            <Text>Enviar</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {respostas.length > 0 && (
+        <ComentariosColapsaveis
+          comentarios={respostas}
+        ></ComentariosColapsaveis>
+      )}
+    </>
+  );
 }
-
-
-function AvaliacaoComponent({avaliacao}: {avaliacao: Avaliacao}): React.JSX.Element {
-
-	const [respostas, setRespostas] = useState<Comentario[]>([]);
-	const [responding, setResponding] = useState<boolean>(false);
-	const [content, setContent] = useState<string>("");
-
-	function handleGetResponses() {
-		setRespostas([...getComentariosByAvaliacaoId(avaliacao.id as string)]);
-	}
-
-	function handleResponding() {
-		setResponding(true);
-	}
-
-	function handleCreateResponse() {
-		createComentario(avaliacao.id as string, content);
-		setResponding(false);
-		handleGetResponses();
-		console.log(avaliacao)
-		console.log(respostas)
-	}
-
-	return (
-		<>
-			<Pressable onPress={handleResponding}>
-				<View style={styles.textInput}>
-					<AntDesign name="user" size={24} color="black" />
-					<Text style={styles.input}>{avaliacao.content}</Text>
-				</View>
-			</Pressable>
-			{
-				responding ?  
-				<View style={{backgroundColor: "white", padding: 4, borderRadius: 8, flexDirection: "row"}}>
-					<TextInput
-						placeholder="reposta"
-						placeholderTextColor={"grey"}
-						onChangeText={e => setContent(e)}
-					></TextInput>
-					<Pressable onPress={handleCreateResponse}>
-						<Text>Enviar</Text>
-					</Pressable>
-				</View>
-				: null
-			}
-			{respostas.length === 0 ? 
-			<Pressable onPress={handleGetResponses}>
-				<Text style={{color: "white"}}>Ver respostas</Text>
-			</Pressable> : null
-			}
-			{respostas.length !== 0 ? respostas.map(r => <ComentarioComponent comentario={r}></ComentarioComponent>) : null}
-		</>
-	);
-}
-
 
 export default function DetalhesFilme() {
   const { movieId } = useLocalSearchParams();
   const router = useRouter();
 
-	const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([])
+  const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
   const [movie, setMovie] = useState<Movie | undefined>(undefined);
 
   useFocusEffect(
@@ -107,7 +127,7 @@ export default function DetalhesFilme() {
         const foundMovie = getMovieById(movieId as string);
         if (foundMovie) {
           setMovie(foundMovie);
-					setAvaliacoes(getAvaliacoesByMovieId(movieId as string))
+          setAvaliacoes(getAvaliacoesByMovieId(movieId as string));
         } else {
           Alert.alert("Erro", "Filme não encontrado.");
           router.back();
@@ -119,7 +139,7 @@ export default function DetalhesFilme() {
   if (!movie) return;
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView style={styles.container}>
       <View style={detalhesFilme.header}>
         <Pressable onPress={() => router.back()} style={{ marginRight: 20 }}>
           <AntDesign name="arrowleft" size={24} color="#eaeaea" />
@@ -146,10 +166,12 @@ export default function DetalhesFilme() {
             style={detalhesFilme.moviePoster}
           />
         )}
-				<Text style={styles.textoBotao}>Avaliações</Text>
-				{avaliacoes.map(a => <AvaliacaoComponent avaliacao={a} />)}
+        <Text style={styles.textoBotao}>Avaliações</Text>
+        {avaliacoes.map((a) => (
+          <AvaliacaoComponent key={a.id} avaliacao={a} />
+        ))}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
