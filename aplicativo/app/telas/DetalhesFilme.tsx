@@ -1,11 +1,7 @@
+// SUBSTITUA O CONTEÚDO DE: aplicativo/app/telas/DetalhesFilme.tsx
 import {
   Movie,
   Avaliacao,
-  getAvaliacoes,
-  getAvaliacaoById,
-  createAvaliacao,
-  deleteAvaliacao,
-  updateAvaliacao,
   getMovieById,
   getComentariosByAvaliacaoId,
   createComentario,
@@ -14,7 +10,6 @@ import {
 } from "@/utils/mockData";
 import {
   Alert,
-  KeyboardAvoidingView,
   View,
   Pressable,
   Text,
@@ -22,6 +17,7 @@ import {
   Image,
   TextInput,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { AntDesign } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
@@ -38,11 +34,10 @@ function AvaliacaoComponent({
   const [responding, setResponding] = useState<boolean>(false);
   const [content, setContent] = useState<string>("");
 
-  const simbolos = new Map<string, string>();
+  const simbolos = new Map<string, any>(); // Usar 'any' para o nome do ícone
   simbolos.set("like", "like2");
   simbolos.set("dislike", "dislike2");
   simbolos.set("favorite", "staro");
-
 
   useFocusEffect(
     useCallback(() => {
@@ -62,8 +57,6 @@ function AvaliacaoComponent({
     createComentario(avaliacao.id as string, content);
     setResponding(false);
     handleGetResponses();
-    console.log(avaliacao);
-    console.log(respostas);
   }
 
   return (
@@ -79,11 +72,11 @@ function AvaliacaoComponent({
             width: 300,
           }}
         >
-          <AntDesign name={simbolos.get(avaliacao.review)} size={24} color="black" />
+          <AntDesign name={simbolos.get(avaliacao.review)} size={24} color="black" style={{marginRight: 10}} />
           <Text style={[styles.input, {width: 240}]}>{avaliacao.content}</Text>
         </View>
       </Pressable>
-      {responding ? (
+      {responding && (
         <View
           style={{
             backgroundColor: "white",
@@ -104,7 +97,7 @@ function AvaliacaoComponent({
             <Text>Enviar</Text>
           </Pressable>
         </View>
-      ) : null}
+      )}
       {respostas.length > 0 && (
         <ComentariosColapsaveis
           comentarios={respostas}
@@ -120,26 +113,38 @@ export default function DetalhesFilme() {
 
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
   const [movie, setMovie] = useState<Movie | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
-      if (movieId) {
-        const foundMovie = getMovieById(movieId as string);
-        if (foundMovie) {
-          setMovie(foundMovie);
-          setAvaliacoes(getAvaliacoesByMovieId(movieId as string));
-        } else {
-          Alert.alert("Erro", "Filme não encontrado.");
-          router.back();
+      const fetchMovieData = async () => {
+        setLoading(true);
+        if (movieId) {
+          const foundMovie = await getMovieById(movieId as string);
+          if (foundMovie) {
+            setMovie(foundMovie);
+            setAvaliacoes(getAvaliacoesByMovieId(movieId as string));
+          } else {
+            Alert.alert("Erro", "Filme não encontrado.");
+            router.back();
+          }
         }
+        setLoading(false);
       }
+      fetchMovieData();
     }, [movieId])
   );
-
-  if (!movie) return;
+  
+  if (loading || !movie) {
+    return (
+        <View style={[styles.container, {justifyContent: 'center'}]}>
+            <ActivityIndicator size="large" color="#3E9C9C" />
+        </View>
+    );
+  }
 
   return (
-    <KeyboardAvoidingView style={styles.container}>
+    <View style={styles.container}>
       <View style={detalhesFilme.header}>
         <Pressable onPress={() => router.back()} style={{ marginRight: 20 }}>
           <AntDesign name="arrowleft" size={24} color="#eaeaea" />
@@ -150,28 +155,34 @@ export default function DetalhesFilme() {
       </View>
 
       <ScrollView contentContainerStyle={detalhesFilme.scrollViewContent}>
-        {movie.isExternal ? (
-          <View style={detalhesFilme.externalMoviePlaceholderLarge}>
-            <Text style={detalhesFilme.externalMovieTextLarge}>
-              Filme Externo
-            </Text>
-          </View>
+        <Image
+          source={
+            movie.posterUrl
+              ? { uri: movie.posterUrl }
+              : require("../../assets/images/filmeia-logo2.png")
+          }
+          style={detalhesFilme.moviePoster}
+        />
+
+        <View style={detalhesFilme.detailsContainer}>
+          <Text style={detalhesFilme.movieTitle}>{movie.title} ({movie.releaseYear})</Text>
+          {movie.overview ? (
+            <Text style={detalhesFilme.overview}>{movie.overview}</Text>
+          ) : (
+            <Text style={detalhesFilme.overview}>Sinopse não disponível.</Text>
+          )}
+        </View>
+        
+        <Text style={detalhesFilme.sectionTitle}>Avaliações da Comunidade</Text>
+        {avaliacoes.length > 0 ? (
+          avaliacoes.map((a) => (
+            <AvaliacaoComponent key={a.id} avaliacao={a} />
+          ))
         ) : (
-          <Image
-            source={
-              movie.posterUrl
-                ? { uri: movie.posterUrl }
-                : require("../../assets/images/filmeia-logo2.png")
-            }
-            style={detalhesFilme.moviePoster}
-          />
+          <Text style={{color: '#ccc', marginTop: 10}}>Este filme ainda não possui avaliações.</Text>
         )}
-        <Text style={styles.textoBotao}>Avaliações</Text>
-        {avaliacoes.map((a) => (
-          <AvaliacaoComponent key={a.id} avaliacao={a} />
-        ))}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -179,18 +190,16 @@ const detalhesFilme = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingTop: 40,
     paddingBottom: 20,
-    backgroundColor: "#2E3D50",
+    backgroundColor: "#1A2B3E",
   },
   headerTitle: {
     color: "#eaeaea",
     fontSize: 20,
     fontWeight: "bold",
     flex: 1,
-    marginHorizontal: 15,
   },
   scrollViewContent: {
     padding: 20,
@@ -204,55 +213,31 @@ const detalhesFilme = StyleSheet.create({
     marginBottom: 20,
     resizeMode: "cover",
   },
-  externalMoviePlaceholderLarge: {
-    // Para a tela de detalhes
-    width: 150,
-    height: 225,
-    borderRadius: 12,
-    backgroundColor: "#666666", // Cor cinza
-    justifyContent: "center",
-    alignItems: "center",
+  detailsContainer: {
+    width: '100%',
+    padding: 15,
+    backgroundColor: '#1A2B3E',
+    borderRadius: 10,
     marginBottom: 20,
   },
-  externalMovieTextLarge: {
-    // Para a tela de detalhes
-    color: "#ffffff",
-    fontSize: 18,
-    fontWeight: "bold",
-    textAlign: "center",
+  movieTitle: {
+    color: '#eaeaea',
+    fontSize: 22,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 10,
   },
-  avaliacaoTitle: {
+  overview: {
+    color: '#ccc',
+    fontSize: 15,
+    textAlign: 'justify',
+  },
+  sectionTitle: {
     color: "#eaeaea",
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "bold",
     marginTop: 20,
     marginBottom: 10,
-    alignSelf: "center",
-  },
-  avaliacaoContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    width: "80%",
-    marginBottom: 20,
-  },
-  avaliacaoButton: {
-    backgroundColor: "#1A2B3E",
-    padding: 15,
-    borderRadius: 50,
-    borderWidth: 2,
-    borderColor: "#4A6B8A",
-  },
-  avaliacaoButtonSelected: {
-    backgroundColor: "#3E9C9C",
-    borderColor: "#3E9C9C",
-  },
-  saveButton: {
-    backgroundColor: "#3E9C9C",
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 30,
-    marginTop: 30,
-    width: "80%",
-    alignItems: "center",
+    alignSelf: "flex-start",
   },
 });

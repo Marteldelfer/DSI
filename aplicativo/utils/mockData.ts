@@ -1,9 +1,11 @@
-// aplicativo/utils/mockData.ts
+// SUBSTITUA O CONTEÚDO DE: aplicativo/utils/mockData.ts
+
+import { getMovieDetails } from "@/src/api/tmdb";
 
 // Tipo para o status de avaliação do filme
 export type MovieStatus = "like2" | "dislike2" | "staro" | null;
 
-// Interface para um filme
+// Interface para um filme (atualizada)
 export interface Movie {
   id: string;
   title: string;
@@ -12,8 +14,10 @@ export interface Movie {
   director?: string;
   duration?: string; // Duração em minutos, como string
   genre?: string;
-  status?: MovieStatus; // Adicionando campo de status opcional
-  isExternal?: boolean; // Novo campo para identificar filmes externos
+  overview?: string; // Campo adicionado para sinopse do TMDB
+  status?: MovieStatus; // Campo de status de avaliação do usuário
+  isExternal?: boolean; // Identifica filmes adicionados manualmente
+  isTmdb?: boolean; // Identifica filmes vindos do TMDB
 }
 
 // Interface para uma playlist
@@ -37,25 +41,17 @@ export interface Comentario {
   content: string;
 }
 
-// Mock dos filmes existentes
-// **MUDANÇA AQUI: de 'const' para 'let'**
+// O mockMovies agora funciona como um cache/banco de dados em memória para
+// filmes com os quais o usuário interagiu (avaliados ou adicionados manualmente).
 export let mockMovies: Movie[] = [
-  { id: "100", title: "Lock, Stock and Two Smoking Barrels", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/6pJB2t3MbQUy9m5pFIBHXLqnqNd.jpg", status: "like2", isExternal: false },
-  { id: "101", title: "Léon: The Professional", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/yI6X2cCM5YPJtxMhUd3dPGqDAhw.jpg", status: "dislike2", isExternal: false },
-  { id: "102", title: "Open Hearts", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/hOrV2fCw2kmSiS4ZMGFPfXqr3lt.jpg", status: "staro", isExternal: false },
-  { id: "103", title: "Taxi Driver", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/ekstpH614fwDX8DUln1a2Opz0N8.jpg", isExternal: false },
-  { id: "104", title: "Run Lola Run", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/u34YzbFvX067IvJX1ocI4JBvYPa.jpg", isExternal: false },
-  { id: "105", title: "Back to the Future", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/vN5B5WgYscRGcQpVhHl6p9DDTP0.jpg", isExternal: false },
-  { id: "106", title: "Predator", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/k3mW4qfJo6SKqe6laRyNGnbB9n5.jpg", isExternal: false },
-  { id: "107", title: "Snatch", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/8KSDI7ijEv7QVZdIyrLw5Gnhhr8.jpg", isExternal: false },
-  { id: "108", title: "Three Colors: Blue", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/33wsWxzsNstI8N7dvuwzFmj1qBd.jpg", isExternal: false },
-  { id: "109", title: "Three Colors: White", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/fdIet3NSa27gobMbaUml66oCQNT.jpg", isExternal: false },
+  // A lista inicial pode ser vazia ou conter filmes pré-definidos que não vêm da API.
+  // Mantive um como exemplo, mas agora com a flag isTmdb.
+  { id: "100", title: "Lock, Stock and Two Smoking Barrels", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/6pJB2t3MbQUy9m5pFIBHXLqnqNd.jpg", status: "like2", isExternal: false, isTmdb: true },
 ];
 
-// Armazenamento em memória das playlists (sem alterações)
+// Armazenamento em memória das playlists
 let mockPlaylists: Playlist[] = [
-  { id: "p1", name: "Minhas Favoritas", movieIds: ["100", "103"], coverImageUrl: mockMovies.find(m => m.id === "100")?.posterUrl },
-  { id: "p2", name: "Ação e Aventura", movieIds: ["101", "105"], coverImageUrl: mockMovies.find(m => m.id === "101")?.posterUrl },
+  { id: "p1", name: "Minhas Favoritas", movieIds: ["100"], coverImageUrl: mockMovies.find(m => m.id === "100")?.posterUrl },
 ];
 
 // Armazenamento em memória das avaliações
@@ -81,45 +77,60 @@ export function deletePlaylist(playlistId: string): void {
     mockPlaylists = mockPlaylists.filter(p => p.id !== playlistId);
 }
 
-// Funções CRUD para Filmes (incluindo filmes externos)
-export function getMovieById(id: string): Movie | undefined {
-    return mockMovies.find(movie => movie.id === id);
+// --- LÓGICA DE FILMES ATUALIZADA ---
+
+// Adiciona um filme ao nosso "banco de dados" local se ele não existir.
+// Essencial para quando o usuário avalia um filme do TMDB pela primeira vez.
+export const addMovieToLocalStore = (movie: Movie) => {
+  const movieExists = mockMovies.some(m => m.id === movie.id);
+  if (!movieExists) {
+    mockMovies.push(movie);
+  }
+};
+
+
+// Função para obter um filme. Primeiro busca localmente, se não encontrar, busca na API do TMDB.
+export async function getMovieById(id: string): Promise<Movie | undefined> {
+  let movie = mockMovies.find(movie => movie.id === id);
+  if (movie) {
+    return movie;
+  }
+  
+  // Se não encontrou localmente, busca na API do TMDB
+  const tmdbMovie = await getMovieDetails(id);
+  if (tmdbMovie) {
+    addMovieToLocalStore(tmdbMovie); // Adiciona ao nosso "cache" local
+    return tmdbMovie;
+  }
+
+  return undefined;
 }
 
 export function addExternalMovie(movie: Movie): void {
-    // Garante que isExternal seja true para filmes adicionados externamente
-    mockMovies.push({ ...movie, isExternal: true });
-    // TODO: Em uma implementação real com Firebase, você faria uma chamada para salvar no Firestore aqui.
-    console.log("Filme externo adicionado (mock):", movie);
+    // Garante que as flags corretas sejam definidas para filmes externos
+    mockMovies.push({ ...movie, isExternal: true, isTmdb: false });
 }
 
 export function updateMovie(updatedMovie: Movie): void {
     const index = mockMovies.findIndex(m => m.id === updatedMovie.id);
     if (index !== -1) {
-        // Mantém a propriedade isExternal original se não for fornecida na atualização
         const originalMovie = mockMovies[index];
         mockMovies[index] = {
-            ...originalMovie, // Mantém propriedades existentes
-            ...updatedMovie, // Sobrescreve com as atualizadas
-            isExternal: originalMovie.isExternal || updatedMovie.isExternal || false // Garante que isExternal seja mantido ou definido
+            ...originalMovie,
+            ...updatedMovie,
         };
     }
-    // TODO: Em uma implementação real com Firebase, você faria uma chamada para atualizar no Firestore aqui.
-    console.log("Filme atualizado (mock):", updatedMovie);
 }
 
 export function deleteMovie(movieId: string): void {
     mockMovies = mockMovies.filter(movie => movie.id !== movieId);
-    // Também remova o filme de quaisquer playlists
+    // Remove o filme de quaisquer playlists
     mockPlaylists = mockPlaylists.map(playlist => ({
         ...playlist,
         movieIds: playlist.movieIds.filter(id => id !== movieId),
     }));
-    // TODO: Em uma implementação real com Firebase, você faria uma chamada para deletar no Firestore aqui.
-    console.log("Filme excluído (mock):", movieId, "Removido de playlists.");
 }
 
-// Função para obter filmes com base no filtro e status de avaliação
 export type MovieFilterType = 'all' | 'external' | 'app_db';
 
 export function getFilteredAndRatedMovies(filterType: MovieFilterType = 'all'): Movie[] {
@@ -133,53 +144,54 @@ export function getFilteredAndRatedMovies(filterType: MovieFilterType = 'all'): 
             filteredBySource = mockMovies.filter(movie => movie.isExternal === true);
             break;
         case 'app_db':
-            // Filmes do "banco de dados do app" são aqueles que não são externos
-            filteredBySource = mockMovies.filter(movie => movie.isExternal === false || movie.isExternal === undefined);
+            // Filmes do "banco de dados do app" agora são os do TMDB
+            filteredBySource = mockMovies.filter(movie => movie.isTmdb === true);
             break;
         default:
             filteredBySource = mockMovies;
             break;
     }
-    // Agora filtra apenas os filmes que têm um status de avaliação
+    // Retorna apenas os filmes que têm um status de avaliação
     return filteredBySource.filter(movie => movie.status !== undefined && movie.status !== null);
 }
 
-//CRUD de avaliações
+// --- LÓGICA DE AVALIAÇÕES ATUALIZADA ---
+
 export function getAvaliacoes() {
   return [...mockAvaliacoes];
 }
 
+// ATUALIZADO: Agora também atualiza o status do filme em mockMovies
 export function createAvaliacao(avaliacao: Avaliacao): void {
+  // Adiciona a avaliação
   if (mockAvaliacoes.length > 0) {
-    avaliacao.id = (parseInt(mockAvaliacoes[mockAvaliacoes.length - 1].id) + 1).toString();
+    avaliacao.id = (parseInt(mockAvaliacoes[mockAvaliacoes.length - 1].id ?? '0') + 1).toString();
   } else {
     avaliacao.id = "0"
   }
   mockAvaliacoes.push(avaliacao);
-}
 
-export function updateAvaliacao(newAvaliacao: Avaliacao): void {
-  let avaliacao = getAvaliacaoById(newAvaliacao.id as string);
-  avaliacao = {
-    ...avaliacao,
-    content: newAvaliacao.content,
+  // Atualiza o status do filme correspondente em mockMovies
+  const movieIndex = mockMovies.findIndex(m => m.id === avaliacao.movieId);
+  if (movieIndex > -1) {
+    let status: MovieStatus = null;
+    if (avaliacao.review === 'like') status = 'like2';
+    if (avaliacao.review === 'dislike') status = 'dislike2';
+    if (avaliacao.review === 'favorite') status = 'staro';
+    mockMovies[movieIndex].status = status;
   }
 }
 
-export function deleteAvaliacao(id: string): void {
-  mockAvaliacoes.filter(movie => movie.id !== id);
-}
-
-export function getAvaliacaoById(id: string): Avaliacao {
-  let index = mockAvaliacoes.findIndex(a => a.id === id);
-  return mockAvaliacoes[index];
+export function getAvaliacaoById(id: string): Avaliacao | undefined {
+  return mockAvaliacoes.find(a => a.id === id);
 }
 
 export function getAvaliacoesByMovieId(movieId: string) {
   return mockAvaliacoes.filter(avaliacao => avaliacao.movieId === movieId)
 }
 
-// CRUD Comentario
+
+// CRUD Comentario (sem alterações)
 export function getComentariosByAvaliacaoId(avaliacaoId: string): Comentario[] {
   return mockComentarios.filter(c => c.avaliacaoId === avaliacaoId);
 }

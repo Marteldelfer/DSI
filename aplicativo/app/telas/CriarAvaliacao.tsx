@@ -1,16 +1,11 @@
+// SUBSTITUA O CONTEÚDO DE: aplicativo/app/telas/CriarAvaliacao.tsx
 import {
   Movie,
-  Avaliacao,
-  getAvaliacoes,
-  getAvaliacaoById,
   createAvaliacao,
-  deleteAvaliacao,
-  updateAvaliacao,
   getMovieById,
 } from "@/utils/mockData";
 import {
   Alert,
-  KeyboardAvoidingView,
   View,
   Pressable,
   Text,
@@ -18,6 +13,7 @@ import {
   Image,
   TextInput,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { AntDesign } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
@@ -25,30 +21,38 @@ import { styles } from "@/app/styles";
 import { useState, useCallback } from "react";
 
 export default function CriarAvaliacao() {
-  const { movieId, preReview } = useLocalSearchParams();
+  const { movieId, review: preReview } = useLocalSearchParams();
   const router = useRouter();
 
-  const [review, setReview] = useState<"like" | "dislike" | "favorite" | null>(null);
+  const [review, setReview] = useState<"like" | "dislike" | "favorite" | null>(
+    preReview as "like" | "dislike" | "favorite" || null
+  );
   const [movie, setMovie] = useState<Movie | undefined>(undefined);
   const [content, setContent] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
-      if (movieId) {
-        const foundMovie = getMovieById(movieId as string);
-        if (foundMovie) {
-          setMovie(foundMovie);
-        } else {
-          Alert.alert("Erro", "Filme não encontrado.");
-          router.back();
+      const fetchMovie = async () => {
+        setLoading(true);
+        if (movieId) {
+          const foundMovie = await getMovieById(movieId as string);
+          if (foundMovie) {
+            setMovie(foundMovie);
+          } else {
+            Alert.alert("Erro", "Filme não encontrado.");
+            router.back();
+          }
         }
-      }
+        setLoading(false);
+      };
+      fetchMovie();
     }, [movieId])
   );
 
 	function handleCriarAvaliacao() {
 		if (review === null) {
-			Alert.alert("Erro", "Avaliação é nescessária");
+			Alert.alert("Erro", "Uma avaliação (gostei, não gostei ou favorito) é necessária.");
 			return;
 		}
 		createAvaliacao({
@@ -56,10 +60,17 @@ export default function CriarAvaliacao() {
 			content: content,
 			review: review
 		});
+    Alert.alert("Sucesso", "Sua avaliação foi publicada!");
 		router.back();
 	}
 
-  if (!movie) return;
+  if (loading || !movie) {
+    return (
+        <View style={[styles.container, { justifyContent: 'center' }]}>
+            <ActivityIndicator size="large" color="#3E9C9C" />
+        </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -73,31 +84,24 @@ export default function CriarAvaliacao() {
       </View>
 
       <ScrollView contentContainerStyle={criarAvaliacao.scrollViewContent}>
-        {movie.isExternal ? (
-          <View style={criarAvaliacao.externalMoviePlaceholderLarge}>
-            <Text style={criarAvaliacao.externalMovieTextLarge}>
-              Filme Externo
-            </Text>
-          </View>
-        ) : (
-          <Image
-            source={
-              movie.posterUrl
-                ? { uri: movie.posterUrl }
-                : require("../../assets/images/filmeia-logo2.png")
-            }
-            style={criarAvaliacao.moviePoster}
-          />
-        )}
+        <Image
+          source={
+            movie.posterUrl
+              ? { uri: movie.posterUrl }
+              : require("../../assets/images/filmeia-logo2.png")
+          }
+          style={criarAvaliacao.moviePoster}
+        />
 
-				<Text style={styles.textoBotao}>O que você achou deste filme?</Text>
-        <View style={styles.textInput}>
+        <Text style={styles.textoBotao}>O que você achou de "{movie.title}"?</Text>
+        <View style={[styles.textInput, {marginTop: 15}]}>
           <TextInput
-            placeholder="Review"
+            placeholder="Escreva um comentário (opcional)..."
             placeholderTextColor={"grey"}
-            style={[styles.input, {height: 110, outline: "none"}]}
+            style={[styles.input, {height: 110, textAlignVertical: 'top', paddingTop: 10}]}
             multiline={true}
-						onChangeText={(e) => setContent(e)}
+						onChangeText={setContent}
+            value={content}
           />
         </View>
 
@@ -106,51 +110,33 @@ export default function CriarAvaliacao() {
           <Pressable
             style={[
               criarAvaliacao.avaliacaoButton,
-              review === "like" &&
-                criarAvaliacao.avaliacaoButtonSelected,
+              review === "like" && criarAvaliacao.avaliacaoButtonSelected,
             ]}
             onPress={() => setReview("like")}
           >
-            <AntDesign
-              name="like2"
-              size={30}
-              color={review === "like" ? "black" : "#eaeaea"}
-            />
+            <AntDesign name="like2" size={30} color={review === "like" ? "black" : "#eaeaea"} />
           </Pressable>
           <Pressable
             style={[
               criarAvaliacao.avaliacaoButton,
-              review === "dislike" &&
-                criarAvaliacao.avaliacaoButtonSelected,
+              review === "dislike" && criarAvaliacao.avaliacaoButtonSelected,
             ]}
             onPress={() => setReview("dislike")}
           >
-            <AntDesign
-              name="dislike2"
-              size={30}
-              color={review === "dislike" ? "black" : "#eaeaea"}
-            />
+            <AntDesign name="dislike2" size={30} color={review === "dislike" ? "black" : "#eaeaea"} />
           </Pressable>
           <Pressable
             style={[
               criarAvaliacao.avaliacaoButton,
-              review === "favorite" &&
-                criarAvaliacao.avaliacaoButtonSelected,
+              review === "favorite" && criarAvaliacao.avaliacaoButtonSelected,
             ]}
             onPress={() => setReview("favorite")}
           >
-            <AntDesign
-              name="staro"
-              size={30}
-              color={review === "favorite" ? "black" : "#eaeaea"}
-            />
+            <AntDesign name="staro" size={30} color={review === "favorite" ? "black" : "#eaeaea"} />
           </Pressable>
         </View>
 
-        <Pressable
-          style={criarAvaliacao.saveButton}
-          onPress={handleCriarAvaliacao}
-        >
+        <Pressable style={criarAvaliacao.saveButton} onPress={handleCriarAvaliacao}>
           <Text style={styles.textoBotao}>Publicar Avaliação</Text>
         </Pressable>
       </ScrollView>
@@ -160,82 +146,15 @@ export default function CriarAvaliacao() {
 
 const criarAvaliacao = StyleSheet.create({
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 40,
-    paddingBottom: 20,
-    backgroundColor: "#2E3D50",
+    flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 40,
+    paddingBottom: 20, backgroundColor: "#1A2B3E",
   },
-  headerTitle: {
-    color: "#eaeaea",
-    fontSize: 20,
-    fontWeight: "bold",
-    flex: 1,
-    marginHorizontal: 15,
-  },
-  scrollViewContent: {
-    padding: 20,
-    paddingBottom: 100,
-    alignItems: "center",
-  },
-  moviePoster: {
-    width: 150,
-    height: 225,
-    borderRadius: 12,
-    marginBottom: 20,
-    resizeMode: "cover",
-  },
-  externalMoviePlaceholderLarge: {
-    // Para a tela de detalhes
-    width: 150,
-    height: 225,
-    borderRadius: 12,
-    backgroundColor: "#666666", // Cor cinza
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  externalMovieTextLarge: {
-    // Para a tela de detalhes
-    color: "#ffffff",
-    fontSize: 18,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  avaliacaoTitle: {
-    color: "#eaeaea",
-    fontSize: 16,
-    fontWeight: "bold",
-    marginTop: 20,
-    marginBottom: 10,
-    alignSelf: "center",
-  },
-  avaliacaoContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    width: "80%",
-    marginBottom: 20,
-  },
-  avaliacaoButton: {
-    backgroundColor: "#1A2B3E",
-    padding: 15,
-    borderRadius: 50,
-    borderWidth: 2,
-    borderColor: "#4A6B8A",
-  },
-  avaliacaoButtonSelected: {
-    backgroundColor: "#3E9C9C",
-    borderColor: "#3E9C9C",
-  },
-  saveButton: {
-    backgroundColor: "#3E9C9C",
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 30,
-    marginTop: 30,
-    width: "80%",
-    alignItems: "center",
-  },
+  headerTitle: { color: "#eaeaea", fontSize: 20, fontWeight: "bold", flex: 1, marginLeft: 15, },
+  scrollViewContent: { padding: 20, paddingBottom: 100, alignItems: "center", },
+  moviePoster: { width: 150, height: 225, borderRadius: 12, marginBottom: 20, resizeMode: "cover", },
+  avaliacaoTitle: { color: "#eaeaea", fontSize: 16, fontWeight: "bold", marginTop: 20, marginBottom: 10, alignSelf: "center", },
+  avaliacaoContainer: { flexDirection: "row", justifyContent: "space-around", width: "80%", marginBottom: 20, },
+  avaliacaoButton: { backgroundColor: "#1A2B3E", padding: 15, borderRadius: 50, borderWidth: 2, borderColor: "#4A6B8A", },
+  avaliacaoButtonSelected: { backgroundColor: "#3E9C9C", borderColor: "#3E9C9C", },
+  saveButton: { backgroundColor: "#3E9C9C", paddingVertical: 15, paddingHorizontal: 30, borderRadius: 30, marginTop: 30, width: "80%", alignItems: "center", },
 });

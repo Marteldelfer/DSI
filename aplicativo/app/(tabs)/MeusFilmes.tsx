@@ -1,5 +1,5 @@
-// aplicativo/app/(tabs)/MeusFilmes.tsx
-import React, { useState } from 'react';
+// SUBSTITUA O CONTEÚDO DE: aplicativo/app/(tabs)/MeusFilmes.tsx
+import React, { useState, useCallback, useEffect } from 'react'; // CORREÇÃO: useEffect foi adicionado aqui
 import { ScrollView, View, Image, Pressable, Text, StyleSheet, TextInput } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
@@ -12,8 +12,10 @@ function ComponenteFilmeAvaliado({ movie, statusIcon }: { movie: Movie, statusIc
     if (!statusIcon) return null;
 
     const handlePress = () => {
+        // Usa a tela de detalhes correta dependendo se o filme é do TMDB ou externo
+        const pathname = movie.isTmdb ? '/telas/DetalhesFilme' : '/telas/DetalhesFilmeExterno';
         router.push({
-            pathname: '/telas/DetalhesFilmeExterno',
+            pathname: pathname,
             params: { movieId: movie.id },
         });
     };
@@ -21,7 +23,6 @@ function ComponenteFilmeAvaliado({ movie, statusIcon }: { movie: Movie, statusIc
     const displayTitle = movie.title;
     const displayYear = movie.releaseYear ? ` (${movie.releaseYear})` : '';
     const placeholderText = `${displayTitle}${displayYear}`;
-
 
     return (
         <Pressable style={meusFilmesStyles.movieContainer} onPress={handlePress}>
@@ -35,9 +36,9 @@ function ComponenteFilmeAvaliado({ movie, statusIcon }: { movie: Movie, statusIc
                     <Text style={meusFilmesStyles.externalMoviePlaceholderText} numberOfLines={3}>{placeholderText}</Text>
                 </View>
             )}
-            <Text style={meusFilmesStyles.movieTitle}>{movie.title}</Text>
+            <Text style={meusFilmesStyles.movieTitle} numberOfLines={2}>{movie.title}</Text>
             <View style={meusFilmesStyles.statusIconWrapper}>
-                <AntDesign name={statusIcon} size={18} color="#eaeaea" />
+                <AntDesign name={statusIcon as any} size={18} color="#eaeaea" />
             </View>
         </Pressable>
     );
@@ -52,14 +53,15 @@ function MeusFilmes() {
     const [currentFilter, setCurrentFilter] = useState<MovieFilterType>('all');
 
     useFocusEffect(
-        React.useCallback(() => {
+        useCallback(() => {
             const movies = getFilteredAndRatedMovies(currentFilter);
             setAllMoviesBasedOnFilter(movies);
             applySearchFilter(movies, searchTerm);
         }, [currentFilter])
     );
 
-    React.useEffect(() => {
+    // Re-aplica a busca quando o termo de pesquisa ou a lista base mudam
+    useEffect(() => {
         applySearchFilter(allMoviesBasedOnFilter, searchTerm);
     }, [searchTerm, allMoviesBasedOnFilter]);
 
@@ -88,7 +90,6 @@ function MeusFilmes() {
                 <ScrollView showsVerticalScrollIndicator={false}>
                     <Image source={require("../../assets/images/filmeia-logo2.png")} style={meusFilmesStyles.logo} />
 
-                    {/* Campo de Busca */}
                     <View style={meusFilmesStyles.searchContainer}>
                         <AntDesign name="search1" size={20} color="#888" style={meusFilmesStyles.searchIcon} />
                         <TextInput
@@ -100,31 +101,21 @@ function MeusFilmes() {
                         />
                     </View>
 
-                    {/* Botões de Filtro */}
                     <View style={meusFilmesStyles.filterButtonsContainer}>
                         <Pressable
-                            style={[
-                                meusFilmesStyles.filterButton,
-                                currentFilter === 'all' && meusFilmesStyles.filterButtonSelected,
-                            ]}
+                            style={[ meusFilmesStyles.filterButton, currentFilter === 'all' && meusFilmesStyles.filterButtonSelected ]}
                             onPress={() => setCurrentFilter('all')}
                         >
                             <Text style={currentFilter === 'all' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Todos</Text>
                         </Pressable>
                         <Pressable
-                            style={[
-                                meusFilmesStyles.filterButton,
-                                currentFilter === 'app_db' && meusFilmesStyles.filterButtonSelected,
-                            ]}
+                            style={[ meusFilmesStyles.filterButton, currentFilter === 'app_db' && meusFilmesStyles.filterButtonSelected ]}
                             onPress={() => setCurrentFilter('app_db')}
                         >
                             <Text style={currentFilter === 'app_db' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Filmes TMDB</Text>
                         </Pressable>
                         <Pressable
-                            style={[
-                                meusFilmesStyles.filterButton,
-                                currentFilter === 'external' && meusFilmesStyles.filterButtonSelected,
-                            ]}
+                            style={[ meusFilmesStyles.filterButton, currentFilter === 'external' && meusFilmesStyles.filterButtonSelected ]}
                             onPress={() => setCurrentFilter('external')}
                         >
                             <Text style={currentFilter === 'external' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Externos</Text>
@@ -151,7 +142,7 @@ function MeusFilmes() {
                                     />
                                 ))
                             ) : (
-                                <Text style={meusFilmesStyles.noMoviesText}>Nenhum filme encontrado com esse termo ou filtro.</Text>
+                                <Text style={meusFilmesStyles.noMoviesText}>Nenhum filme encontrado.</Text>
                             )}
                         </View>
                     </View>
@@ -161,7 +152,7 @@ function MeusFilmes() {
             {showAddMenu && (
                 <View style={meusFilmesStyles.addMenu}>
                     <Pressable style={meusFilmesStyles.addMenuItem} onPress={handleAddMovie}>
-                        <Text style={meusFilmesStyles.addMenuText}>Adicionar Filme Externo</Text>
+                        <Text style={meusFilmesStyles.addMenuText}>Adicionar Filme</Text>
                     </Pressable>
                 </View>
             )}
@@ -183,108 +174,27 @@ const meusFilmesStyles = StyleSheet.create({
     sectionTitle: { color: "#eaeaea", fontWeight: "bold", fontSize: 18, marginBottom: 8 },
     moviesGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
     movieContainer: { padding: 4, alignItems: 'center', width: '32%', marginBottom: 15 },
-    moviePoster: { width: '100%', height: 140, borderRadius: 12 },
-    // Novo estilo para o placeholder de filme externo
+    moviePoster: { width: '100%', height: 140, borderRadius: 12, backgroundColor: '#4A6B8A' },
     externalMoviePlaceholder: {
-        width: '100%',
-        height: 140,
-        borderRadius: 12,
-        backgroundColor: '#4A6B8A', // Cor cinza para o placeholder
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 5, // Adicionar um pouco de padding para o texto
+        width: '100%', height: 140, borderRadius: 12, backgroundColor: '#4A6B8A',
+        justifyContent: 'center', alignItems: 'center', paddingHorizontal: 5,
     },
-    externalMoviePlaceholderText: {
-        color: '#eaeaea',
-        fontSize: 14,
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
+    externalMoviePlaceholderText: { color: '#eaeaea', fontSize: 14, fontWeight: 'bold', textAlign: 'center', },
     movieTitle: { color: "#eaeaea", fontSize: 11, textAlign: 'center', marginTop: 4, height: 30 },
     statusIconWrapper: { position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(0,0,0,0.6)', padding: 4, borderRadius: 15 },
-    plusButton: {
-        position: 'absolute',
-        bottom: 90,
-        right: 20,
-        backgroundColor: '#3E9C9C',
-        borderRadius: 30,
-        width: 60,
-        height: 60,
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 5,
-        zIndex: 10,
-    },
-    addMenu: {
-        position: 'absolute',
-        bottom: 160,
-        right: 20,
-        backgroundColor: '#1A2B3E',
-        borderRadius: 10,
-        elevation: 3,
-        zIndex: 11,
-        padding: 10,
-    },
-    addMenuItem: {
-        paddingVertical: 8,
-        paddingHorizontal: 15,
-    },
-    addMenuText: {
-        color: '#eaeaea',
-        fontSize: 16,
-    },
-    noMoviesText: {
-        color: '#eaeaea',
-        fontSize: 16,
-        textAlign: 'center',
-        marginTop: 20,
-        width: '100%',
-    },
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#1A2B3E',
-        borderRadius: 25,
-        paddingHorizontal: 15,
-        marginBottom: 10,
-        height: 50,
-        borderWidth: 1,
-        borderColor: '#4A6B8A',
-    },
-    searchIcon: {
-        marginRight: 10,
-    },
-    searchInput: {
-        flex: 1,
-        color: '#eaeaea',
-        fontSize: 16,
-    },
-    filterButtonsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        marginBottom: 20,
-        width: '100%',
-    },
-    filterButton: {
-        backgroundColor: '#1A2B3E',
-        paddingVertical: 10,
-        paddingHorizontal: 15,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#4A6B8A',
-    },
-    filterButtonSelected: {
-        backgroundColor: '#3E9C9C',
-        borderColor: '#3E9C9C',
-    },
-    filterButtonText: {
-        color: '#eaeaea',
-        fontWeight: 'bold',
-    },
-    filterButtonTextSelected: {
-        color: 'black',
-        fontWeight: 'bold',
-    },
+    plusButton: { position: 'absolute', bottom: 90, right: 20, backgroundColor: '#3E9C9C', borderRadius: 30, width: 60, height: 60, justifyContent: 'center', alignItems: 'center', elevation: 5, zIndex: 10, },
+    addMenu: { position: 'absolute', bottom: 160, right: 20, backgroundColor: '#1A2B3E', borderRadius: 10, elevation: 3, zIndex: 11, padding: 10, },
+    addMenuItem: { paddingVertical: 8, paddingHorizontal: 15, },
+    addMenuText: { color: '#eaeaea', fontSize: 16, },
+    noMoviesText: { color: '#eaeaea', fontSize: 16, textAlign: 'center', marginTop: 20, width: '100%', },
+    searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1A2B3E', borderRadius: 25, paddingHorizontal: 15, marginBottom: 10, height: 50, borderWidth: 1, borderColor: '#4A6B8A', },
+    searchIcon: { marginRight: 10, },
+    searchInput: { flex: 1, color: '#eaeaea', fontSize: 16, },
+    filterButtonsContainer: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 20, width: '100%', },
+    filterButton: { backgroundColor: '#1A2B3E', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 20, borderWidth: 1, borderColor: '#4A6B8A', },
+    filterButtonSelected: { backgroundColor: '#3E9C9C', borderColor: '#3E9C9C', },
+    filterButtonText: { color: '#eaeaea', fontWeight: 'bold', },
+    filterButtonTextSelected: { color: 'black', fontWeight: 'bold', },
 });
 
 export default MeusFilmes;
