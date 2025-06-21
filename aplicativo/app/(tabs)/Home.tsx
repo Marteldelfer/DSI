@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 // NOVO CONTEÚDO PARA: aplicativo/app/(tabs)/Home.tsx
 import React, { useState, useEffect } from 'react';
 import { ScrollView, Text, View, TextInput, Image, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
@@ -20,14 +21,55 @@ interface ComponenteFilmeProps {
 }
 
 function ComponenteFilme({ movie, onPress }: ComponenteFilmeProps) {
+=======
+// SUBSTITUA O CONTEÚDO DE: aplicativo/app/(tabs)/Home.tsx
+import React, { useState, useEffect, useCallback } from 'react';
+import { ScrollView, Text, View, TextInput, Image, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { AntDesign } from '@expo/vector-icons';
+import { styles } from '../styles';
+import { useRouter } from "expo-router";
+import { Movie } from "../../utils/mockData";
+import { getPopularMovies, searchMovies } from '@/src/api/tmdb';
+import { addMovieToLocalStore } from '@/utils/mockData';
+
+function ComponenteFilme({ movie }: { movie: Movie }): React.JSX.Element {
+>>>>>>> Stashed changes
   const [clicado, setClicado] = useState(false);
 
   const estiloPequeno = { width: 100, height: 150, borderRadius: 12 };
   const estiloGrande = { width: 130, height: 195, borderRadius: 16 };
 
+<<<<<<< Updated upstream
   return (
     <View style={homeStyles.movieWrapper}>
       <Pressable onPress={() => { setClicado(!clicado); onPress(movie); }}>
+=======
+  const handleInteraction = () => {
+    // Garante que o filme esteja no nosso "banco de dados" local antes de interagir
+    addMovieToLocalStore(movie);
+    setClicado(true);
+  }
+
+  function handleNavigateToDetails() {
+    addMovieToLocalStore(movie);
+    router.push({
+      pathname: '/telas/DetalhesFilme',
+      params: { movieId: movie.id },
+    });
+  }
+  
+  function handleAvaliacao(r: "like" | "dislike" | "favorite") {
+    addMovieToLocalStore(movie);
+    router.push({
+      pathname: '/telas/CriarAvaliacao',
+      params: { movieId: movie.id, review: r },
+    });
+  };
+
+  return (
+    <View style={homeStyles.movieWrapper}>
+      <Pressable onPress={() => !clicado ? handleInteraction() : handleNavigateToDetails()}>
+>>>>>>> Stashed changes
         <Image
           source={movie.posterUrl ? { uri: movie.posterUrl } : require("../../assets/images/filmeia-logo2.png")}
           style={clicado ? estiloGrande : estiloPequeno}
@@ -47,8 +89,13 @@ function ComponenteFilme({ movie, onPress }: ComponenteFilmeProps) {
           <Pressable style={homeStyles.iconWrapper} onPress={() => Alert.alert("Funcionalidade", "Funcionalidade de avaliação será implementada na tela de detalhes do filme.")}>
             <AntDesign name="dislike2" size={20} color="black" />
           </Pressable>
+<<<<<<< Updated upstream
           <Pressable style={homeStyles.iconWrapper} onPress={() => Alert.alert("Funcionalidade", "Funcionalidade de avaliação será implementada na tela de detalhes do filme.")}>
             <AntDesign name="staro" size={20} color="black" />
+=======
+          <Pressable onPress={() => handleAvaliacao("favorite")}>
+            <View style={homeStyles.iconWrapper}><AntDesign name="staro" size={20} color="black"/></View>
+>>>>>>> Stashed changes
           </Pressable>
         </View>
       )}
@@ -58,6 +105,7 @@ function ComponenteFilme({ movie, onPress }: ComponenteFilmeProps) {
 
 function Home() {
   const [pesquisa, setPesquisa] = useState("");
+<<<<<<< Updated upstream
   const [movies, setMovies] = useState<DisplayMovie[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -102,6 +150,25 @@ function Home() {
     // Por exemplo: router.push(`/telas/DetalhesFilmeTMDB?id=${movie.id}`);
     Alert.alert(`Detalhes de ${movie.title}`, "Em breve: navegação para a tela de detalhes do filme do TMDB.");
   };
+=======
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchMovies = useCallback(async () => {
+    setLoading(true);
+    const moviesData = pesquisa ? await searchMovies(pesquisa) : await getPopularMovies();
+    setMovies(moviesData);
+    setLoading(false);
+  }, [pesquisa]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+        fetchMovies();
+    }, 500); // Debounce para a pesquisa
+    
+    return () => clearTimeout(timer);
+  }, [fetchMovies]);
+>>>>>>> Stashed changes
 
   return (
     <View style={styles.container}>
@@ -109,6 +176,7 @@ function Home() {
         <ScrollView showsVerticalScrollIndicator={false}>
           <Image source={require("../../assets/images/filmeia-logo2.png")} style={homeStyles.logo} />
           <View style={[styles.textInput, {marginBottom: 10}]}>
+<<<<<<< Updated upstream
             <AntDesign name="search1" size={36} color="black" />
             <TextInput
               placeholder="Pesquisar Filmes"
@@ -117,6 +185,26 @@ function Home() {
               onChangeText={setPesquisa}
               value={pesquisa}
             />
+=======
+            <AntDesign name="search1" size={24} color="black" style={{marginRight: 10}} />
+            <TextInput 
+              placeholder="Pesquisar Filmes no TMDB" 
+              style={styles.input} 
+              placeholderTextColor={"black"} 
+              onChangeText={setPesquisa} 
+              value={pesquisa} 
+            />
+          </View>
+          <View style={homeStyles.sectionContainer}>
+            <Text style={homeStyles.sectionTitle}>{pesquisa ? `Resultados para "${pesquisa}"` : "Recomendações"}</Text>
+            {loading ? (
+              <ActivityIndicator size="large" color="#3E9C9C" style={{marginTop: 20}} />
+            ) : (
+              <ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
+                {movies.map((movie) => <ComponenteFilme key={movie.id} movie={movie} />)}
+              </ScrollView>
+            )}
+>>>>>>> Stashed changes
           </View>
 
           {loading ? (
@@ -154,19 +242,32 @@ const homeStyles = StyleSheet.create({
     sectionTitle: { color: "#eaeaea", fontWeight: "bold", fontSize: 18, marginBottom: 8 },
     statsImage: { width: '100%', height: 80, resizeMode: "stretch", alignSelf: 'center' },
     movieWrapper: {
+<<<<<<< Updated upstream
       width: 130,     
       height: 280,    
+=======
+      width: 130,
+      height: 280,
+>>>>>>> Stashed changes
       alignItems: 'center',
       marginRight: 5,
     },
     movieTitle: { color: "#eaeaea", fontSize: 12, textAlign: 'center', marginTop: 8, width: 100, height: 30 },
     interactionIconsContainer: {
       flexDirection: "row",
+<<<<<<< Updated upstream
       justifyContent: 'center', 
       alignItems: 'center',
       width: '100%',
       marginTop: 8,
       gap: 12, 
+=======
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: '100%',
+      marginTop: 8,
+      gap: 12,
+>>>>>>> Stashed changes
     },
     iconWrapper: {
       width: 32,
