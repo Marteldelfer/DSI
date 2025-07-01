@@ -25,7 +25,8 @@ function ComponenteFilmeAvaliado({ movie, statusIcon }: { movie: Movie, statusIc
     const placeholderText = `${displayTitle}${displayYear}`;
 
     return (
-        <Pressable style={meusFilmesStyles.movieContainer} onPress={handlePress}>
+        <View style={meusFilmesStyles.movieContainer}>
+        <Pressable onPress={handlePress}>
             {movie.posterUrl ? (
                 <Image
                     source={{ uri: movie.posterUrl }}
@@ -41,6 +42,12 @@ function ComponenteFilmeAvaliado({ movie, statusIcon }: { movie: Movie, statusIc
                 <AntDesign name={statusIcon as any} size={18} color="#eaeaea" />
             </View>
         </Pressable>
+            <View style={meusFilmesStyles.interactionIconsContainer}>
+                <Pressable onPress={() => console.log("enviar para a aba tags")}>
+                    <View style={meusFilmesStyles.iconWrapper}><AntDesign name="tags" size={20} color="black"/></View>
+                </Pressable>
+            </View>
+        </View>
     );
 }
 
@@ -139,7 +146,8 @@ function MeusFilmes() {
                                         key={movie.id}
                                         movie={movie}
                                         statusIcon={movie.status || null}
-                                    />
+                                    >
+                                    </ComponenteFilmeAvaliado>
                                 ))
                             ) : (
                                 <Text style={meusFilmesStyles.noMoviesText}>Nenhum filme encontrado.</Text>
@@ -195,6 +203,23 @@ const meusFilmesStyles = StyleSheet.create({
     filterButtonSelected: { backgroundColor: '#3E9C9C', borderColor: '#3E9C9C', },
     filterButtonText: { color: '#eaeaea', fontWeight: 'bold', },
     filterButtonTextSelected: { color: 'black', fontWeight: 'bold', },
+
+    interactionIconsContainer: {
+      flexDirection: "row",
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: '100%',
+      marginTop: 8,
+      gap: 12,
+    },
+    iconWrapper: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: "#3E9C9C",
+      justifyContent: 'center',
+      alignItems: 'center'
+    }
 });
 
 export default MeusFilmes;
