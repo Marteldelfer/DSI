@@ -1,37 +1,38 @@
-// SUBSTITUA O CONTEÚDO DE: aplicativo/app/(tabs)/MeusFilmes.tsx
-import React, { useState, useCallback, useEffect } from 'react'; // CORREÇÃO: useEffect foi adicionado aqui
-import { ScrollView, View, Image, Pressable, Text, StyleSheet, TextInput } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { AntDesign } from '@expo/vector-icons';
-import { styles } from '../styles';
-import { getFilteredAndRatedMovies, MovieStatus, Movie, MovieFilterType } from '../../utils/mockData';
+// aplicativo/app/(tabs)/MeusFilmes.tsx
+import React, { useState, useCallback, useEffect } from 'react'; //
+import { ScrollView, View, Image, Pressable, Text, StyleSheet, TextInput } from 'react-native'; //
+import { useRouter, useFocusEffect } from 'expo-router'; //
+import { AntDesign } from '@expo/vector-icons'; //
+import { styles } from '../styles'; //
+import { getFilteredAndRatedMovies, MovieStatus, Movie, MovieFilterType } from '../../utils/mockData'; //
 
-function ComponenteFilmeAvaliado({ movie, statusIcon }: { movie: Movie, statusIcon: MovieStatus }) {
-    const router = useRouter();
+function ComponenteFilmeAvaliado({ movie, statusIcon }: { movie: Movie, statusIcon: MovieStatus }) { //
+    const router = useRouter(); //
 
-    if (!statusIcon) return null;
+    if (!statusIcon) return null; //
 
-    const handlePress = () => {
+    const handlePress = () => { //
         // Usa a tela de detalhes correta dependendo se o filme é do TMDB ou externo
-        const pathname = movie.isTmdb ? '/telas/DetalhesFilme' : '/telas/DetalhesFilmeExterno';
+        const pathname = movie.isTmdb ? '/telas/DetalhesFilme' : '/telas/DetalhesFilmeExterno'; //
         router.push({
-            pathname: pathname,
-            params: { movieId: movie.id },
+            pathname: pathname, //
+            params: { movieId: movie.id }, //
         });
     };
 
+    // Prepara o texto do placeholder
     const displayTitle = movie.title;
     const displayYear = movie.releaseYear ? ` (${movie.releaseYear})` : '';
     const placeholderText = `${displayTitle}${displayYear}`;
 
     return (
         <Pressable style={meusFilmesStyles.movieContainer} onPress={handlePress}>
-            {movie.posterUrl ? (
+            {movie.posterUrl ? ( // Se houver posterUrl, exibe a imagem
                 <Image
-                    source={{ uri: movie.posterUrl }}
-                    style={meusFilmesStyles.moviePoster}
+                    source={{ uri: movie.posterUrl }} //
+                    style={meusFilmesStyles.moviePoster} //
                 />
-            ) : (
+            ) : ( // Se não houver posterUrl, exibe o placeholder
                 <View style={meusFilmesStyles.externalMoviePlaceholder}>
                     <Text style={meusFilmesStyles.externalMoviePlaceholderText} numberOfLines={3}>{placeholderText}</Text>
                 </View>
@@ -45,60 +46,59 @@ function ComponenteFilmeAvaliado({ movie, statusIcon }: { movie: Movie, statusIc
 }
 
 function MeusFilmes() {
-    const router = useRouter();
-    const [showAddMenu, setShowAddMenu] = useState(false);
-    const [allMoviesBasedOnFilter, setAllMoviesBasedOnFilter] = useState<Movie[]>([]);
-    const [filteredMovies, setFilteredMovies] = useState<Movie[]>([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [currentFilter, setCurrentFilter] = useState<MovieFilterType>('all');
+    const router = useRouter(); //
+    const [showAddMenu, setShowAddMenu] = useState(false); //
+    const [allMoviesBasedOnFilter, setAllMoviesBasedOnFilter] = useState<Movie[]>([]); //
+    const [filteredMovies, setFilteredMovies] = useState<Movie[]>([]); //
+    const [searchTerm, setSearchTerm] = useState(''); //
+    const [currentFilter, setCurrentFilter] = useState<MovieFilterType>('all'); //
 
     useFocusEffect(
         useCallback(() => {
-            const movies = getFilteredAndRatedMovies(currentFilter);
-            setAllMoviesBasedOnFilter(movies);
-            applySearchFilter(movies, searchTerm);
+            const movies = getFilteredAndRatedMovies(currentFilter); //
+            setAllMoviesBasedOnFilter(movies); //
+            applySearchFilter(movies, searchTerm); //
         }, [currentFilter])
     );
 
-    // Re-aplica a busca quando o termo de pesquisa ou a lista base mudam
-    useEffect(() => {
-        applySearchFilter(allMoviesBasedOnFilter, searchTerm);
-    }, [searchTerm, allMoviesBasedOnFilter]);
+    useEffect(() => { //
+        applySearchFilter(allMoviesBasedOnFilter, searchTerm); //
+    }, [searchTerm, allMoviesBasedOnFilter]); //
 
-    const applySearchFilter = (moviesToFilter: Movie[], term: string) => {
-        if (term === '') {
-            setFilteredMovies(moviesToFilter);
+    const applySearchFilter = (moviesToFilter: Movie[], term: string) => { //
+        if (term === '') { //
+            setFilteredMovies(moviesToFilter); //
         } else {
-            const lowerCaseSearchTerm = term.toLowerCase();
+            const lowerCaseSearchTerm = term.toLowerCase(); //
             const filtered = moviesToFilter.filter(movie =>
                 movie.title.toLowerCase().includes(lowerCaseSearchTerm) ||
                 (movie.director && movie.director.toLowerCase().includes(lowerCaseSearchTerm)) ||
                 (movie.genre && movie.genre.toLowerCase().includes(lowerCaseSearchTerm))
-            );
-            setFilteredMovies(filtered);
+            ); //
+            setFilteredMovies(filtered); //
         }
     };
 
-    const handleAddMovie = () => {
-        setShowAddMenu(false);
-        router.push('/telas/AdicionarFilmeExterno');
+    const handleAddMovie = () => { //
+        setShowAddMenu(false); //
+        router.push('/telas/AdicionarFilmeExterno'); //
     };
 
     return (
         <View style={styles.container}>
             <View style={{ width: '100%', paddingHorizontal: 20, marginTop: 36, flex: 1, paddingBottom: 70 }}>
                 <ScrollView showsVerticalScrollIndicator={false}>
-                    <Image source={require("../../assets/images/filmeia-logo2.png")} style={meusFilmesStyles.logo} />
+                    <Image source={require("../../assets/images/filmeia-logo2.png")} style={meusFilmesStyles.logo} /> {/* */}
 
                     <View style={meusFilmesStyles.searchContainer}>
-                        <AntDesign name="search1" size={20} color="#888" style={meusFilmesStyles.searchIcon} />
+                        <AntDesign name="search1" size={20} color="#888" style={meusFilmesStyles.searchIcon} /> {/* */}
                         <TextInput
                             placeholder="Buscar filmes avaliados..."
                             placeholderTextColor="#888"
                             style={meusFilmesStyles.searchInput}
                             onChangeText={setSearchTerm}
                             value={searchTerm}
-                        />
+                        /> {/* */}
                     </View>
 
                     <View style={meusFilmesStyles.filterButtonsContainer}>
@@ -169,32 +169,42 @@ function MeusFilmes() {
 }
 
 const meusFilmesStyles = StyleSheet.create({
-    logo: { width: 300, height: 150, resizeMode: "contain", alignSelf: 'center' },
-    sectionContainer: { marginTop: 24 },
-    sectionTitle: { color: "#eaeaea", fontWeight: "bold", fontSize: 18, marginBottom: 8 },
-    moviesGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-    movieContainer: { padding: 4, alignItems: 'center', width: '32%', marginBottom: 15 },
-    moviePoster: { width: '100%', height: 140, borderRadius: 12, backgroundColor: '#4A6B8A' },
-    externalMoviePlaceholder: {
-        width: '100%', height: 140, borderRadius: 12, backgroundColor: '#4A6B8A',
-        justifyContent: 'center', alignItems: 'center', paddingHorizontal: 5,
+    logo: { width: 300, height: 150, resizeMode: "contain", alignSelf: 'center' }, //
+    sectionContainer: { marginTop: 24 }, //
+    sectionTitle: { color: "#eaeaea", fontWeight: "bold", fontSize: 18, marginBottom: 8 }, //
+    moviesGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }, //
+    movieContainer: { padding: 4, alignItems: 'center', width: '32%', marginBottom: 15 }, //
+    moviePoster: { width: '100%', height: 140, borderRadius: 12, backgroundColor: '#4A6B8A' }, //
+    externalMoviePlaceholder: { // Novo estilo para o placeholder
+        width: '100%',
+        height: 140,
+        borderRadius: 12,
+        backgroundColor: '#4A6B8A', // Cor de fundo do placeholder
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 5,
     },
-    externalMoviePlaceholderText: { color: '#eaeaea', fontSize: 14, fontWeight: 'bold', textAlign: 'center', },
-    movieTitle: { color: "#eaeaea", fontSize: 11, textAlign: 'center', marginTop: 4, height: 30 },
-    statusIconWrapper: { position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(0,0,0,0.6)', padding: 4, borderRadius: 15 },
-    plusButton: { position: 'absolute', bottom: 90, right: 20, backgroundColor: '#3E9C9C', borderRadius: 30, width: 60, height: 60, justifyContent: 'center', alignItems: 'center', elevation: 5, zIndex: 10, },
-    addMenu: { position: 'absolute', bottom: 160, right: 20, backgroundColor: '#1A2B3E', borderRadius: 10, elevation: 3, zIndex: 11, padding: 10, },
-    addMenuItem: { paddingVertical: 8, paddingHorizontal: 15, },
-    addMenuText: { color: '#eaeaea', fontSize: 16, },
-    noMoviesText: { color: '#eaeaea', fontSize: 16, textAlign: 'center', marginTop: 20, width: '100%', },
-    searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1A2B3E', borderRadius: 25, paddingHorizontal: 15, marginBottom: 10, height: 50, borderWidth: 1, borderColor: '#4A6B8A', },
-    searchIcon: { marginRight: 10, },
-    searchInput: { flex: 1, color: '#eaeaea', fontSize: 16, },
-    filterButtonsContainer: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 20, width: '100%', },
-    filterButton: { backgroundColor: '#1A2B3E', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 20, borderWidth: 1, borderColor: '#4A6B8A', },
-    filterButtonSelected: { backgroundColor: '#3E9C9C', borderColor: '#3E9C9C', },
-    filterButtonText: { color: '#eaeaea', fontWeight: 'bold', },
-    filterButtonTextSelected: { color: 'black', fontWeight: 'bold', },
+    externalMoviePlaceholderText: { // Estilo do texto dentro do placeholder
+        color: '#eaeaea',
+        fontSize: 14,
+        fontWeight: 'bold',
+        textAlign: 'center',
+    },
+    movieTitle: { color: "#eaeaea", fontSize: 11, textAlign: 'center', marginTop: 4, height: 30 }, //
+    statusIconWrapper: { position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(0,0,0,0.6)', padding: 4, borderRadius: 15 }, //
+    plusButton: { position: 'absolute', bottom: 90, right: 20, backgroundColor: '#3E9C9C', borderRadius: 30, width: 60, height: 60, justifyContent: 'center', alignItems: 'center', elevation: 5, zIndex: 10, }, //
+    addMenu: { position: 'absolute', bottom: 160, right: 20, backgroundColor: '#1A2B3E', borderRadius: 10, elevation: 3, zIndex: 11, padding: 10, }, //
+    addMenuItem: { paddingVertical: 8, paddingHorizontal: 15, }, //
+    addMenuText: { color: '#eaeaea', fontSize: 16, }, //
+    noMoviesText: { color: '#eaeaea', fontSize: 16, textAlign: 'center', marginTop: 20, width: '100%', }, //
+    searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1A2B3E', borderRadius: 25, paddingHorizontal: 15, marginBottom: 10, height: 50, borderWidth: 1, borderColor: '#4A6B8A', }, //
+    searchIcon: { marginRight: 10, }, //
+    searchInput: { flex: 1, color: '#eaeaea', fontSize: 16, }, //
+    filterButtonsContainer: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 20, width: '100%', }, //
+    filterButton: { backgroundColor: '#1A2B3E', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 20, borderWidth: 1, borderColor: '#4A6B8A', }, //
+    filterButtonSelected: { backgroundColor: '#3E9C9C', borderColor: '#3E9C9C', }, //
+    filterButtonText: { color: '#eaeaea', fontWeight: 'bold', }, //
+    filterButtonTextSelected: { color: 'black', fontWeight: 'bold', }, //
 });
 
-export default MeusFilmes;
+export default MeusFilmes; //
