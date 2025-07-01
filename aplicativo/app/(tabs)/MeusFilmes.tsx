@@ -20,6 +20,15 @@ function ComponenteFilmeAvaliado({ movie, statusIcon }: { movie: Movie, statusIc
         });
     };
 
+    const handlePressTags = () => {
+        // Usa a tela de detalhes correta dependendo se o filme é do TMDB ou externo
+        const pathname = '/telas/Tags';
+        router.push({
+            pathname: pathname,
+            params: { movieId: movie.id },
+        });
+    };
+
     const displayTitle = movie.title;
     const displayYear = movie.releaseYear ? ` (${movie.releaseYear})` : '';
     const placeholderText = `${displayTitle}${displayYear}`;
@@ -43,7 +52,7 @@ function ComponenteFilmeAvaliado({ movie, statusIcon }: { movie: Movie, statusIc
             </View>
         </Pressable>
             <View style={meusFilmesStyles.interactionIconsContainer}>
-                <Pressable onPress={() => console.log("enviar para a aba tags")}>
+                <Pressable onPress={handlePressTags}>
                     <View style={meusFilmesStyles.iconWrapper}><AntDesign name="tags" size={20} color="black"/></View>
                 </Pressable>
             </View>
@@ -93,7 +102,7 @@ function MeusFilmes() {
 
     return (
         <View style={styles.container}>
-            <View style={{ width: '100%', paddingHorizontal: 20, marginTop: 36, flex: 1, paddingBottom: 70 }}>
+            <View style={{ width: '100%', paddingHorizontal: 20, marginTop: 36, flex: 1}}>
                 <ScrollView showsVerticalScrollIndicator={false}>
                     <Image source={require("../../assets/images/filmeia-logo2.png")} style={meusFilmesStyles.logo} />
 

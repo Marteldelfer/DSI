@@ -2,6 +2,7 @@
 
 import { usuario } from "@/app/validacao/Validacao";
 import { getMovieDetails } from "@/src/api/tmdb";
+import { User } from "firebase/auth";
 
 // Tipo para o status de avaliação do filme
 export type MovieStatus = "like2" | "dislike2" | "staro" | null;
@@ -107,9 +108,9 @@ export function deleteTags(TagsId: string): void {
     mockTags = mockTags.filter(p => p.id !== TagsId);
 }
 
-export function getTagsbyMovieandUsuario(movie: Movie, user:usuario) {
-  return mockTags.filter(tags => tags.id_filme === movie.id && tags.email_usuario === user.email)
-} // TO DO conferir se esse usuario é o mesmo usuário do firebase
+export function getTagsbyMovieandUsuario(movie: Movie, user:User) {
+  return mockTags.find(tags => tags.id_filme === movie.id && tags.email_usuario === user.email)
+} // Já utiliza o usuário do firebase
 
 // --- LÓGICA DE FILMES ATUALIZADA ---
 

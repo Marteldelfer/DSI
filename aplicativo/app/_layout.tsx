@@ -53,6 +53,7 @@ export default function RootLayout() {
       <Stack.Screen name="telas/DetalhesFilmeExterno" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="telas/CriarAvaliacao" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="telas/DetalhesFilme" options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen name="telas/Tags" options={{ headerShown: false, presentation: 'modal' }} />
     </Stack>
   );
 }
