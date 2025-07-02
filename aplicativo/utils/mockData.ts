@@ -1,7 +1,9 @@
 // aplicativo/utils/mockData.ts
 // SUBSTITUA O CONTEÚDO DE: aplicativo/utils/mockData.ts
 
+import { usuario } from "@/app/validacao/Validacao";
 import { getMovieDetails } from "@/src/api/tmdb";
+import { User } from "firebase/auth";
 
 // Tipo para o status de avaliação do filme
 export type MovieStatus = "like2" | "dislike2" | "staro" | null;
@@ -42,6 +44,15 @@ export interface Comentario {
   content: string;
 }
 
+export interface Tags {
+  id: string;
+  email_usuario: string;
+  id_filme: string;
+  assistido?: "assistido" | "assistido_old" | "drop" | "nao_assistido";
+  interesse?: "sim" | "nao";
+  reassistir?: "sim" | "nao";
+}
+
 // O mockMovies agora funciona como um cache/banco de dados em memória para
 // filmes com os quais o usuário interagiu (avaliados ou adicionados manualmente).
 export let mockMovies: Movie[] = [
@@ -61,6 +72,9 @@ let mockAvaliacoes: Avaliacao[] = [];
 // Armazenamento em memória dos comentarios
 let mockComentarios: Comentario[] = []
 
+// Armazenamento em memória das tags
+let mockTags: Tags[] = []
+
 // Funções CRUD para as playlists (sem alterações)
 export function getPlaylists(): Playlist[] {
     return [...mockPlaylists];
@@ -77,6 +91,29 @@ export function updatePlaylist(updatedPlaylist: Playlist): void {
 export function deletePlaylist(playlistId: string): void {
     mockPlaylists = mockPlaylists.filter(p => p.id !== playlistId);
 }
+
+// Funções CRUD para as tags (semelhante ao CRUD de playlists)
+export function getAllTags(): Tags[] {
+    return [...mockTags];
+}
+
+export function addTags(Tags: Tags): void {
+    if (!mockTags.some(t => t.id === Tags.id)) {
+  mockTags.push(Tags);
+}
+}
+
+export function updateTags(updatedTags: Tags): void {
+    mockTags[mockTags.findIndex(p => p.id === updatedTags.id)] = updatedTags;
+}
+
+export function deleteTags(TagsId: string): void {
+    mockTags = mockTags.filter(p => p.id !== TagsId);
+}
+
+export function getTagsbyMovieandUsuario(movie: Movie, user:User) {
+  return mockTags.find(tags => tags.id_filme === movie.id && tags.email_usuario === user.email)
+} // Já utiliza o usuário do firebase
 
 // --- LÓGICA DE FILMES ATUALIZADA ---
 

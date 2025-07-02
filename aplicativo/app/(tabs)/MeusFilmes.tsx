@@ -20,14 +20,26 @@ function ComponenteFilmeAvaliado({ movie, statusIcon }: { movie: Movie, statusIc
         });
     };
 
+    const handlePressTags = () => {
+        // Usa a tela de detalhes correta dependendo se o filme é do TMDB ou externo
+        const pathname = '/telas/Tags';
+        router.push({
+            pathname: pathname,
+            params: { movieId: movie.id },
+        });
+    };
+
     // Prepara o texto do placeholder
     const displayTitle = movie.title;
     const displayYear = movie.releaseYear ? ` (${movie.releaseYear})` : '';
     const placeholderText = `${displayTitle}${displayYear}`;
 
     return (
-        <Pressable style={meusFilmesStyles.movieContainer} onPress={handlePress}>
+
+        <View style={meusFilmesStyles.movieContainer}>
+        <Pressable onPress={handlePress}>
             {movie.posterUrl ? ( // Se houver posterUrl, exibe a imagem
+
                 <Image
                     source={{ uri: movie.posterUrl }} //
                     style={meusFilmesStyles.moviePoster} //
@@ -42,6 +54,12 @@ function ComponenteFilmeAvaliado({ movie, statusIcon }: { movie: Movie, statusIc
                 <AntDesign name={statusIcon as any} size={18} color="#eaeaea" />
             </View>
         </Pressable>
+            <View style={meusFilmesStyles.interactionIconsContainer}>
+                <Pressable onPress={handlePressTags}>
+                    <View style={meusFilmesStyles.iconWrapper}><AntDesign name="tags" size={20} color="black"/></View>
+                </Pressable>
+            </View>
+        </View>
     );
 }
 
@@ -86,7 +104,7 @@ function MeusFilmes() {
 
     return (
         <View style={styles.container}>
-            <View style={{ width: '100%', paddingHorizontal: 20, marginTop: 36, flex: 1, paddingBottom: 70 }}>
+            <View style={{ width: '100%', paddingHorizontal: 20, marginTop: 36, flex: 1}}>
                 <ScrollView showsVerticalScrollIndicator={false}>
                     <Image source={require("../../assets/images/filmeia-logo2.png")} style={meusFilmesStyles.logo} /> {/* */}
 
@@ -139,7 +157,8 @@ function MeusFilmes() {
                                         key={movie.id}
                                         movie={movie}
                                         statusIcon={movie.status || null}
-                                    />
+                                    >
+                                    </ComponenteFilmeAvaliado>
                                 ))
                             ) : (
                                 <Text style={meusFilmesStyles.noMoviesText}>Nenhum filme encontrado.</Text>
@@ -205,6 +224,23 @@ const meusFilmesStyles = StyleSheet.create({
     filterButtonSelected: { backgroundColor: '#3E9C9C', borderColor: '#3E9C9C', }, //
     filterButtonText: { color: '#eaeaea', fontWeight: 'bold', }, //
     filterButtonTextSelected: { color: 'black', fontWeight: 'bold', }, //
+    
+    interactionIconsContainer: {
+      flexDirection: "row",
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: '100%',
+      marginTop: 8,
+      gap: 12,
+    },
+    iconWrapper: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: "#3E9C9C",
+      justifyContent: 'center',
+      alignItems: 'center'
+    },
 });
 
 export default MeusFilmes; //
