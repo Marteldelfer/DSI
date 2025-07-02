@@ -1,3 +1,4 @@
+// aplicativo/utils/mockData.ts
 // SUBSTITUA O CONTEÚDO DE: aplicativo/utils/mockData.ts
 
 import { usuario } from "@/app/validacao/Validacao";
