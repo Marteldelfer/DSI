@@ -97,11 +97,13 @@ export function getAllTags(): Tags[] {
 }
 
 export function addTags(Tags: Tags): void {
-    mockTags.push(Tags);
+    if (!mockTags.some(t => t.id === Tags.id)) {
+  mockTags.push(Tags);
+}
 }
 
 export function updateTags(updatedTags: Tags): void {
-    mockTags = mockTags.map(p => p.id === updatedTags.id ? updatedTags : p);
+    mockTags[mockTags.findIndex(p => p.id === updatedTags.id)] = updatedTags;
 }
 
 export function deleteTags(TagsId: string): void {
