@@ -37,7 +37,7 @@ function ComponenteFilmeAvaliado({ movie, statusIcon }: { movie: Movie, statusIc
     return (
 
         <View style={meusFilmesStyles.movieContainer}>
-        <Pressable onPress={handlePress}>
+        <Pressable onPress={handlePress} style={{width: "100%"}}>
             {movie.posterUrl ? ( // Se houver posterUrl, exibe a imagem
 
                 <Image
