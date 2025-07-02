@@ -224,6 +224,23 @@ const meusFilmesStyles = StyleSheet.create({
     filterButtonSelected: { backgroundColor: '#3E9C9C', borderColor: '#3E9C9C', }, //
     filterButtonText: { color: '#eaeaea', fontWeight: 'bold', }, //
     filterButtonTextSelected: { color: 'black', fontWeight: 'bold', }, //
+    
+    interactionIconsContainer: {
+      flexDirection: "row",
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: '100%',
+      marginTop: 8,
+      gap: 12,
+    },
+    iconWrapper: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: "#3E9C9C",
+      justifyContent: 'center',
+      alignItems: 'center'
+    },
 });
 
 export default MeusFilmes; //
