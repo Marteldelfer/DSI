@@ -3,56 +3,71 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Alert } from 'react-native';
 import { styles } from '../styles'; // Ajuste o caminho se necessário
 import MapView,{ Marker, Region } from 'react-native-maps';
-import * as Location from 'expo-location';
-import { useFocusEffect } from 'expo-router';
+import { getCurrentPositionAsync, LocationAccuracy, LocationObject, requestForegroundPermissionsAsync, watchPositionAsync } from 'expo-location';
+
+const GOOGLE_API_KEY = 'AIzaSyCwI9Sp2MUZDl918UtBz_x3OFRHKA6jCoE'
 
 export default function Cinemas() {
 
-  const [regiao, setRegiao] = useState<Region | undefined>(undefined);
+  const [lugar, setLugar] = useState<LocationObject | undefined>(undefined);
+  const [cinemas, setCinemas] = useState<any[]>([]);
 
-  useFocusEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permissão negada', 'Permita o uso da localização para usar o mapa.');
-        return;
-      }
+  async function requestPermissaoGPS() {
+    const { granted } = await requestForegroundPermissionsAsync();
 
-      const local = await Location.getLastKnownPositionAsync();
-      if (local) {setRegiao({
-        latitude: local.coords.latitude,
-        longitude: local.coords.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      })}
-    })();
-  });
+    if (granted) {
+      const posicaoAtual = await getCurrentPositionAsync()
+      setLugar(posicaoAtual)
+    }
+  }
+
+  async function fetchCinemas() {
+    if (lugar) {
+    const res = await fetch(
+        `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lugar.coords.latitude},${lugar.coords.longitude}&radius=10000&type=movie_theater&key=${GOOGLE_API_KEY}`
+      );
+      const data = await res.json();
+      setCinemas(data.results);
+  }}
+
+  useEffect(() => {
+    requestPermissaoGPS();
+    watchPositionAsync({
+      accuracy: LocationAccuracy.Highest,
+      timeInterval: 1000,
+      distanceInterval: 1
+    }, (resposta) => {setLugar(resposta); fetchCinemas();}
+    );
+  },[])
+
+  
+
 
 
   return (
     <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-      {regiao && (
+      {lugar && (
       <MapView
         style={{width:"100%", height:"100%"}}
-        initialRegion={regiao}
+        showsUserLocation={true}
+        initialRegion={{
+          latitude: lugar.coords.latitude,
+          longitude: lugar.coords.longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        }}
       >
-        <Marker
-          
-          coordinate={{
-            latitude: regiao.latitude,
-            longitude: regiao.longitude,
-          }}
-          title="marcador de posição local"
-          description="é aqui que você está."
-        />
-        <Marker
-          coordinate={{
-            latitude: -23.5505,
-            longitude: -46.6333,
-          }}
-          title="Cinema Central"
-          description="Exemplo de marcador de cinema"
-        />
+    {cinemas.map((cinema) => (
+    <Marker
+      key={cinema.place_id}
+      title={cinema.name}
+      coordinate={{
+      latitude: cinema.geometry.location.lat,
+      longitude: cinema.geometry.location.lng,
+    }}
+  />
+))}
+
       </MapView> )}
     </View>
   );

@@ -16,11 +16,7 @@ export default function TabLayout() {
       }}>
       <Tabs.Screen name="Home" options={{ title: 'Recomendações', tabBarIcon: ({ color }) => <AntDesign name="home" size={28} color={color} /> }} />
       <Tabs.Screen name="MeusFilmes" options={{ title: 'Meus Filmes', tabBarIcon: ({ color }) => <AntDesign name="videocamera" size={28} color={color} /> }} />
-      <Tabs.Screen
-        name="Cinemas"
-        //listeners={() => ({ tabPress: (e) => { e.preventDefault(); Alert.alert("Em Breve!", "Funcionalidade não implementada."); } })}
-        options={{ title: 'Cinemas', tabBarIcon: ({ color }) => <Entypo name="map" size={28} color={color} /> }}
-      />
+      <Tabs.Screen name="Cinemas" options={{ title: 'Cinemas', tabBarIcon: ({ color }) => <Entypo name="map" size={28} color={color} /> }} />
       <Tabs.Screen name="Perfil" options={{ title: 'Perfil', tabBarIcon: ({ color }) => <AntDesign name="user" size={28} color={color} /> }} />
     </Tabs>
   );
