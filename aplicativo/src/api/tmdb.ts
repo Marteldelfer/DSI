@@ -16,20 +16,49 @@ const tmdbApi = axios.create({
   },
 });
 
-// Função para transformar a resposta da API na nossa interface Movie
+// NOVO: Cache para os nomes dos gêneros (id -> nome) para que o gênero apareça
+let genresMap: { [id: number]: string } = {};
+
+// NOVO: Função para buscar a lista completa de gêneros do TMDB (será chamada uma vez)
+const fetchGenres = async () => {
+  if (Object.keys(genresMap).length > 0) return; // Se já buscou, não precisa buscar de novo
+  try {
+    const response = await tmdbApi.get('/genre/movie/list');
+    response.data.genres.forEach((genre: { id: number; name: string }) => {
+      genresMap[genre.id] = genre.name;
+    });
+  } catch (error) {
+    console.error('Erro ao buscar gêneros:', error);
+  }
+};
+
+// NOVO: Chamar a função para buscar os gêneros quando o módulo é carregado
+fetchGenres();
+
+// Função para transformar a resposta da API na nossa classe Movie
 const transformApiMovieToLocalMovie = (apiMovie: any): Movie => {
+  // Diretor volta a ser "Não informado" (hardcoded), pois não buscaremos os 'credits'
+  const director = 'Não informado'; 
+
+  // Lógica para gêneros: Usa 'genres' array de detalhes, ou mapeia 'genre_ids' de popular/search
+  const genreNames = apiMovie.genres // Verifica se veio o array completo de gêneros (do endpoint de detalhes)
+    ? apiMovie.genres.map((g: any) => g.name).join(', ')
+    : (apiMovie.genre_ids // Se não, verifica se veio a lista de IDs (do endpoint de popular/search)
+      ? apiMovie.genre_ids.map((id: number) => genresMap[id]).filter(Boolean).join(', ') // Usa o cache de gêneros
+      : 'Não informado');
+
   return new Movie({ // Instanciar a classe Movie
     id: apiMovie.id.toString(),
     title: apiMovie.title,
     posterUrl: apiMovie.poster_path ? `${IMAGE_BASE_URL}${apiMovie.poster_path}` : null,
     releaseYear: apiMovie.release_date ? apiMovie.release_date.substring(0, 4) : undefined,
-    director: 'Não informado', // API de detalhes seria necessária para isso
-    duration: apiMovie.runtime ? apiMovie.runtime.toString() : undefined,
-    genre: apiMovie.genres ? apiMovie.genres.map((g: any) => g.name).join(', ') : 'Não informado',
+    director: director, // Agora é "Não informado" novamente
+    duration: apiMovie.runtime ? apiMovie.runtime.toString() : undefined, // Duração depende se 'runtime' está presente na resposta
+    genre: genreNames, // Gênero continua sendo puxado
     overview: apiMovie.overview,
-    status: null, // O status é definido pelo usuário no app
-    isExternal: false, // Indica que não é um filme adicionado manualmente
-    isTmdb: true, // Nova flag para identificar filmes do TMDB
+    status: null,
+    isExternal: false,
+    isTmdb: true,
   });
 };
 
@@ -57,7 +86,8 @@ export const searchMovies = async (query: string): Promise<Movie[]> => {
 
 export const getMovieDetails = async (movieId: string): Promise<Movie | null> => {
   try {
-    const response = await tmdbApi.get(`/movie/${movieId}`);
+    // REVERTIDO: Não usa append_to_response para 'credits'
+    const response = await tmdbApi.get(`/movie/${movieId}`); 
     return transformApiMovieToLocalMovie(response.data);
   } catch (error) {
     console.error('Erro ao buscar detalhes do filme:', error);

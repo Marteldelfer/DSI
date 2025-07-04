@@ -123,7 +123,7 @@ function HomeScreen() {
         movieService.addMovieToLocalStore(movieToDetail);
     }
     router.push({
-      pathname: `/telas/DetalhesFilme`,
+      pathname: `/telas/DetalhesFilmeTMDB`,
       params: { movieId: movieId },
     });
   };

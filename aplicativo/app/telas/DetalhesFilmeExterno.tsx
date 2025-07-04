@@ -1,10 +1,13 @@
 // aplicativo/app/telas/DetalhesFilmeExterno.tsx
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Alert, ScrollView, Image } from 'react-native';
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { AntDesign } from '@expo/vector-icons';
-import { styles } from '../styles';
-import { getMovieById, updateMovie, deleteMovie, Movie, MovieStatus } from '../../utils/mockData';
+import React, { useState, useEffect } from 'react'; //
+import { View, Text, TextInput, Pressable, StyleSheet, Alert, ScrollView, Image } from 'react-native'; //
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router'; //
+import { AntDesign } from '@expo/vector-icons'; //
+import { styles } from '../styles'; //
+
+// Importe as novas classes e serviços
+import { Movie, MovieStatus } from '../../src/models/Movie'; //
+import { MovieService } from '../../src/services/MovieService';
 
 function DetalhesFilmeExterno() {
     const router = useRouter();
@@ -16,26 +19,33 @@ function DetalhesFilmeExterno() {
     const [diretor, setDiretor] = useState('');
     const [duracao, setDuracao] = useState('');
     const [genero, setGenero] = useState('');
+    const [posterUrl, setPosterUrl] = useState<string | null>(null);
     const [statusAvaliacao, setStatusAvaliacao] = useState<MovieStatus | null>(null);
+
+    const movieService = MovieService.getInstance(); // Instância do serviço
 
     useFocusEffect(
         React.useCallback(() => {
-            if (movieId) {
-                const foundMovie = getMovieById(movieId as string);
-                if (foundMovie) {
-                    setMovie(foundMovie);
-                    setTitulo(foundMovie.title);
-                    setAnoLancamento(foundMovie.releaseYear || '');
-                    setDiretor(foundMovie.director || '');
-                    setDuracao(foundMovie.duration || '');
-                    setGenero(foundMovie.genre || '');
-                    setStatusAvaliacao(foundMovie.status || null);
-                } else {
-                    Alert.alert('Erro', 'Filme não encontrado.');
-                    router.back();
+            const fetchMovieData = async () => {
+                if (movieId) {
+                    const foundMovie = await movieService.getMovieById(movieId as string);
+                    if (foundMovie && foundMovie.isExternal) { // Apenas exibe se for filme externo
+                        setMovie(foundMovie);
+                        setTitulo(foundMovie.title);
+                        setAnoLancamento(foundMovie.releaseYear || '');
+                        setDiretor(foundMovie.director || '');
+                        setDuracao(foundMovie.duration || '');
+                        setGenero(foundMovie.genre || '');
+                        setPosterUrl(foundMovie.posterUrl || null);
+                        setStatusAvaliacao(foundMovie.status || null);
+                    } else {
+                        Alert.alert('Erro', 'Filme não encontrado ou não é um filme externo.');
+                        router.back();
+                    }
                 }
-            }
-        }, [movieId])
+            };
+            fetchMovieData();
+        }, [movieId, movieService])
     );
 
     const handleSave = () => {
@@ -46,20 +56,23 @@ function DetalhesFilmeExterno() {
             return;
         }
 
-        const updatedMovie: Movie = {
+        // Criar uma nova instância de Movie com os dados atualizados
+        const updatedMovie = new Movie({
             ...movie,
             title: titulo,
             releaseYear: anoLancamento,
             director: diretor,
             duration: duracao,
             genre: genero,
+            posterUrl: posterUrl,
             status: statusAvaliacao,
-        };
+            isExternal: true, // Garante que continue sendo externo
+            isTmdb: false, // Garante que não é TMDB
+        });
 
-        updateMovie(updatedMovie);
+        movieService.updateMovie(updatedMovie);
         Alert.alert('Sucesso', 'Filme atualizado com sucesso!');
         router.back();
-        // TODO: Em uma implementação real com Firebase, você faria uma chamada para atualizar no Firestore aqui.
     };
 
     const handleDelete = () => {
@@ -73,10 +86,9 @@ function DetalhesFilmeExterno() {
                 {
                     text: 'Excluir',
                     onPress: () => {
-                        deleteMovie(movie.id);
+                        movieService.deleteMovie(movie.id);
                         Alert.alert('Sucesso', 'Filme excluído com sucesso!');
                         router.back();
-                        // TODO: Em uma implementação real com Firebase, você faria uma chamada para deletar no Firestore aqui.
                     },
                     style: 'destructive',
                 },
@@ -92,28 +104,30 @@ function DetalhesFilmeExterno() {
         );
     }
 
+    const placeholderText = `${movie.title}${movie.releaseYear ? ` (${movie.releaseYear})` : ''}`;
+
     return (
         <View style={styles.container}>
             <View style={detalhesFilmeStyles.header}>
                 <Pressable onPress={() => router.back()} style={{ marginRight: 20 }}>
                     <AntDesign name="arrowleft" size={24} color="#eaeaea" />
                 </Pressable>
-                <Text style={detalhesFilmeStyles.headerTitle} numberOfLines={1}>Detalhes do Filme</Text>
+                <Text style={detalhesFilmeStyles.headerTitle} numberOfLines={1}>Detalhes do Filme Externo</Text>
                 <Pressable onPress={handleDelete}>
                     <AntDesign name="delete" size={24} color="#FF6347" />
                 </Pressable>
             </View>
 
             <ScrollView contentContainerStyle={detalhesFilmeStyles.scrollViewContent}>
-                {movie.isExternal ? (
-                    <View style={detalhesFilmeStyles.externalMoviePlaceholderLarge}>
-                        <Text style={detalhesFilmeStyles.externalMovieTextLarge}>Filme Externo</Text>
-                    </View>
-                ) : (
+                {posterUrl ? (
                     <Image
-                        source={movie.posterUrl ? { uri: movie.posterUrl } : require('../../assets/images/filmeia-logo2.png')}
+                        source={{ uri: posterUrl }}
                         style={detalhesFilmeStyles.moviePoster}
                     />
+                ) : (
+                    <View style={detalhesFilmeStyles.externalMoviePlaceholderLarge}>
+                         <Text style={detalhesFilmeStyles.externalMoviePlaceholderTextLarge} numberOfLines={3}>{placeholderText}</Text>
+                    </View>
                 )}
 
                 <View style={styles.textInput}>
@@ -161,6 +175,15 @@ function DetalhesFilmeExterno() {
                         style={styles.input}
                         onChangeText={setGenero}
                         value={genero}
+                    />
+                </View>
+                <View style={styles.textInput}>
+                    <TextInput
+                        placeholder="URL do Poster"
+                        placeholderTextColor={"black"}
+                        style={styles.input}
+                        onChangeText={setPosterUrl}
+                        value={posterUrl || ''}
                     />
                 </View>
 
@@ -234,17 +257,18 @@ const detalhesFilmeStyles = StyleSheet.create({
         marginBottom: 20,
         resizeMode: 'cover',
     },
-    externalMoviePlaceholderLarge: { // Para a tela de detalhes
+    externalMoviePlaceholderLarge: {
         width: 150,
         height: 225,
         borderRadius: 12,
-        backgroundColor: '#666666', // Cor cinza
+        backgroundColor: '#4A6B8A',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 20,
+        paddingHorizontal: 10,
     },
-    externalMovieTextLarge: { // Para a tela de detalhes
-        color: '#ffffff',
+    externalMoviePlaceholderTextLarge: {
+        color: '#eaeaea',
         fontSize: 18,
         fontWeight: 'bold',
         textAlign: 'center',

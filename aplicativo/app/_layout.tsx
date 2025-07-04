@@ -3,7 +3,7 @@ import { SplashScreen, Stack, router, usePathname } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../src/config/firebaseConfig'; // Verifique se este caminho está correto
+import { auth } from '../src/config/firebaseConfig'; //
 
 SplashScreen.preventAutoHideAsync();
 
@@ -39,7 +39,6 @@ export default function RootLayout() {
     return null;
   }
 
-  // A Stack agora gerencia o grupo de abas e outras telas como modais
   return (
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -47,13 +46,13 @@ export default function RootLayout() {
       <Stack.Screen name="telas/Cadastro" options={{ headerShown: false }} />
       <Stack.Screen name="telas/CriarPlaylist" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="telas/DetalhesPlaylist" options={{ headerShown: false }} />
-      {/* Nova tela para adicionar filme externo */}
       <Stack.Screen name="telas/AdicionarFilmeExterno" options={{ headerShown: false, presentation: 'modal' }} />
-      {/* Nova tela para detalhes de filme externo/avaliado */}
-      <Stack.Screen name="telas/DetalhesFilmeExterno" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="telas/CriarAvaliacao" options={{ headerShown: false, presentation: 'modal' }} />
-      <Stack.Screen name="telas/DetalhesFilme" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="telas/Tags" options={{ headerShown: false, presentation: 'modal' }} />
+      {/* CORREÇÃO: Adicione a nova tela DetalhesFilmeTMDB.tsx */}
+      <Stack.Screen name="telas/DetalhesFilmeTMDB" options={{ headerShown: false, presentation: 'modal' }} />
+      {/* Mantenha DetalhesFilmeExterno.tsx para filmes externos editáveis */}
+      <Stack.Screen name="telas/DetalhesFilmeExterno" options={{ headerShown: false, presentation: 'modal' }} />
     </Stack>
   );
 }
