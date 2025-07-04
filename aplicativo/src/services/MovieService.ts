@@ -7,7 +7,7 @@ let localMovies: Movie[] = [
   { id: "100", title: "Lock, Stock and Two Smoking Barrels", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/6pJB2t3MbQUy9m5pFIBHXLqnqNd.jpg", status: "like2", isExternal: false, isTmdb: true },
 ];
 
-export class MovieService {
+export class MovieService { 
   private static instance: MovieService;
 
   private constructor() {}

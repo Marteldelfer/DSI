@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   FlatList,
-  Alert, // CORREÇÃO: Adicione esta importação
+  Alert,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { AntDesign } from "@expo/vector-icons";
@@ -19,10 +19,12 @@ import { AntDesign } from "@expo/vector-icons";
 import { styles } from '../styles'; // Seus estilos globais
 
 // Importe as novas classes e serviços
-import { Movie, MovieStatus } from '../../src/models/Movie';
+import { Movie } from '../../src/models/Movie';
 import { MovieService } from '../../src/services/MovieService';
-// CORREÇÃO: Importar getPopularMovies do tmdb
-import { getPopularMovies, searchMovies } from '../../src/api/tmdb';
+import { getPopularMovies, searchMovies } from '../../src/api/tmdb'; //
+
+// Importar a logo localmente
+import FilmeiaLogo from '../../assets/images/filmeia-logo2.png'; //
 
 function HomeScreen() {
   const router = useRouter();
@@ -38,15 +40,10 @@ function HomeScreen() {
     setLoading(true);
     setRefreshing(true);
     try {
-      // CORREÇÃO: Usar getPopularMovies
-      const moviesFromApi = await getPopularMovies();
+      const moviesFromApi = await getPopularMovies(); //
       const processedMovies: Movie[] = [];
       for (const apiMovieData of moviesFromApi) {
-        // movieService.addMovieToLocalStore já cuida da instanciação de Movie
-        // então passamos apenas os dados, e a função MovieService.addMovieToLocalStore
-        // criará a instância da classe Movie internamente.
-        // Ou, se transformApiMovieToLocalMovie já retorna uma instância de Movie:
-        movieService.addMovieToLocalStore(apiMovieData); // O tmdb.ts já retorna Movie instanciado
+        movieService.addMovieToLocalStore(apiMovieData);
         processedMovies.push(apiMovieData);
       }
       setTrendingMovies(processedMovies);
@@ -69,30 +66,24 @@ function HomeScreen() {
     fetchMovies();
   }, [fetchMovies]);
 
-  const handleSearch = useCallback(async () => {
-    if (searchTerm.trim()) {
+  const performSearch = useCallback(async (query: string) => {
+    if (query.trim()) {
       setLoading(true);
       try {
-        const query = searchTerm.toLowerCase();
         const cachedResults = movieService.getAllMovies().filter(movie =>
-          movie.title.toLowerCase().includes(query)
+          movie.title.toLowerCase().includes(query.toLowerCase())
         );
-        setSearchResults(cachedResults);
+        let combinedResults = [...cachedResults];
 
-        // Se quiser buscar na API TMDB também:
-        const apiSearchResults = await searchMovies(searchTerm);
-        // Adicione os resultados da API ao cache local e combine-os ou exiba separadamente
-        apiSearchResults.forEach(movie => movieService.addMovieToLocalStore(movie));
-        setSearchResults(prev => {
-          const combined = [...prev];
-          apiSearchResults.forEach(apiMovie => {
-            if (!combined.some(m => m.id === apiMovie.id)) {
-              combined.push(apiMovie);
-            }
-          });
-          return combined;
+        const apiSearchResults = await searchMovies(query); //
+        apiSearchResults.forEach(apiMovie => {
+          movieService.addMovieToLocalStore(apiMovie);
+          if (!combinedResults.some(m => m.id === apiMovie.id)) {
+            combinedResults.push(apiMovie);
+          }
         });
-
+        
+        setSearchResults(combinedResults);
       } catch (error) {
         console.error("Erro ao buscar filmes:", error);
         Alert.alert("Erro", "Não foi possível realizar a busca.");
@@ -102,9 +93,24 @@ function HomeScreen() {
     } else {
       setSearchResults([]);
     }
-  }, [searchTerm, movieService]);
+  }, [movieService]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      performSearch(searchTerm);
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm, performSearch]);
+
 
   const handleAvaliacao = (movieId: string) => {
+    const movieToEvaluate = trendingMovies.find(m => m.id === movieId) || searchResults.find(m => m.id === movieId);
+    if (movieToEvaluate) {
+        movieService.addMovieToLocalStore(movieToEvaluate);
+    }
     router.push({
       pathname: "/telas/CriarAvaliacao",
       params: { movieId: movieId },
@@ -112,13 +118,20 @@ function HomeScreen() {
   };
 
   const navigateToMovieDetails = (movieId: string) => {
+    const movieToDetail = trendingMovies.find(m => m.id === movieId) || searchResults.find(m => m.id === movieId);
+    if (movieToDetail) {
+        movieService.addMovieToLocalStore(movieToDetail);
+    }
     router.push({
       pathname: `/telas/DetalhesFilme`,
       params: { movieId: movieId },
     });
   };
 
-  if (loading && !refreshing) {
+  // CORREÇÃO: Mova a declaração de moviesToDisplay para antes do `if`
+  const moviesToDisplay = searchTerm.trim() ? searchResults : trendingMovies;
+
+  if (loading && !refreshing && moviesToDisplay.length === 0 && !searchTerm.trim()) {
     return (
       <View style={[styles.container, { justifyContent: "center" }]}>
         <ActivityIndicator size="large" color="#3E9C9C" />
@@ -126,23 +139,22 @@ function HomeScreen() {
     );
   }
 
-  const moviesToDisplay = searchTerm.trim() ? searchResults : trendingMovies;
-
   return (
     <View style={styles.container}>
       <View style={homeStyles.header}>
-        <Text style={homeStyles.headerTitle}>Filme.ia</Text>
+        <View style={{width: 24, height: 24, marginLeft: 20}} />
+        <Image source={FilmeiaLogo} style={homeStyles.headerLogo} />
+        <View style={{width: 24, height: 24, marginRight: 20}} />
       </View>
 
-      <View style={homeStyles.searchContainer}> {/* CORREÇÃO: Usar homeStyles */}
-        <AntDesign name="search1" size={20} color="#7f8c8d" style={homeStyles.searchIcon} /> {/* CORREÇÃO: Usar homeStyles */}
+      <View style={homeStyles.searchContainer}>
+        <AntDesign name="search1" size={20} color="#7f8c8d" style={homeStyles.searchIcon} />
         <TextInput
-          placeholder="Buscar filmes..."
+          placeholder="Pesquisar Filmes no TMDB"
           placeholderTextColor="#7f8c8d"
           style={homeStyles.searchInput}
           value={searchTerm}
           onChangeText={setSearchTerm}
-          onSubmitEditing={handleSearch}
         />
       </View>
 
@@ -153,78 +165,96 @@ function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3E9C9C" />
         }
       >
-        {moviesToDisplay.length > 0 ? (
-          <FlatList
-            data={moviesToDisplay}
-            numColumns={2}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item: movie }) => (
-              <Pressable
-                style={homeStyles.movieCard}
-                onPress={() => navigateToMovieDetails(movie.id)}
-              >
-                {movie.posterUrl ? (
-                  <Image source={{ uri: movie.posterUrl }} style={homeStyles.moviePoster} />
-                ) : (
-                  <View style={homeStyles.moviePlaceholder}>
-                    <Text style={homeStyles.moviePlaceholderText} numberOfLines={2}>{movie.title}</Text>
-                  </View>
-                )}
-                <Text style={homeStyles.movieTitle} numberOfLines={1}>{movie.title}</Text>
-                <Pressable
-                  style={homeStyles.evaluateButton}
-                  onPress={() => handleAvaliacao(movie.id)}
-                >
-                  <AntDesign name="staro" size={20} color="#3E9C9C" />
-                  <Text style={homeStyles.evaluateButtonText}>Avaliar</Text>
-                </Pressable>
-              </Pressable>
-            )}
-            contentContainerStyle={homeStyles.movieGrid}
-            showsVerticalScrollIndicator={false}
-          />
-        ) : (
-          <Text style={homeStyles.noMoviesText}>
-            {searchTerm.trim() ? "Nenhum resultado para a busca." : "Nenhum filme em destaque para exibir."}
-          </Text>
-        )}
+        <View style={homeStyles.sectionContainer}>
+          <Text style={homeStyles.sectionTitle}>{searchTerm.trim() && moviesToDisplay.length > 0 ? `Resultados para "${searchTerm}"` : "Recomendações"}</Text>
+          {loading && searchTerm.trim() ? (
+            <ActivityIndicator size="large" color="#3E9C9C" style={{ marginTop: 20 }} />
+          ) : moviesToDisplay.length > 0 ? (
+            <FlatList
+              data={moviesToDisplay}
+              numColumns={2}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item: movie }) => (
+                <View style={homeStyles.movieCard}>
+                    <Pressable onPress={() => navigateToMovieDetails(movie.id)}>
+                        {movie.posterUrl ? (
+                            <Image source={{ uri: movie.posterUrl }} style={homeStyles.moviePoster} />
+                        ) : (
+                            <View style={homeStyles.moviePlaceholder}>
+                                <Text style={homeStyles.moviePlaceholderText} numberOfLines={2}>{movie.title}</Text>
+                            </View>
+                        )}
+                        <Text style={homeStyles.movieTitle} numberOfLines={1}>{movie.title}</Text>
+                    </Pressable>
+                    <Pressable
+                        style={homeStyles.evaluateButton}
+                        onPress={() => handleAvaliacao(movie.id)}
+                    >
+                        <AntDesign name="staro" size={20} color="#3E9C9C" />
+                        <Text style={homeStyles.evaluateButtonText}>Avaliar</Text>
+                    </Pressable>
+                </View>
+              )}
+              contentContainerStyle={homeStyles.movieGrid}
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={false}
+            />
+          ) : (
+            <Text style={homeStyles.noMoviesText}>
+              {searchTerm.trim() ? "Nenhum resultado para a busca." : "Nenhum filme em destaque para exibir."}
+            </Text>
+          )}
+        </View>
+
+        {/* Perfil Cinematográfico */}
+        <View style={homeStyles.sectionContainer}>
+          <Text style={homeStyles.sectionTitle}>Seu Perfil Cinematográfico</Text>
+          <Image source={require("../../assets/images/stats.png")} style={homeStyles.profileStatsImage} />
+        </View>
       </ScrollView>
     </View>
   );
 }
 
-export default HomeScreen;
-
 const homeStyles = StyleSheet.create({
   header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingTop: 40,
     paddingBottom: 20,
     backgroundColor: "#2E3D50",
     width: "100%",
-    alignItems: "center",
+  },
+  headerLogo: {
+    width: 200,
+    height: 200,
+    resizeMode: "contain",
   },
   headerTitle: {
     color: "#eaeaea",
     fontSize: 24,
     fontWeight: "bold",
+    position: 'absolute',
+    opacity: 0,
   },
-  // CORREÇÃO: Estilos de busca adicionados ou verificados aqui
-  searchContainer: { // Novo estilo ou movido do global
+  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#1A2B3E',
     borderRadius: 25,
     marginHorizontal: 20,
     paddingHorizontal: 15,
-    marginBottom: 20,
+    marginBottom: 5,
     borderWidth: 1,
     borderColor: '#4A6B8A',
   },
-  searchIcon: { // Novo estilo ou movido do global
+  searchIcon: {
     marginRight: 10,
+    color: '#7f8c8d',
   },
-  searchInput: { // Novo estilo ou movido do global
+  searchInput: {
     flex: 1,
     color: '#eaeaea',
     fontSize: 16,
@@ -238,9 +268,21 @@ const homeStyles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: "center",
   },
+  sectionContainer: {
+    marginVertical: 10,
+    width: '100%',
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
+    color: "#eaeaea",
+    fontWeight: "bold",
+    fontSize: 18,
+    marginBottom: 15,
+  },
   movieGrid: {
     justifyContent: "space-around",
     paddingHorizontal: 10,
+    width: '100%',
   },
   movieCard: {
     backgroundColor: "#1A2B3E",
@@ -294,6 +336,13 @@ const homeStyles = StyleSheet.create({
     marginLeft: 5,
     fontWeight: "bold",
   },
+  profileStatsImage: {
+    width: '100%',
+    height: 150,
+    resizeMode: "contain",
+    alignSelf: 'center',
+    marginBottom: 10,
+  },
   noMoviesText: {
     color: '#eaeaea',
     fontSize: 16,
@@ -302,3 +351,5 @@ const homeStyles = StyleSheet.create({
     width: '100%',
   },
 });
+
+export default HomeScreen;
