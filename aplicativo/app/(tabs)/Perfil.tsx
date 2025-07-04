@@ -1,18 +1,19 @@
 // GARANTA QUE ESTE É O CONTEÚDO DE: aplicativo/app/(tabs)/Perfil.tsx
 import React, { useState, useEffect } from 'react';
-import { Text, View, Pressable, Image, Alert, StyleSheet, Modal, TextInput } from 'react-native';
+import { Text, View, Pressable, Image, Alert, StyleSheet, Modal, TextInput, TouchableOpacity } from 'react-native'; // Adicionado TouchableOpacity
 import { useRouter } from 'expo-router';
 import { AntDesign, Feather } from '@expo/vector-icons';
-import { deleteUser, getAuth, onAuthStateChanged, signOut, updatePassword, updateProfile } from 'firebase/auth'; //
-import { styles } from '../styles'; //
+import { deleteUser, getAuth, onAuthStateChanged, signOut, updatePassword, updateProfile } from 'firebase/auth';
+import { styles } from '../styles';
 import { BarraForcaSenha } from '../componentes/BarraForcaSenha';
 import { validarSenha } from '../validacao/Validacao';
+import * as ImagePicker from 'expo-image-picker'; // Importar ImagePicker
 
 function TelaPerfil() {
-  const router = useRouter(); //
-  const [nomeUsuario, setNomeUsuario] = useState('Carregando...'); //
-  const [emailUsuario, setEmailUsuario] = useState('Carregando...'); //
-  const [fotoUrl, setFotoUrl] = useState<string | undefined>(undefined); //
+  const router = useRouter();
+  const [nomeUsuario, setNomeUsuario] = useState('Carregando...');
+  const [emailUsuario, setEmailUsuario] = useState('Carregando...');
+  const [fotoUrl, setFotoUrl] = useState<string | undefined>(undefined);
 
   const [modalExcluirVisivel, setModalExcluirVisivel] = useState(false);
   
@@ -34,29 +35,49 @@ function TelaPerfil() {
   const user = auth.currentUser;
 
 
-  useEffect(() => { //
-    const unsubscribe = onAuthStateChanged(auth, (user) => { //
-      if (user) { //
-        setNomeUsuario(user.displayName || 'Nome não definido'); //
-        setEmailUsuario(user.email || 'Email não definido'); //
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setNomeUsuario(user.displayName || 'Nome não definido');
+        setEmailUsuario(user.email || 'Email não definido');
         setFotoUrl(user.photoURL || undefined)
       }
     });
-    return () => unsubscribe(); //
-  }, []); //
+    return () => unsubscribe();
+  }, []);
 
+  // Nova função para selecionar imagem da galeria
+  const pickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1], // Proporção 1:1 para foto de perfil
+        quality: 1,
+    });
 
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+        setNovaFoto(result.assets[0].uri);
+    }
+  };
 
-  const handleAtualizarFoto = async () => { if (user && novaFoto) {
-    setModalFotoVisivel(false);
-    setFotoUrl(novaFoto);
-    updateProfile(user,{photoURL:novaFoto})}
-  } //
+  const handleAtualizarFoto = async () => {
+    if (user && novaFoto) {
+      setModalFotoVisivel(false);
+      setFotoUrl(novaFoto);
+      try {
+        await updateProfile(user, {photoURL: novaFoto});
+        Alert.alert('Sucesso', 'Foto de perfil atualizada!');
+      } catch (error: any) {
+        Alert.alert('Erro', 'Não foi possível atualizar a foto de perfil. Tente novamente.');
+        console.error('Erro ao atualizar foto:', error.message);
+      }
+    }
+  }
   const handleAtualizarNome = async () => { if (user && novoNomeUsuario) {
     setModalNomeVisivel(false);
     setNomeUsuario(novoNomeUsuario);
     updateProfile(user,{displayName:novoNomeUsuario})}
-  } //
+  }
   const handleRedefinirSenha = async () => {
     const ValSenha = validarSenha(novaSenha)
     if (ValSenha.tamanhoValido && novaSenha === confirmarSenha && user) {try {await updatePassword(user, novaSenha); setModalSenhaVisivel(false)
@@ -69,13 +90,13 @@ function TelaPerfil() {
     } else if (!ValSenha.tamanhoValido) {
       setMensagemErro("Senha muito curta")
     }
-  }; //
-  const handleExcluirConta = () => {if (user) {deleteUser(user); handleLogout()}}; //
+  };
+  const handleExcluirConta = () => {if (user) {deleteUser(user); handleLogout()}};
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      router.replace('/telas/Login'); // Redireciona para a tela de Login após deslogar
+      router.replace('/telas/Login');
     } catch (error: any) {
       Alert.alert('Erro ao deslogar', error.message);
     }
@@ -103,11 +124,15 @@ function TelaPerfil() {
                   placeholder="URL da foto"
                   style={[styles.input, { flex: 1 }]}
                   placeholderTextColor={"black"}
-                  value={fotoUrl}
+                  value={novaFoto}
                   onChangeText={setNovaFoto}
                   onSubmitEditing={handleAtualizarFoto}
                 />
               </View>
+              {/* Novo botão para escolher da galeria */}
+              <TouchableOpacity style={perfilStyles.uploadButton} onPress={pickImage}>
+                  <Text style={perfilStyles.uploadButtonText}>Escolher da Galeria</Text>
+              </TouchableOpacity>
               <Pressable style={styles.Botao} onPress={handleAtualizarFoto}><Text style={styles.textoBotao}>Atualizar Foto</Text></Pressable>
             </View></View>
           </Modal>
@@ -228,15 +253,15 @@ function TelaPerfil() {
 }
 
 const perfilStyles = StyleSheet.create({
-  header: { paddingTop: 50, paddingHorizontal: 20, alignSelf: 'flex-start' }, //
-  content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingBottom: 80 }, //
-  profilePicContainer: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#3E9C9C', justifyContent: 'center', alignItems: 'center', marginBottom: 15 }, //
-  userName: { color: '#eaeaea', fontSize: 24, fontWeight: 'bold' }, //
-  userEmail: { color: '#ccc', fontSize: 16, marginBottom: 40 }, //
-  buttonContainer: { width: '100%', gap: 5 }, //
-  deleteButton: { backgroundColor: '#FF6347', position: 'absolute', bottom: 20, width: '100%' }, //
-  logoutButton: { // Estilo para o novo botão de deslogar
-    backgroundColor: '#6C7A89', // Uma cor neutra para o botão de deslogar
+  header: { paddingTop: 50, paddingHorizontal: 20, alignSelf: 'flex-start' },
+  content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingBottom: 80 },
+  profilePicContainer: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#3E9C9C', justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
+  userName: { color: '#eaeaea', fontSize: 24, fontWeight: 'bold' },
+  userEmail: { color: '#ccc', fontSize: 16, marginBottom: 40 },
+  buttonContainer: { width: '100%', gap: 5 },
+  deleteButton: { backgroundColor: '#FF6347', position: 'absolute', bottom: 20, width: '100%' },
+  logoutButton: {
+    backgroundColor: '#6C7A89',
   },
   mensagemErro: {
     color: "white",
@@ -267,8 +292,23 @@ const perfilStyles = StyleSheet.create({
     height: "100%",
     width: "100%",
     borderRadius: 100,
-  }
+  },
+  uploadButton: { // Novo estilo para o botão de upload
+    backgroundColor: '#4A6B8A',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    marginTop: 10,
+    marginBottom: 10, // Adicionado para espaçamento
+    width: '100%', // Para ocupar a largura total do modal
+    alignItems: 'center',
+  },
+  uploadButtonText: { // Estilo para o texto do botão de upload
+    color: '#eaeaea',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 
 });
 
-export default TelaPerfil; //
+export default TelaPerfil;
