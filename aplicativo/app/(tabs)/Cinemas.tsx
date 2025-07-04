@@ -21,14 +21,23 @@ export default function Cinemas() {
     }
   }
 
-  async function fetchCinemas() {
-    if (lugar) {
-    const res = await fetch(
-        `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lugar.coords.latitude},${lugar.coords.longitude}&radius=10000&type=movie_theater&key=${GOOGLE_API_KEY}`
-      );
-      const data = await res.json();
-      setCinemas(data.results);
-  }}
+  useEffect(() => {
+  if (lugar) {
+    const buscarCinemas = async () => {
+      try {
+        const api_url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lugar.coords.latitude},${lugar.coords.longitude}&radius=10000&type=movie_theater&key=${GOOGLE_API_KEY}`
+        const res = await fetch(
+          api_url
+        );
+        const data = await res.json().then();
+        setCinemas(data.results);
+      } catch (erro) {
+        console.error("erro:", erro);
+      }
+    };
+    buscarCinemas(); // executa a função
+    }}, [lugar]);
+
 
   useEffect(() => {
     requestPermissaoGPS();
@@ -36,7 +45,7 @@ export default function Cinemas() {
       accuracy: LocationAccuracy.Highest,
       timeInterval: 1000,
       distanceInterval: 1
-    }, (resposta) => {setLugar(resposta); fetchCinemas();}
+    }, (resposta) => {setLugar(resposta);}
     );
   },[])
 
