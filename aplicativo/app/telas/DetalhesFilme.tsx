@@ -1,99 +1,100 @@
-// aplicativo/app/telas/DetalhesFilmeExterno.tsx
-import React, { useState, useEffect } from 'react'; //
-import { View, Text, TextInput, Pressable, StyleSheet, Alert, ScrollView, Image } from 'react-native'; //
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router'; //
-import { AntDesign } from '@expo/vector-icons'; //
-import { styles } from '../styles'; //
-import { getMovieById, updateMovie, deleteMovie, Movie, MovieStatus } from '../../utils/mockData'; //
+// aplicativo/app/telas/DetalhesFilme.tsx (ou renomeie DetalhesFilmeExterno.tsx para isso)
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, Pressable, StyleSheet, Alert, ScrollView, Image } from 'react-native';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { AntDesign } from '@expo/vector-icons';
+import { styles } from '../styles';
 
-function DetalhesFilmeExterno() {
-    const router = useRouter(); //
-    const { movieId } = useLocalSearchParams(); //
+// Importar as classes e serviços
+import { Movie, MovieStatus } from '../../src/models/Movie';
+import { MovieService } from '../../src/services/MovieService';
 
-    const [movie, setMovie] = useState<Movie | undefined>(undefined); //
-    const [titulo, setTitulo] = useState(''); //
-    const [anoLancamento, setAnoLancamento] = useState(''); //
-    const [diretor, setDiretor] = useState(''); //
-    const [duracao, setDuracao] = useState(''); //
-    const [genero, setGenero] = useState(''); //
-    const [posterUrl, setPosterUrl] = useState<string | null>(null); // Adicionado para o poster
-    const [statusAvaliacao, setStatusAvaliacao] = useState<MovieStatus | null>(null); //
+function DetalhesFilme() {
+    const router = useRouter();
+    const { movieId } = useLocalSearchParams();
+
+    const [movie, setMovie] = useState<Movie | undefined>(undefined);
+    const [titulo, setTitulo] = useState('');
+    const [anoLancamento, setAnoLancamento] = useState('');
+    const [diretor, setDiretor] = useState('');
+    const [duracao, setDuracao] = useState('');
+    const [genero, setGenero] = useState('');
+    const [posterUrl, setPosterUrl] = useState<string | null>(null);
+    const [statusAvaliacao, setStatusAvaliacao] = useState<MovieStatus | null>(null);
+
+    const movieService = MovieService.getInstance(); // Instância do serviço
 
     useFocusEffect(
         React.useCallback(() => {
-            if (movieId) { //
-                const foundMoviePromise = getMovieById(movieId as string); //
-                if (foundMoviePromise) { //
-                    // Como getMovieById retorna uma Promise, precisamos esperar por ela.
-                    foundMoviePromise.then(resolvedMovie => { //
-                        if (resolvedMovie) { //
-                            setMovie(resolvedMovie); //
-                            setTitulo(resolvedMovie.title); //
-                            setAnoLancamento(resolvedMovie.releaseYear || ''); //
-                            setDiretor(resolvedMovie.director || ''); //
-                            setDuracao(resolvedMovie.duration || ''); //
-                            setGenero(resolvedMovie.genre || ''); //
-                            setPosterUrl(resolvedMovie.posterUrl || null); // Carregar posterUrl
-                            setStatusAvaliacao(resolvedMovie.status || null); //
-                        } else {
-                            Alert.alert('Erro', 'Filme não encontrado.'); //
-                            router.back(); //
-                        }
-                    });
-                } else {
-                    Alert.alert('Erro', 'Filme não encontrado.'); //
-                    router.back(); //
+            const fetchMovieData = async () => {
+                if (movieId) {
+                    const foundMovie = await movieService.getMovieById(movieId as string);
+                    if (foundMovie) {
+                        setMovie(foundMovie);
+                        setTitulo(foundMovie.title);
+                        setAnoLancamento(foundMovie.releaseYear || '');
+                        setDiretor(foundMovie.director || '');
+                        setDuracao(foundMovie.duration || '');
+                        setGenero(foundMovie.genre || '');
+                        setPosterUrl(foundMovie.posterUrl || null);
+                        setStatusAvaliacao(foundMovie.status || null);
+                    } else {
+                        Alert.alert('Erro', 'Filme não encontrado.');
+                        router.back();
+                    }
                 }
-            }
-        }, [movieId])
+            };
+            fetchMovieData();
+        }, [movieId, movieService])
     );
 
     const handleSave = () => {
-        if (!movie) return; //
+        if (!movie) return;
 
-        if (!titulo || !anoLancamento || !diretor || !duracao || !genero || !statusAvaliacao) { //
-            Alert.alert('Erro', 'Por favor, preencha todos os campos e selecione uma avaliação.'); //
+        if (!titulo || !anoLancamento || !diretor || !duracao || !genero || !statusAvaliacao) {
+            Alert.alert('Erro', 'Por favor, preencha todos os campos e selecione uma avaliação.');
             return;
         }
 
-        const updatedMovie: Movie = {
-            ...movie, //
-            title: titulo, //
-            releaseYear: anoLancamento, //
-            director: diretor, //
-            duration: duracao, //
-            genre: genero, //
-            posterUrl: posterUrl, // Salvar o posterUrl
-            status: statusAvaliacao, //
-        };
+        // Criar uma nova instância de Movie com os dados atualizados
+        const updatedMovie = new Movie({
+            ...movie,
+            title: titulo,
+            releaseYear: anoLancamento,
+            director: diretor,
+            duration: duracao,
+            genre: genero,
+            posterUrl: posterUrl,
+            status: statusAvaliacao,
+        });
 
-        updateMovie(updatedMovie); //
-        Alert.alert('Sucesso', 'Filme atualizado com sucesso!'); //
-        router.back(); //
+        movieService.updateMovie(updatedMovie);
+        Alert.alert('Sucesso', 'Filme atualizado com sucesso!');
+        router.back();
     };
 
     const handleDelete = () => {
-        if (!movie) return; //
+        if (!movie) return;
 
         Alert.alert(
             'Excluir Filme',
-            `Tem certeza que deseja excluir o filme "${movie.title}"?`, //
+            `Tem certeza que deseja excluir o filme "${movie.title}"?`,
             [
-                { text: 'Cancelar', style: 'cancel' }, //
+                { text: 'Cancelar', style: 'cancel' },
                 {
                     text: 'Excluir',
                     onPress: () => {
-                        deleteMovie(movie.id); //
-                        Alert.alert('Sucesso', 'Filme excluído com sucesso!'); //
-                        router.back(); //
+                        movieService.deleteMovie(movie.id);
+                        Alert.alert('Sucesso', 'Filme excluído com sucesso!');
+                        router.back();
                     },
-                    style: 'destructive', //
+                    style: 'destructive',
                 },
             ]
         );
     };
 
-    if (!movie) { //
+    if (!movie) {
         return (
             <View style={styles.container}>
                 <Text style={{ color: 'white', textAlign: 'center', marginTop: 50 }}>Carregando...</Text>
@@ -101,9 +102,8 @@ function DetalhesFilmeExterno() {
         );
     }
 
-    const displayTitle = movie.title;
-    const displayYear = movie.releaseYear ? ` (${movie.releaseYear})` : '';
-    const placeholderText = `${displayTitle}${displayYear}`;
+    const displayTitle = movie.getDisplayTitle(); // Usando o método da classe Movie
+    const placeholderText = displayTitle;
 
     return (
         <View style={styles.container}>
@@ -176,7 +176,6 @@ function DetalhesFilmeExterno() {
                         value={genero}
                     />
                 </View>
-                {/* Adicionado input para URL do Poster */}
                 <View style={styles.textInput}>
                     <TextInput
                         placeholder="URL do Poster"
@@ -226,7 +225,7 @@ function DetalhesFilmeExterno() {
     );
 }
 
-export default DetalhesFilmeExterno;
+export default DetalhesFilme; // Exportar apenas uma tela
 
 const detalhesFilmeStyles = StyleSheet.create({
     header: {
@@ -261,7 +260,7 @@ const detalhesFilmeStyles = StyleSheet.create({
         width: 150,
         height: 225,
         borderRadius: 12,
-        backgroundColor: '#4A6B8A', // Cor de fundo do placeholder
+        backgroundColor: '#4A6B8A',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 20,

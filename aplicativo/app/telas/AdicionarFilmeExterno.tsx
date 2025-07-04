@@ -1,21 +1,29 @@
 // aplicativo/app/telas/AdicionarFilmeExterno.tsx
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Alert, ScrollView, Image, TouchableOpacity } from 'react-native'; //
-import { useRouter } from 'expo-router'; //
-import { AntDesign } from '@expo/vector-icons'; //
-import { styles } from '../styles'; //
-import { addExternalMovie, MovieStatus } from '../../utils/mockData'; //
-import * as ImagePicker from 'expo-image-picker'; //
+import { View, Text, TextInput, Pressable, StyleSheet, Alert, ScrollView, Image, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
+import { AntDesign } from '@expo/vector-icons';
+import { styles } from '../styles';
+// IMPORTANTE: Remova a importação de 'addExternalMovie' e 'MovieStatus' de '../../utils/mockData'
+// import { addExternalMovie, MovieStatus } from '../../utils/mockData';
+import * as ImagePicker from 'expo-image-picker';
+
+// Importe as novas classes e serviços
+import { Movie, MovieStatus } from '../../src/models/Movie'; // Importe Movie e MovieStatus da nova localização
+import { MovieService } from '../../src/services/MovieService'; // Importe o MovieService
 
 function AdicionarFilmeExterno() {
-    const router = useRouter(); //
-    const [titulo, setTitulo] = useState(''); //
-    const [anoLancamento, setAnoLancamento] = useState(''); //
-    const [diretor, setDiretor] = useState(''); //
-    const [duracao, setDuracao] = useState(''); //
-    const [genero, setGenero] = useState(''); //
-    const [posterUri, setPosterUri] = useState<string | null>(null); //
-    const [statusAvaliacao, setStatusAvaliacao] = useState<MovieStatus | null>(null); //
+    const router = useRouter();
+    const [titulo, setTitulo] = useState('');
+    const [anoLancamento, setAnoLancamento] = useState('');
+    const [diretor, setDiretor] = useState('');
+    const [duracao, setDuracao] = useState('');
+    const [genero, setGenero] = useState('');
+    const [posterUri, setPosterUri] = useState<string | null>(null);
+    const [statusAvaliacao, setStatusAvaliacao] = useState<MovieStatus | null>(null);
+
+    // Crie uma instância do MovieService
+    const movieService = MovieService.getInstance();
 
     // Função para selecionar imagem da galeria
     const pickImage = async () => {
@@ -26,33 +34,32 @@ function AdicionarFilmeExterno() {
             quality: 1,
         });
 
-        if (!result.canceled && result.assets && result.assets.length > 0) { //
-            setPosterUri(result.assets[0].uri); //
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+            setPosterUri(result.assets[0].uri);
         }
     };
 
     const handleSaveMovie = () => {
-        if (!titulo || !anoLancamento || !diretor || !duracao || !genero || !statusAvaliacao) { //
-            Alert.alert('Erro', 'Por favor, preencha todos os campos e selecione uma avaliação para adicionar o filme.'); //
+        if (!titulo || !anoLancamento || !diretor || !duracao || !genero || !statusAvaliacao) {
+            Alert.alert('Erro', 'Por favor, preencha todos os campos e selecione uma avaliação para adicionar o filme.');
             return;
         }
 
-        const newMovie = {
-            id: `external-${Date.now()}`, //
-            title: titulo, //
-            releaseYear: anoLancamento, //
-            director: diretor, //
-            duration: duracao, //
-            genre: genero, //
-            posterUrl: posterUri, // Usar a URI selecionada ou o link da internet, pode ser null
-            status: statusAvaliacao, //
-            isExternal: true, // Garante que este filme é tratado como externo
-            isTmdb: false, //
-        };
+        // Não precisa mais criar um ID aqui, o serviço cuidará disso.
+        // O MovieService.addExternalMovie agora recebe apenas os dados crus do filme.
+        movieService.addExternalMovie({
+            title: titulo,
+            releaseYear: anoLancamento,
+            director: diretor,
+            duration: duracao,
+            genre: genero,
+            posterUrl: posterUri,
+            status: statusAvaliacao,
+            // As flags isExternal e isTmdb são definidas dentro do addExternalMovie do serviço.
+        });
 
-        addExternalMovie(newMovie); //
-        Alert.alert('Sucesso', 'Filme adicionado com sucesso!'); //
-        router.back(); //
+        Alert.alert('Sucesso', 'Filme adicionado com sucesso!');
+        router.back();
     };
 
     return (

@@ -1,42 +1,37 @@
-// SUBSTITUA O CONTEÚDO DE: aplicativo/app/telas/CriarAvaliacao.tsx
-import {
-  Movie,
-  createAvaliacao,
-  getMovieById,
-} from "@/utils/mockData";
-import {
-  Alert,
-  View,
-  Pressable,
-  Text,
-  ScrollView,
-  Image,
-  TextInput,
-  StyleSheet,
-  ActivityIndicator,
-} from "react-native";
+// aplicativo/app/telas/CriarAvaliacao.tsx
+import { Alert, View, Pressable, Text, ScrollView, Image, TextInput, StyleSheet, ActivityIndicator } from "react-native";
 import { AntDesign } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { styles } from "@/app/styles";
 import { useState, useCallback } from "react";
+
+// Importe as novas classes e serviços
+import { Movie, MovieStatus } from '../../src/models/Movie';
+import { Review, ReviewType } from '../../src/models/Review';
+import { MovieService } from '../../src/services/MovieService';
+import { ReviewService } from '../../src/services/ReviewService';
+
+import { styles } from "@/app/styles";
 
 export default function CriarAvaliacao() {
   const { movieId, review: preReview } = useLocalSearchParams();
   const router = useRouter();
 
-  const [review, setReview] = useState<"like" | "dislike" | "favorite" | null>(
-    preReview as "like" | "dislike" | "favorite" || null
+  const [reviewType, setReviewType] = useState<ReviewType | null>(
+    preReview as ReviewType || null
   );
   const [movie, setMovie] = useState<Movie | undefined>(undefined);
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const movieService = MovieService.getInstance();
+  const reviewService = ReviewService.getInstance();
 
   useFocusEffect(
     useCallback(() => {
       const fetchMovie = async () => {
         setLoading(true);
         if (movieId) {
-          const foundMovie = await getMovieById(movieId as string);
+          const foundMovie = await movieService.getMovieById(movieId as string);
           if (foundMovie) {
             setMovie(foundMovie);
           } else {
@@ -47,18 +42,18 @@ export default function CriarAvaliacao() {
         setLoading(false);
       };
       fetchMovie();
-    }, [movieId])
+    }, [movieId, movieService]) // Adicionar movieService como dependência
   );
 
 	function handleCriarAvaliacao() {
-		if (review === null) {
+		if (reviewType === null) {
 			Alert.alert("Erro", "Uma avaliação (gostei, não gostei ou favorito) é necessária.");
 			return;
 		}
-		createAvaliacao({
+		reviewService.createReview({
 			movieId: movieId as string,
 			content: content,
-			review: review
+			reviewType: reviewType // Usar reviewType
 		});
     Alert.alert("Sucesso", "Sua avaliação foi publicada!");
 		router.back();
@@ -110,29 +105,29 @@ export default function CriarAvaliacao() {
           <Pressable
             style={[
               criarAvaliacao.avaliacaoButton,
-              review === "like" && criarAvaliacao.avaliacaoButtonSelected,
+              reviewType === "like" && criarAvaliacao.avaliacaoButtonSelected,
             ]}
-            onPress={() => setReview("like")}
+            onPress={() => setReviewType("like")}
           >
-            <AntDesign name="like2" size={30} color={review === "like" ? "black" : "#eaeaea"} />
+            <AntDesign name="like2" size={30} color={reviewType === "like" ? "black" : "#eaeaea"} />
           </Pressable>
           <Pressable
             style={[
               criarAvaliacao.avaliacaoButton,
-              review === "dislike" && criarAvaliacao.avaliacaoButtonSelected,
+              reviewType === "dislike" && criarAvaliacao.avaliacaoButtonSelected,
             ]}
-            onPress={() => setReview("dislike")}
+            onPress={() => setReviewType("dislike")}
           >
-            <AntDesign name="dislike2" size={30} color={review === "dislike" ? "black" : "#eaeaea"} />
+            <AntDesign name="dislike2" size={30} color={reviewType === "dislike" ? "black" : "#eaeaea"} />
           </Pressable>
           <Pressable
             style={[
               criarAvaliacao.avaliacaoButton,
-              review === "favorite" && criarAvaliacao.avaliacaoButtonSelected,
+              reviewType === "favorite" && criarAvaliacao.avaliacaoButtonSelected,
             ]}
-            onPress={() => setReview("favorite")}
+            onPress={() => setReviewType("favorite")}
           >
-            <AntDesign name="staro" size={30} color={review === "favorite" ? "black" : "#eaeaea"} />
+            <AntDesign name="staro" size={30} color={reviewType === "favorite" ? "black" : "#eaeaea"} />
           </Pressable>
         </View>
 

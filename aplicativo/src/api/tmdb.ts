@@ -1,7 +1,8 @@
-// CRIE ESTE NOVO ARQUIVO EM: aplicativo/src/api/tmdb.ts
+// aplicativo/src/api/tmdb.ts
 
 import axios from 'axios';
-import { Movie } from '@/utils/mockData'; // Reutilizaremos a interface Movie
+// CORREÇÃO: Importar a classe Movie da nova localização
+import { Movie } from '../models/Movie'; 
 
 const API_KEY = '61c4b858abcb463f369ef0aa3ab2cd31';
 const API_BASE_URL = 'https://api.themoviedb.org/3';
@@ -17,7 +18,7 @@ const tmdbApi = axios.create({
 
 // Função para transformar a resposta da API na nossa interface Movie
 const transformApiMovieToLocalMovie = (apiMovie: any): Movie => {
-  return {
+  return new Movie({ // Instanciar a classe Movie
     id: apiMovie.id.toString(),
     title: apiMovie.title,
     posterUrl: apiMovie.poster_path ? `${IMAGE_BASE_URL}${apiMovie.poster_path}` : null,
@@ -29,7 +30,7 @@ const transformApiMovieToLocalMovie = (apiMovie: any): Movie => {
     status: null, // O status é definido pelo usuário no app
     isExternal: false, // Indica que não é um filme adicionado manualmente
     isTmdb: true, // Nova flag para identificar filmes do TMDB
-  };
+  });
 };
 
 export const getPopularMovies = async (): Promise<Movie[]> => {
