@@ -30,7 +30,8 @@ function Cadastro(): React.JSX.Element {
   const [loading, setLoading] = useState(false);
 
   const handleCadastro = async () => {
-    if (!validarSenha(senha).valido) {
+    const validacaoResult = validarSenha(senha);
+    if (!validacaoResult.tamanhoValido || !validacaoResult.temMaiuscula || !validacaoResult.temMinuscula || !validacaoResult.temDigito || !validacaoResult.temCaractereEspecial) {
       Alert.alert("Erro de Senha", "A senha não atende aos requisitos de segurança.");
       return;
     }
