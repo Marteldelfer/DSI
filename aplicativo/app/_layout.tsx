@@ -48,10 +48,9 @@ export default function RootLayout() {
       <Stack.Screen name="telas/DetalhesPlaylist" options={{ headerShown: false }} />
       <Stack.Screen name="telas/AdicionarFilmeExterno" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="telas/CriarAvaliacao" options={{ headerShown: false, presentation: 'modal' }} />
-      <Stack.Screen name="telas/Tags" options={{ headerShown: false, presentation: 'modal' }} />
-      {/* CORREÇÃO: Adicione a nova tela DetalhesFilmeTMDB.tsx */}
+      {/* <<<<<<< VERIFIQUE SE ESTA LINHA ESTÁ PRESENTE E CORRETA >>>>>>> */}
+      <Stack.Screen name="telas/Tags" options={{ headerShown: false, presentation: 'modal' }} /> 
       <Stack.Screen name="telas/DetalhesFilmeTMDB" options={{ headerShown: false, presentation: 'modal' }} />
-      {/* Mantenha DetalhesFilmeExterno.tsx para filmes externos editáveis */}
       <Stack.Screen name="telas/DetalhesFilmeExterno" options={{ headerShown: false, presentation: 'modal' }} />
     </Stack>
   );

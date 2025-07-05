@@ -1,34 +1,35 @@
 // aplicativo/app/telas/Tags.tsx
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TextInput, Pressable, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { View, Text, ScrollView, Pressable, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
-import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, User } from 'firebase/auth'; 
 
 import { styles } from '../styles';
-import { Movie } from '../../src/models/Movie';
-import { Tag, WatchedStatus, InterestStatus, RewatchStatus } from '../../src/models/Tag';
+import { Movie } from '../../src/models/Movie'; 
+import { Tag, WatchedStatus, InterestStatus, RewatchStatus } from '../../src/models/Tag'; 
 import { MovieService } from '../../src/services/MovieService';
 import { TagService } from '../../src/services/TagService';
 
 function TagsScreen() {
     const router = useRouter();
+    const { movieId: paramMovieId } = useLocalSearchParams(); // Pega o movieId dos parâmetros
+    
     const [currentUser, setCurrentUser] = useState<User | null>(null);
-    const [allMovies, setAllMovies] = useState<Movie[]>([]);
     const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
-    const [movieSearchTerm, setMovieSearchTerm] = useState('');
-    const [filteredMovies, setFilteredMovies] = useState<Movie[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isEditMode, setIsEditMode] = useState(false); // NOVO ESTADO: controla o modo de visualização/edição
 
     const [currentTag, setCurrentTag] = useState<Tag | null>(null);
     const [watchedStatus, setWatchedStatus] = useState<WatchedStatus | undefined>(undefined);
     const [interestStatus, setInterestStatus] = useState<InterestStatus | undefined>(undefined);
     const [rewatchStatus, setRewatchStatus] = useState<RewatchStatus | undefined>(undefined);
-    const [loading, setLoading] = useState(true);
 
     const movieService = MovieService.getInstance();
     const tagService = TagService.getInstance();
     const auth = getAuth();
 
+    // Monitora o estado de autenticação do usuário
     useFocusEffect(
         useCallback(() => {
             const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -44,61 +45,39 @@ function TagsScreen() {
         }, [auth, router])
     );
 
+    // Carrega o filme pré-selecionado e suas tags ao focar na tela
     useFocusEffect(
         useCallback(() => {
-            if (currentUser) {
-                setLoading(true);
-                const movies = movieService.getAllMovies();
-                setAllMovies(movies);
-                setFilteredMovies(movies);
-                setLoading(false);
+            if (currentUser && paramMovieId) {
+                const loadMovieAndTags = async () => {
+                    setLoading(true);
+                    const movie = await movieService.getMovieById(paramMovieId as string);
+                    if (movie) {
+                        setSelectedMovie(movie);
+                        // Carrega as tags existentes para este filme e usuário
+                        const tag = tagService.getTagByMovieAndUser(movie.id, currentUser.email!);
+                        setCurrentTag(tag || null);
+                        setWatchedStatus(tag?.watched);
+                        setInterestStatus(tag?.interest);
+                        setRewatchStatus(tag?.rewatch);
+                    } else {
+                        Alert.alert("Erro", "Filme não encontrado para gerenciar tags.");
+                        router.back();
+                    }
+                    setLoading(false);
+                };
+                loadMovieAndTags();
+            } else if (currentUser && !paramMovieId) {
+                // Caso a tela seja acessada sem um ID de filme (pode ser um erro ou fluxo não esperado)
+                Alert.alert("Erro", "Nenhum filme especificado para gerenciar tags.");
+                router.back();
             }
-        }, [currentUser, movieService])
+        }, [currentUser, movieService, tagService, paramMovieId])
     );
-
-    const fetchTagForSelectedMovie = useCallback(() => {
-        if (selectedMovie && currentUser) {
-            const tag = tagService.getTagByMovieAndUser(selectedMovie.id, currentUser.email!);
-            setCurrentTag(tag || null);
-            setWatchedStatus(tag?.watched);
-            setInterestStatus(tag?.interest);
-            setRewatchStatus(tag?.rewatch);
-        } else {
-            setCurrentTag(null);
-            setWatchedStatus(undefined);
-            setInterestStatus(undefined);
-            setRewatchStatus(undefined);
-        }
-    }, [selectedMovie, currentUser, tagService]);
-
-    useFocusEffect(
-        useCallback(() => {
-            fetchTagForSelectedMovie();
-        }, [fetchTagForSelectedMovie])
-    );
-
-    const handleSearchMovie = () => {
-        if (movieSearchTerm.trim()) {
-            const filtered = allMovies.filter(movie =>
-                movie.title.toLowerCase().includes(movieSearchTerm.toLowerCase())
-            );
-            setFilteredMovies(filtered);
-        } else {
-            setFilteredMovies(allMovies);
-        }
-        setSelectedMovie(null);
-        setCurrentTag(null);
-    };
-
-    const handleSelectMovie = (movie: Movie) => {
-        setSelectedMovie(movie);
-        setMovieSearchTerm(movie.title);
-        setFilteredMovies([]);
-    };
 
     const handleSaveTags = () => {
         if (!selectedMovie || !currentUser) {
-            Alert.alert("Erro", "Selecione um filme e esteja logado para salvar as tags.");
+            Alert.alert("Erro", "Filme ou usuário não especificado para salvar as tags.");
             return;
         }
 
@@ -110,10 +89,15 @@ function TagsScreen() {
             rewatch: rewatchStatus,
         };
 
-        tagService.addTag(tagData);
+        tagService.addTag(tagData); // addTag faz o upsert (adiciona ou atualiza)
 
         Alert.alert("Sucesso", "Tags salvas com sucesso!");
-        fetchTagForSelectedMovie();
+        setIsEditMode(false); // Volta para o modo de visualização após salvar
+        // Recarregar as tags para garantir que o modo de visualização esteja atualizado
+        if (selectedMovie && currentUser) {
+            const updatedTag = tagService.getTagByMovieAndUser(selectedMovie.id, currentUser.email!);
+            setCurrentTag(updatedTag || null);
+        }
     };
 
     const handleDeleteTags = () => {
@@ -130,13 +114,12 @@ function TagsScreen() {
                     text: "Excluir",
                     onPress: () => {
                         tagService.deleteTag(currentTag.id);
-                        setSelectedMovie(null);
-                        setMovieSearchTerm('');
-                        setCurrentTag(null);
+                        Alert.alert("Sucesso", "Tags excluídas com sucesso!");
+                        setCurrentTag(null); // Limpa as tags no estado
                         setWatchedStatus(undefined);
                         setInterestStatus(undefined);
                         setRewatchStatus(undefined);
-                        Alert.alert("Sucesso", "Tags excluídas com sucesso!");
+                        setIsEditMode(false); // Volta para o modo de visualização
                     },
                     style: "destructive",
                 },
@@ -144,7 +127,7 @@ function TagsScreen() {
         );
     };
 
-    if (loading || !currentUser) {
+    if (loading || !currentUser || !selectedMovie) {
         return (
             <View style={[styles.container, { justifyContent: 'center' }]}>
                 <ActivityIndicator size="large" color="#3E9C9C" />
@@ -159,115 +142,120 @@ function TagsScreen() {
                     <AntDesign name="arrowleft" size={24} color="#eaeaea" />
                 </Pressable>
                 <Text style={tagsStyles.headerTitle}>Gerenciar Tags</Text>
-                {currentTag && (
+                {currentTag && !isEditMode && ( // Mostra o botão de deletar apenas no modo de visualização
                     <Pressable onPress={handleDeleteTags}>
                         <AntDesign name="delete" size={24} color="#FF6347" />
                     </Pressable>
                 )}
+                {!currentTag && !isEditMode && ( // Placeholder para centralizar o título
+                    <View style={{width: 24}} />
+                )}
             </View>
 
             <ScrollView contentContainerStyle={tagsStyles.scrollViewContent}>
-                <Text style={tagsStyles.sectionTitle}>Buscar Filme:</Text>
-                <View style={tagsStyles.searchContainer}> {/* CORREÇÃO: Usar tagsStyles */}
-                    <AntDesign name="search1" size={20} color="#7f8c8d" style={tagsStyles.searchIcon} /> {/* CORREÇÃO: Usar tagsStyles */}
-                    <TextInput
-                        placeholder="Buscar filme por título..."
-                        placeholderTextColor="#7f8c8d"
-                        style={tagsStyles.searchInput}
-                        onChangeText={setMovieSearchTerm}
-                        value={movieSearchTerm}
-                        onEndEditing={handleSearchMovie}
-                    />
-                </View>
+                <Text style={tagsStyles.selectedMovieTitle}>
+                    Filme: {selectedMovie.title}
+                </Text>
 
-                {filteredMovies.length > 0 && movieSearchTerm.length > 0 && !selectedMovie && (
-                    <View style={tagsStyles.movieSearchResults}>
-                        {filteredMovies.map((movie) => (
-                            <Pressable key={movie.id} style={tagsStyles.movieSearchResultItem} onPress={() => handleSelectMovie(movie)}>
-                                <Text style={tagsStyles.movieSearchResultText}>{movie.title}</Text>
-                            </Pressable>
-                        ))}
+                {/* NOVO: Modo de Visualização */}
+                {!isEditMode ? (
+                    <View style={tagsStyles.viewModeContainer}>
+                        <Text style={tagsStyles.sectionTitle}>Suas Tags Atuais:</Text>
+                        <View style={tagsStyles.currentTagsDisplay}>
+                            <Text style={tagsStyles.tagDisplayText}>
+                                **Visualização:** {watchedStatus || 'Não Definido'}
+                            </Text>
+                            <Text style={tagsStyles.tagDisplayText}>
+                                **Interesse:** {interestStatus || 'Não Definido'}
+                            </Text>
+                            <Text style={tagsStyles.tagDisplayText}>
+                                **Reassistir:** {rewatchStatus || 'Não Definido'}
+                            </Text>
+                        </View>
+                        
+                        <Pressable style={tagsStyles.editButton} onPress={() => setIsEditMode(true)}>
+                            <Text style={styles.textoBotao}>Editar Tags</Text>
+                        </Pressable>
                     </View>
-                )}
-
-                {selectedMovie && (
-                    <View style={tagsStyles.selectedMovieContainer}>
-                        <Text style={tagsStyles.selectedMovieTitle}>Filme Selecionado: {selectedMovie.title}</Text>
-                        <Text style={tagsStyles.sectionTitle}>Status de Visualização:</Text>
+                ) : (
+                    /* MODO DE EDIÇÃO (era o conteúdo principal da tela) */
+                    <View style={tagsStyles.editModeContainer}>
+                        <Text style={tagsStyles.sectionTitle}>Definir Tags:</Text>
+                        <Text style={tagsStyles.subSectionTitle}>Você assistiu o filme?</Text>
                         <View style={tagsStyles.tagOptionsContainer}>
                             <Pressable
                                 style={[tagsStyles.tagButton, watchedStatus === 'assistido' && tagsStyles.tagButtonSelected]}
                                 onPress={() => setWatchedStatus('assistido')}
                             >
-                                <Text style={tagsStyles.tagButtonText}>Assistido</Text>
+                                <Text style={tagsStyles.tagButtonText}>Assisti</Text>
                             </Pressable>
                             <Pressable
                                 style={[tagsStyles.tagButton, watchedStatus === 'assistido_old' && tagsStyles.tagButtonSelected]}
                                 onPress={() => setWatchedStatus('assistido_old')}
                             >
-                                <Text style={tagsStyles.tagButtonText}>Assistido (Antigo)</Text>
+                                <Text style={tagsStyles.tagButtonText}>Assisti faz tempo</Text>
                             </Pressable>
                             <Pressable
                                 style={[tagsStyles.tagButton, watchedStatus === 'drop' && tagsStyles.tagButtonSelected]}
                                 onPress={() => setWatchedStatus('drop')}
                             >
-                                <Text style={tagsStyles.tagButtonText}>Desisti</Text>
+                                <Text style={tagsStyles.tagButtonText}>Saí no meio do filme</Text>
                             </Pressable>
                             <Pressable
                                 style={[tagsStyles.tagButton, watchedStatus === 'nao_assistido' && tagsStyles.tagButtonSelected]}
                                 onPress={() => setWatchedStatus('nao_assistido')}
                             >
-                                <Text style={tagsStyles.tagButtonText}>Não Assistido</Text>
+                                <Text style={tagsStyles.tagButtonText}>Não Assisti</Text>
                             </Pressable>
                             <Pressable
                                 style={[tagsStyles.tagButton, watchedStatus === undefined && tagsStyles.tagButtonSelected]}
                                 onPress={() => setWatchedStatus(undefined)}
                             >
-                                <Text style={tagsStyles.tagButtonText}>Limpar</Text>
+                                <Text style={tagsStyles.tagButtonText}>Pular</Text>
                             </Pressable>
                         </View>
 
-                        <Text style={tagsStyles.sectionTitle}>Interesse:</Text>
+                        <Text style={tagsStyles.subSectionTitle}>Você tem interesse em filmes como esse?</Text>
                         <View style={tagsStyles.tagOptionsContainer}>
                             <Pressable
                                 style={[tagsStyles.tagButton, interestStatus === 'sim' && tagsStyles.tagButtonSelected]}
                                 onPress={() => setInterestStatus('sim')}
                             >
-                                <Text style={tagsStyles.tagButtonText}>Sim</Text>
+                                <Text style={tagsStyles.tagButtonText}>Tenho interesse</Text>
                             </Pressable>
                             <Pressable
                                 style={[tagsStyles.tagButton, interestStatus === 'nao' && tagsStyles.tagButtonSelected]}
                                 onPress={() => setInterestStatus('nao')}
                             >
-                                <Text style={tagsStyles.tagButtonText}>Não</Text>
+                                <Text style={tagsStyles.tagButtonText}>Não tenho interesse</Text>
                             </Pressable>
                             <Pressable
                                 style={[tagsStyles.tagButton, interestStatus === undefined && tagsStyles.tagButtonSelected]}
                                 onPress={() => setInterestStatus(undefined)}
                             >
-                                <Text style={tagsStyles.tagButtonText}>Limpar</Text>
+                                <Text style={tagsStyles.tagButtonText}>Pular</Text>
                             </Pressable>
                         </View>
 
-                        <Text style={tagsStyles.sectionTitle}>Reassistir:</Text>
+                        <Text style={tagsStyles.subSectionTitle}>Você voltaria a assistir esse filme?</Text>
                         <View style={tagsStyles.tagOptionsContainer}>
                             <Pressable
                                 style={[tagsStyles.tagButton, rewatchStatus === 'sim' && tagsStyles.tagButtonSelected]}
                                 onPress={() => setRewatchStatus('sim')}
                             >
-                                <Text style={tagsStyles.tagButtonText}>Sim</Text>
+                                <Text style={tagsStyles.tagButtonText}>Voltaria</Text>
                             </Pressable>
                             <Pressable
                                 style={[tagsStyles.tagButton, rewatchStatus === 'nao' && tagsStyles.tagButtonSelected]}
                                 onPress={() => setRewatchStatus('nao')}
                             >
-                                <Text style={tagsStyles.tagButtonText}>Não</Text>
+                                <Text style={tagsStyles.tagButtonText}>Não voltaria</Text>
                             </Pressable>
                             <Pressable
                                 style={[tagsStyles.tagButton, rewatchStatus === undefined && tagsStyles.tagButtonSelected]}
                                 onPress={() => setRewatchStatus(undefined)}
                             >
-                                <Text style={tagsStyles.tagButtonText}>Limpar</Text>
+                                <Text style={tagsStyles.tagButtonText}>Pular</Text>
                             </Pressable>
                         </View>
 
@@ -305,6 +293,14 @@ const tagsStyles = StyleSheet.create({
         paddingBottom: 100,
         alignItems: 'center',
     },
+    selectedMovieTitle: { // Título do filme selecionado
+        color: '#3E9C9C',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 20,
+        textAlign: 'center',
+        width: '100%',
+    },
     sectionTitle: {
         color: '#eaeaea',
         fontSize: 16,
@@ -314,60 +310,55 @@ const tagsStyles = StyleSheet.create({
         alignSelf: 'flex-start',
         width: '100%',
     },
-    // CORREÇÃO: Estilos de busca adicionados ou verificados aqui
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#1A2B3E',
-        borderRadius: 25,
-        width: '100%',
-        paddingHorizontal: 15,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#4A6B8A',
-    },
-    searchIcon: {
-        marginRight: 10,
-    },
-    searchInput: {
-        flex: 1,
+    subSectionTitle: { // Para títulos dentro do modo de edição
         color: '#eaeaea',
-        fontSize: 16,
-        height: 40,
-    },
-    movieSearchResults: {
-        backgroundColor: '#1A2B3E',
-        borderRadius: 8,
+        fontSize: 14,
+        fontWeight: 'bold',
+        marginTop: 15,
+        marginBottom: 8,
+        alignSelf: 'flex-start',
         width: '100%',
-        marginTop: 10,
-        maxHeight: 200,
-        borderColor: '#4A6B8A',
-        borderWidth: 1,
     },
-    movieSearchResultItem: {
-        paddingVertical: 10,
-        paddingHorizontal: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: '#4A6B8A',
-    },
-    movieSearchResultText: {
-        color: '#eaeaea',
-        fontSize: 16,
-    },
-    selectedMovieContainer: {
+    // Removidos estilos relacionados à busca (searchContainer, searchIcon, searchInput, movieSearchResults, movieSearchResultItem, movieSearchResultText)
+    
+    // NOVO: Estilos para o modo de visualização
+    viewModeContainer: {
         width: '100%',
         backgroundColor: '#1A2B3E',
         borderRadius: 12,
         padding: 20,
+        alignItems: 'center',
         marginTop: 20,
+    },
+    currentTagsDisplay: {
+        width: '100%',
+        backgroundColor: '#2E3D50',
+        borderRadius: 8,
+        padding: 15,
+        marginBottom: 20,
+    },
+    tagDisplayText: {
+        color: '#eaeaea',
+        fontSize: 16,
+        marginBottom: 8,
+    },
+    editButton: {
+        backgroundColor: '#3E9C9C',
+        paddingVertical: 12,
+        paddingHorizontal: 25,
+        borderRadius: 25,
+        marginTop: 10,
+        width: '80%',
         alignItems: 'center',
     },
-    selectedMovieTitle: {
-        color: '#3E9C9C',
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 20,
-        textAlign: 'center',
+    // NOVO: Estilos para o modo de edição (anteriormente era o conteúdo principal)
+    editModeContainer: {
+        width: '100%',
+        backgroundColor: '#1A2B3E',
+        borderRadius: 12,
+        padding: 20,
+        alignItems: 'center',
+        marginTop: 20,
     },
     tagOptionsContainer: {
         flexDirection: 'row',
