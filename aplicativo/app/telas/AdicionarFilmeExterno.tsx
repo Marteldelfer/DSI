@@ -1,36 +1,47 @@
 // aplicativo/app/telas/AdicionarFilmeExterno.tsx
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Alert, ScrollView, Image, TouchableOpacity } from 'react-native';
+import {
+    View,
+    Text,
+    TextInput,
+    Pressable,
+    StyleSheet,
+    Alert,
+    ScrollView,
+    Image,
+    TouchableOpacity,
+    Modal,
+    Platform,
+    ActionSheetIOS,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
 import { styles } from '../styles';
-// IMPORTANTE: Remova a importação de 'addExternalMovie' e 'MovieStatus' de '../../utils/mockData'
-// import { addExternalMovie, MovieStatus } from '../../utils/mockData';
+import { Movie, MovieStatus } from '../../src/models/Movie';
+import { MovieService } from '../../src/services/MovieService';
 import * as ImagePicker from 'expo-image-picker';
-
-// Importe as novas classes e serviços
-import { Movie, MovieStatus } from '../../src/models/Movie'; // Importe Movie e MovieStatus da nova localização
-import { MovieService } from '../../src/services/MovieService'; // Importe o MovieService
 
 function AdicionarFilmeExterno() {
     const router = useRouter();
     const [titulo, setTitulo] = useState('');
     const [anoLancamento, setAnoLancamento] = useState('');
-    const [diretor, setDiretor] = useState('');
     const [duracao, setDuracao] = useState('');
     const [genero, setGenero] = useState('');
+    const [sinopse, setSinopse] = useState('');
     const [posterUri, setPosterUri] = useState<string | null>(null);
-    const [statusAvaliacao, setStatusAvaliacao] = useState<MovieStatus | null>(null);
+    // REMOVIDO: [statusAvaliacao, setStatusAvaliacao] = useState<MovieStatus | null>(null); // Não define mais o status aqui
 
-    // Crie uma instância do MovieService
+    const [modalFotoVisivel, setModalFotoVisivel] = useState(false);
+    const [novaFotoTemp, setNovaFotoTemp] = useState<string | undefined>(undefined);
+
     const movieService = MovieService.getInstance();
 
-    // Função para selecionar imagem da galeria
-    const pickImage = async () => {
+    const pickImageFromGallery = async () => {
+        setModalFotoVisivel(false);
         let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
-            aspect: [2, 3], // Proporção de um pôster de filme típico (largura:altura)
+            aspect: [2, 3],
             quality: 1,
         });
 
@@ -39,28 +50,119 @@ function AdicionarFilmeExterno() {
         }
     };
 
+    const promptForUrl = () => {
+        Alert.prompt(
+            "Colar URL do Pôster",
+            "Insira o link direto para a imagem do pôster:",
+            [
+                {
+                    text: "Cancelar",
+                    style: "cancel",
+                },
+                {
+                    text: "OK",
+                    onPress: (url) => url && setPosterUri(url),
+                },
+            ],
+            "plain-text"
+        );
+    };
+
+    const handleAddPhotoOptions = () => {
+        const options = ["Escolher da Galeria", "Colar URL", "Cancelar"];
+        const cancelButtonIndex = 2;
+
+        if (Platform.OS === 'ios') {
+            ActionSheetIOS.showActionSheetWithOptions(
+                {
+                    options: options,
+                    cancelButtonIndex: cancelButtonIndex,
+                },
+                (buttonIndex) => {
+                    if (buttonIndex === 0) {
+                        pickImageFromGallery();
+                    } else if (buttonIndex === 1) {
+                        promptForUrl();
+                    }
+                }
+            );
+        } else {
+            Alert.alert(
+                "Adicionar Foto do Pôster",
+                "Escolha uma opção:",
+                [
+                    { text: "Escolher da Galeria", onPress: pickImageFromGallery },
+                    { text: "Colar URL", onPress: promptForUrl },
+                    { text: "Cancelar", style: "cancel" }
+                ],
+                { cancelable: true }
+            );
+        }
+    };
+
+    const handleAplicarFotoUrl = () => {
+        if (novaFotoTemp) {
+            setPosterUri(novaFotoTemp);
+        }
+        setModalFotoVisivel(false);
+        setNovaFotoTemp(undefined);
+    };
+
     const handleSaveMovie = () => {
-        if (!titulo || !anoLancamento || !diretor || !duracao || !genero || !statusAvaliacao) {
-            Alert.alert('Erro', 'Por favor, preencha todos os campos e selecione uma avaliação para adicionar o filme.');
+        // REMOVIDO: !statusAvaliacao da validação, pois a avaliação será feita em outra tela
+        if (!titulo || !anoLancamento || !duracao || !genero || !sinopse) {
+            Alert.alert('Erro', 'Por favor, preencha todos os campos obrigatórios.');
             return;
         }
 
-        // Não precisa mais criar um ID aqui, o serviço cuidará disso.
-        // O MovieService.addExternalMovie agora recebe apenas os dados crus do filme.
-        movieService.addExternalMovie({
+        const newMovie = {
             title: titulo,
             releaseYear: anoLancamento,
-            director: diretor,
+            director: "Não informado",
             duration: duracao,
             genre: genero,
+            overview: sinopse,
             posterUrl: posterUri,
-            status: statusAvaliacao,
-            // As flags isExternal e isTmdb são definidas dentro do addExternalMovie do serviço.
-        });
+            status: null, // O status inicial é null, será definido na tela de avaliação
+        };
 
+        movieService.addExternalMovie(newMovie);
         Alert.alert('Sucesso', 'Filme adicionado com sucesso!');
         router.back();
     };
+
+    // NOVO: Função para navegar para a tela de avaliação após salvar
+    const handleSaveAndEvaluate = async () => {
+        if (!titulo || !anoLancamento || !duracao || !genero || !sinopse) {
+            Alert.alert('Erro', 'Por favor, preencha todos os campos obrigatórios antes de avaliar.');
+            return;
+        }
+
+        const newId = `external-${Date.now()}`; // Gerar um ID aqui para passar para a avaliação
+        const newMovieData = {
+            id: newId, // Passa o ID para a avaliação
+            title: titulo,
+            releaseYear: anoLancamento,
+            director: "Não informado",
+            duration: duracao,
+            genre: genero,
+            overview: sinopse,
+            posterUrl: posterUri,
+            status: null, // Começa como null
+            isExternal: true,
+            isTmdb: false,
+        };
+
+        // Adiciona o filme ao MovieService antes de navegar para a avaliação
+        movieService.addMovieToLocalStore(new Movie(newMovieData)); // Adiciona como uma instância de Movie
+
+        Alert.alert('Sucesso', 'Filme adicionado! Agora avalie-o.');
+        router.replace({
+            pathname: "/telas/CriarAvaliacao",
+            params: { movieId: newId }, // Passa o ID do novo filme para a tela de avaliação
+        });
+    };
+
 
     return (
         <View style={styles.container}>
@@ -73,36 +175,60 @@ function AdicionarFilmeExterno() {
             </View>
 
             <ScrollView contentContainerStyle={addExternalMovieStyles.scrollViewContent}>
-                {/* Pré-visualização do Poster ou Placeholder */}
-                {posterUri ? (
-                    <Image source={{ uri: posterUri }} style={addExternalMovieStyles.posterPreview} />
-                ) : (
-                    <View style={addExternalMovieStyles.posterPlaceholder}>
-                        <Text style={addExternalMovieStyles.posterPlaceholderText}>Adicionar Foto</Text>
-                    </View>
-                )}
-
-                {/* Input para URL do Poster */}
-                <View style={styles.textInput}>
-                    <TextInput
-                        placeholder="Link do Poster (URL)"
-                        placeholderTextColor={"black"}
-                        style={styles.input}
-                        onChangeText={setPosterUri}
-                        value={posterUri || ''}
-                    />
+                <View style={addExternalMovieStyles.posterPreviewArea}>
+                    {posterUri ? (
+                        <Image source={{ uri: posterUri }} style={addExternalMovieStyles.posterPreviewImage} />
+                    ) : (
+                        <View style={addExternalMovieStyles.posterPlaceholder}>
+                            <Text style={addExternalMovieStyles.posterPlaceholderText}>Pôster</Text>
+                        </View>
+                    )}
                 </View>
 
-                {/* Botão para Upload da Galeria */}
-                <TouchableOpacity style={addExternalMovieStyles.uploadButton} onPress={pickImage}>
-                    <Text style={addExternalMovieStyles.uploadButtonText}>Escolher Pôster da Galeria</Text>
-                </TouchableOpacity>
+                <Pressable style={addExternalMovieStyles.addPhotoButton} onPress={() => setModalFotoVisivel(true)}>
+                    <Text style={addExternalMovieStyles.addPhotoButtonText}>Adicionar Foto</Text>
+                </Pressable>
 
-                {/* Campos de texto existentes */}
+                <Modal
+                    animationType="fade"
+                    transparent={true}
+                    visible={modalFotoVisivel}
+                    onRequestClose={() => setModalFotoVisivel(false)}
+                >
+                    <View style={addExternalMovieStyles.centeredView}>
+                        <View style={addExternalMovieStyles.modalView}>
+                            <Text style={addExternalMovieStyles.modalTitle}>Adicionar Foto do Pôster</Text>
+
+                            <View style={styles.textInput}>
+                                <TextInput
+                                    placeholder="Colar URL da foto"
+                                    placeholderTextColor={"black"}
+                                    style={styles.input}
+                                    value={novaFotoTemp}
+                                    onChangeText={setNovaFotoTemp}
+                                    onSubmitEditing={handleAplicarFotoUrl}
+                                />
+                            </View>
+
+                            <TouchableOpacity style={addExternalMovieStyles.modalButton} onPress={pickImageFromGallery}>
+                                <Text style={addExternalMovieStyles.modalButtonText}>Escolher da Galeria</Text>
+                            </TouchableOpacity>
+
+                            <Pressable style={[addExternalMovieStyles.modalButton, {backgroundColor: '#6C7A89'}]} onPress={handleAplicarFotoUrl}>
+                                <Text style={addExternalMovieStyles.modalButtonText}>Aplicar URL</Text>
+                            </Pressable>
+
+                            <Pressable style={[addExternalMovieStyles.modalButton, addExternalMovieStyles.modalCancelButton]} onPress={() => { setModalFotoVisivel(false); setNovaFotoTemp(undefined); }}>
+                                <Text style={addExternalMovieStyles.modalButtonText}>Cancelar</Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </Modal>
+
                 <View style={styles.textInput}>
                     <TextInput
                         placeholder="Título"
-                        placeholderTextColor={"black"}
+                        placeholderTextColor={"grey"}
                         style={styles.input}
                         onChangeText={setTitulo}
                         value={titulo}
@@ -111,7 +237,7 @@ function AdicionarFilmeExterno() {
                 <View style={styles.textInput}>
                     <TextInput
                         placeholder="Ano de Lançamento"
-                        placeholderTextColor={"black"}
+                        placeholderTextColor={"grey"}
                         style={styles.input}
                         onChangeText={setAnoLancamento}
                         value={anoLancamento}
@@ -120,17 +246,8 @@ function AdicionarFilmeExterno() {
                 </View>
                 <View style={styles.textInput}>
                     <TextInput
-                        placeholder="Diretor"
-                        placeholderTextColor={"black"}
-                        style={styles.input}
-                        onChangeText={setDiretor}
-                        value={diretor}
-                    />
-                </View>
-                <View style={styles.textInput}>
-                    <TextInput
                         placeholder="Duração (minutos)"
-                        placeholderTextColor={"black"}
+                        placeholderTextColor={"grey"}
                         style={styles.input}
                         onChangeText={setDuracao}
                         value={duracao}
@@ -140,46 +257,26 @@ function AdicionarFilmeExterno() {
                 <View style={styles.textInput}>
                     <TextInput
                         placeholder="Gênero"
-                        placeholderTextColor={"black"}
+                        placeholderTextColor={"grey"}
                         style={styles.input}
                         onChangeText={setGenero}
                         value={genero}
                     />
                 </View>
-
-                <Text style={addExternalMovieStyles.avaliacaoTitle}>Avaliar Filme:</Text>
-                <View style={addExternalMovieStyles.avaliacaoContainer}>
-                    <Pressable
-                        style={[
-                            addExternalMovieStyles.avaliacaoButton,
-                            statusAvaliacao === 'like2' && addExternalMovieStyles.avaliacaoButtonSelected,
-                        ]}
-                        onPress={() => setStatusAvaliacao('like2')}
-                    >
-                        <AntDesign name="like2" size={30} color={statusAvaliacao === 'like2' ? 'black' : '#eaeaea'} />
-                    </Pressable>
-                    <Pressable
-                        style={[
-                            addExternalMovieStyles.avaliacaoButton,
-                            statusAvaliacao === 'dislike2' && addExternalMovieStyles.avaliacaoButtonSelected,
-                        ]}
-                        onPress={() => setStatusAvaliacao('dislike2')}
-                    >
-                        <AntDesign name="dislike2" size={30} color={statusAvaliacao === 'dislike2' ? 'black' : '#eaeaea'} />
-                    </Pressable>
-                    <Pressable
-                        style={[
-                            addExternalMovieStyles.avaliacaoButton,
-                            statusAvaliacao === 'staro' && addExternalMovieStyles.avaliacaoButtonSelected,
-                        ]}
-                        onPress={() => setStatusAvaliacao('staro')}
-                    >
-                        <AntDesign name="staro" size={30} color={statusAvaliacao === 'staro' ? 'black' : '#eaeaea'} />
-                    </Pressable>
+                <View style={styles.textInput}>
+                    <TextInput
+                        placeholder="Sinopse"
+                        placeholderTextColor={"grey"}
+                        style={[styles.input, {height: 110, textAlignVertical: 'top', paddingTop: 10}]}
+                        multiline={true}
+                        onChangeText={setSinopse}
+                        value={sinopse}
+                    />
                 </View>
 
-                <Pressable style={addExternalMovieStyles.saveButton} onPress={handleSaveMovie}>
-                    <Text style={styles.textoBotao}>Salvar</Text>
+                <Pressable style={addExternalMovieStyles.evaluateButton} onPress={handleSaveAndEvaluate}>
+                    <AntDesign name="staro" size={20} color="#eaeaea" />
+                    <Text style={addExternalMovieStyles.evaluateButtonText}>Salvar e Avaliar Filme</Text>
                 </Pressable>
             </ScrollView>
         </View>
@@ -208,69 +305,110 @@ const addExternalMovieStyles = StyleSheet.create({
         paddingBottom: 100,
         alignItems: 'center',
     },
-    posterPreview: {
+    posterPreviewArea: {
         width: 150,
         height: 225,
         borderRadius: 12,
-        marginBottom: 20,
-        resizeMode: 'cover',
         backgroundColor: '#4A6B8A',
-    },
-    posterPlaceholder: {
-        width: 150,
-        height: 225,
-        borderRadius: 12,
-        backgroundColor: '#4A6B8A', // Cor de fundo semelhante à do protótipo
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 20,
+        overflow: 'hidden',
+        marginBottom: 10,
+    },
+    posterPreviewImage: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
+    },
+    posterPlaceholder: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     posterPlaceholderText: {
         color: '#eaeaea',
-        fontSize: 16,
-        textAlign: 'center',
+        fontSize: 18,
+        fontWeight: 'bold',
     },
-    uploadButton: {
+    addPhotoButton: {
         backgroundColor: '#4A6B8A',
         paddingVertical: 12,
         paddingHorizontal: 20,
         borderRadius: 25,
-        marginTop: 10,
         marginBottom: 20,
         width: '80%',
         alignItems: 'center',
     },
-    uploadButtonText: {
+    addPhotoButtonText: {
         color: '#eaeaea',
         fontSize: 16,
         fontWeight: 'bold',
     },
-    avaliacaoTitle: {
-        color: "#eaeaea",
-        fontSize: 16,
-        fontWeight: "bold",
-        marginTop: 20,
-        marginBottom: 10,
-        alignSelf: 'center',
+    centeredView: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.6)',
     },
-    avaliacaoContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
+    modalView: {
+        margin: 20,
+        backgroundColor: '#1a2b3e',
+        borderRadius: 20,
+        padding: 35,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
         width: '80%',
+    },
+    modalTitle: {
+        color: '#eaeaea',
+        fontSize: 18,
+        fontWeight: 'bold',
         marginBottom: 20,
     },
-    avaliacaoButton: {
-        backgroundColor: '#1A2B3E',
-        padding: 15,
-        borderRadius: 50,
-        borderWidth: 2,
-        borderColor: '#4A6B8A',
-    },
-    avaliacaoButtonSelected: {
+    modalButton: {
         backgroundColor: '#3E9C9C',
-        borderColor: '#3E9C9C',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 25,
+        marginTop: 10,
+        width: '100%',
+        alignItems: 'center',
     },
-    saveButton: {
+    modalButtonText: {
+        color: 'black',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    modalCancelButton: {
+        backgroundColor: '#FF6347',
+    },
+    // NOVO: Estilos para o botão "Salvar e Avaliar Filme"
+    evaluateButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#3E9C9C",
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 25,
+        marginTop: 30, // Margem para separar dos campos
+        width: '80%',
+        justifyContent: 'center',
+    },
+    evaluateButtonText: {
+        color: "#eaeaea",
+        marginLeft: 10,
+        fontWeight: "bold",
+        fontSize: 16,
+    },
+    saveButton: { // Este agora é o botão "Salvar" simples (não usado no fluxo atual)
         backgroundColor: '#3E9C9C',
         paddingVertical: 15,
         paddingHorizontal: 30,

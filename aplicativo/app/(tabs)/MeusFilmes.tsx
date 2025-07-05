@@ -15,7 +15,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
 
 import { styles } from '../styles'; //
-import { Movie } from '../../src/models/Movie'; //
+import { Movie } from '../../src/models/Movie'; 
 import { MovieService } from '../../src/services/MovieService';
 
 type MovieFilterType = 'all' | 'external' | 'app_db';
@@ -26,7 +26,6 @@ function MeusFilmes() {
     const [movies, setMovies] = useState<Movie[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState<MovieFilterType>('all');
-    const [showAddMenu, setShowAddMenu] = useState(false); // Para o botão flutuante de adicionar
 
     const movieService = MovieService.getInstance();
 
@@ -51,7 +50,6 @@ function MeusFilmes() {
     }, [fetchMovies]);
 
     const handleAddMovie = () => {
-        setShowAddMenu(false);
         router.push("/telas/AdicionarFilmeExterno");
     };
 
@@ -76,6 +74,23 @@ function MeusFilmes() {
             pathname: '/telas/Tags',
             params: { movieId: movieId },
         });
+    };
+
+    // Função auxiliar para renderizar o pôster na lista
+    const renderMoviePoster = (movie: Movie) => {
+        if (movie.posterUrl) {
+            return <Image source={{ uri: movie.posterUrl }} style={meusFilmesStyles.moviePoster} />;
+        } else {
+            // NOVO: Pôster genérico para filmes sem foto
+            return (
+                <View style={meusFilmesStyles.genericPosterPlaceholder}>
+                    <Text style={meusFilmesStyles.genericPosterText} numberOfLines={2}>
+                        {movie.title}
+                        {movie.releaseYear ? ` (${movie.releaseYear})` : ''}
+                    </Text>
+                </View>
+            );
+        }
     };
 
     return (
@@ -139,13 +154,7 @@ function MeusFilmes() {
                             movies.map(movie => (
                                 <View key={movie.id} style={meusFilmesStyles.movieItem}>
                                     <Pressable onPress={() => navigateToMovieDetails(movie)}>
-                                        {movie.posterUrl ? (
-                                            <Image source={{ uri: movie.posterUrl }} style={meusFilmesStyles.moviePoster} />
-                                        ) : (
-                                            <View style={meusFilmesStyles.externalMoviePlaceholder}>
-                                                <Text style={meusFilmesStyles.externalMoviePlaceholderText} numberOfLines={3}>{movie.title}</Text>
-                                            </View>
-                                        )}
+                                        {renderMoviePoster(movie)} {/* Usa a função auxiliar */}
                                         <Text style={meusFilmesStyles.movieTitle} numberOfLines={2}>{movie.title}</Text>
                                         {movie.status && (
                                             <AntDesign name={movie.status} size={18} color="#FFD700" style={meusFilmesStyles.statusIconWrapper} />
@@ -166,20 +175,12 @@ function MeusFilmes() {
                     </View>
                 </View>
             </ScrollView>
-
-            {showAddMenu && (
-                <View style={meusFilmesStyles.addMenu}>
-                    <Pressable style={meusFilmesStyles.addMenuItem} onPress={handleAddMovie}>
-                        <Text style={meusFilmesStyles.addMenuText}>Adicionar Filme Externo</Text>
-                    </Pressable>
-                </View>
-            )}
-
-            <Pressable
-                style={meusFilmesStyles.plusButton}
-                onPress={() => setShowAddMenu(!showAddMenu)}
+            
+            <Pressable 
+                style={meusFilmesStyles.addExternalMovieFloatingButton} 
+                onPress={handleAddMovie}
             >
-                <AntDesign name="plus" size={30} color="#eaeaea" />
+                <Text style={meusFilmesStyles.addExternalMovieButtonText}>Adicionar Filme Externo +</Text>
             </Pressable>
         </View>
     );
@@ -248,6 +249,26 @@ const meusFilmesStyles = StyleSheet.create({
         color: 'black',
         fontWeight: 'bold',
     },
+    addExternalMovieFloatingButton: {
+        position: 'absolute',
+        bottom: 90,
+        right: 20,
+        backgroundColor: '#3E9C9C',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 30,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'row',
+        elevation: 5,
+        zIndex: 10,
+        minWidth: 180,
+    },
+    addExternalMovieButtonText: {
+        color: 'black',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
     movieListContainer: {
         flex: 1,
         width: '100%',
@@ -286,7 +307,24 @@ const meusFilmesStyles = StyleSheet.create({
         marginBottom: 10,
         resizeMode: 'cover',
     },
-    externalMoviePlaceholder: {
+    // NOVO: Estilos para o pôster genérico na lista de filmes
+    genericPosterPlaceholder: {
+        width: '100%',
+        height: 200, // Proporções 2:3
+        borderRadius: 8,
+        backgroundColor: '#4A6B8A', // Fundo azulado
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 10,
+        paddingHorizontal: 5,
+    },
+    genericPosterText: {
+        color: '#eaeaea',
+        fontSize: 14,
+        fontWeight: 'bold',
+        textAlign: 'center',
+    },
+    externalMoviePlaceholder: { // Este estilo pode ser removido ou mesclado com genericPosterPlaceholder
         width: '100%',
         height: 200,
         borderRadius: 8,
@@ -296,7 +334,7 @@ const meusFilmesStyles = StyleSheet.create({
         marginBottom: 10,
         paddingHorizontal: 5,
     },
-    externalMoviePlaceholderText: {
+    externalMoviePlaceholderText: { // Este estilo pode ser removido ou mesclado com genericPosterText
         color: '#eaeaea',
         fontSize: 14,
         fontWeight: 'bold',
@@ -332,37 +370,6 @@ const meusFilmesStyles = StyleSheet.create({
         backgroundColor: "#3E9C9C",
         justifyContent: 'center',
         alignItems: 'center'
-    },
-    plusButton: {
-        position: 'absolute',
-        bottom: 90,
-        right: 20,
-        backgroundColor: '#3E9C9C',
-        borderRadius: 30,
-        width: 60,
-        height: 60,
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 5,
-        zIndex: 10,
-    },
-    addMenu: {
-        position: 'absolute',
-        bottom: 160,
-        right: 20,
-        backgroundColor: '#1A2B3E',
-        borderRadius: 10,
-        elevation: 3,
-        zIndex: 11,
-        padding: 10,
-    },
-    addMenuItem: {
-        paddingVertical: 8,
-        paddingHorizontal: 15,
-    },
-    addMenuText: {
-        color: '#eaeaea',
-        fontSize: 16,
     },
     noMoviesText: {
         color: '#eaeaea',

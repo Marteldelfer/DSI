@@ -1,310 +1,261 @@
 // aplicativo/app/telas/DetalhesFilmeExterno.tsx
-import React, { useState, useEffect } from 'react'; //
-import { View, Text, TextInput, Pressable, StyleSheet, Alert, ScrollView, Image } from 'react-native'; //
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router'; //
-import { AntDesign } from '@expo/vector-icons'; //
-import { styles } from '../styles'; //
+import React, { useState, useCallback } from 'react';
+import { View, Text, ScrollView, Image, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { AntDesign } from '@expo/vector-icons';
 
-// Importe as novas classes e serviços
-import { Movie, MovieStatus } from '../../src/models/Movie'; //
+import { styles } from '../styles'; // Seus estilos globais
+import { Movie } from '../../src/models/Movie'; //
 import { MovieService } from '../../src/services/MovieService';
+import { Review } from '../../src/models/Review'; //
+import { ReviewService } from '../../src/services/ReviewService';
+import ComentariosColapsaveis from '../componentes/ComentariosColapsaveis'; //
 
 function DetalhesFilmeExterno() {
-    const router = useRouter();
-    const { movieId } = useLocalSearchParams();
+  const router = useRouter();
+  const { movieId } = useLocalSearchParams(); 
+  
+  const [movie, setMovie] = useState<Movie | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [review, setReview] = useState<Review | null>(null);
 
-    const [movie, setMovie] = useState<Movie | undefined>(undefined);
-    const [titulo, setTitulo] = useState('');
-    const [anoLancamento, setAnoLancamento] = useState('');
-    const [diretor, setDiretor] = useState('');
-    const [duracao, setDuracao] = useState('');
-    const [genero, setGenero] = useState('');
-    const [posterUrl, setPosterUrl] = useState<string | null>(null);
-    const [statusAvaliacao, setStatusAvaliacao] = useState<MovieStatus | null>(null);
+  const movieService = MovieService.getInstance();
+  const reviewService = ReviewService.getInstance();
 
-    const movieService = MovieService.getInstance(); // Instância do serviço
+  useFocusEffect(
+    useCallback(() => {
+      const loadMovieDetailsAndReview = async () => {
+        setLoading(true);
+        if (movieId) {
+          try {
+            const foundMovie = await movieService.getMovieById(movieId as string);
 
-    useFocusEffect(
-        React.useCallback(() => {
-            const fetchMovieData = async () => {
-                if (movieId) {
-                    const foundMovie = await movieService.getMovieById(movieId as string);
-                    if (foundMovie && foundMovie.isExternal) { // Apenas exibe se for filme externo
-                        setMovie(foundMovie);
-                        setTitulo(foundMovie.title);
-                        setAnoLancamento(foundMovie.releaseYear || '');
-                        setDiretor(foundMovie.director || '');
-                        setDuracao(foundMovie.duration || '');
-                        setGenero(foundMovie.genre || '');
-                        setPosterUrl(foundMovie.posterUrl || null);
-                        setStatusAvaliacao(foundMovie.status || null);
-                    } else {
-                        Alert.alert('Erro', 'Filme não encontrado ou não é um filme externo.');
-                        router.back();
-                    }
-                }
-            };
-            fetchMovieData();
-        }, [movieId, movieService])
-    );
-
-    const handleSave = () => {
-        if (!movie) return;
-
-        if (!titulo || !anoLancamento || !diretor || !duracao || !genero || !statusAvaliacao) {
-            Alert.alert('Erro', 'Por favor, preencha todos os campos e selecione uma avaliação.');
-            return;
+            if (foundMovie && foundMovie.isExternal) {
+              setMovie(foundMovie);
+              const movieReviews = reviewService.getReviewsByMovieId(foundMovie.id);
+              if (movieReviews.length > 0) {
+                  setReview(movieReviews[0]);
+              } else {
+                  setReview(null);
+              }
+            } else {
+              Alert.alert('Erro', 'Filme não encontrado ou não é um filme externo.');
+              router.back();
+            }
+          } catch (error) {
+            console.error("Erro ao carregar detalhes do filme externo:", error);
+            Alert.alert('Erro', 'Não foi possível carregar os detalhes do filme.');
+            router.back();
+          }
         }
+        setLoading(false);
+      };
+      loadMovieDetailsAndReview(); 
+    }, [movieId, movieService, reviewService])
+  );
 
-        // Criar uma nova instância de Movie com os dados atualizados
-        const updatedMovie = new Movie({
-            ...movie,
-            title: titulo,
-            releaseYear: anoLancamento,
-            director: diretor,
-            duration: duracao,
-            genre: genero,
-            posterUrl: posterUrl,
-            status: statusAvaliacao,
-            isExternal: true, // Garante que continue sendo externo
-            isTmdb: false, // Garante que não é TMDB
-        });
-
-        movieService.updateMovie(updatedMovie);
-        Alert.alert('Sucesso', 'Filme atualizado com sucesso!');
-        router.back();
-    };
-
-    const handleDelete = () => {
-        if (!movie) return;
-
-        Alert.alert(
-            'Excluir Filme',
-            `Tem certeza que deseja excluir o filme "${movie.title}"?`,
-            [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                    text: 'Excluir',
-                    onPress: () => {
-                        movieService.deleteMovie(movie.id);
-                        Alert.alert('Sucesso', 'Filme excluído com sucesso!');
-                        router.back();
-                    },
-                    style: 'destructive',
-                },
-            ]
-        );
-    };
-
-    if (!movie) {
-        return (
-            <View style={styles.container}>
-                <Text style={{ color: 'white', textAlign: 'center', marginTop: 50 }}>Carregando...</Text>
-            </View>
-        );
+  const handleEditMovie = () => {
+    if (movie) {
+      router.push({
+        pathname: "/telas/EditarFilmeExterno", 
+        params: { movieId: movie.id }, 
+      });
     }
+  };
 
-    const placeholderText = `${movie.title}${movie.releaseYear ? ` (${movie.releaseYear})` : ''}`;
+  const handleAvaliacao = () => {
+    if (movie) {
+      router.push({
+        pathname: "/telas/CriarAvaliacao",
+        params: { movieId: movie.id },
+      });
+    }
+  };
 
+  if (loading || !movie) {
     return (
-        <View style={styles.container}>
-            <View style={detalhesFilmeStyles.header}>
-                <Pressable onPress={() => router.back()} style={{ marginRight: 20 }}>
-                    <AntDesign name="arrowleft" size={24} color="#eaeaea" />
-                </Pressable>
-                <Text style={detalhesFilmeStyles.headerTitle} numberOfLines={1}>Detalhes do Filme Externo</Text>
-                <Pressable onPress={handleDelete}>
-                    <AntDesign name="delete" size={24} color="#FF6347" />
-                </Pressable>
-            </View>
-
-            <ScrollView contentContainerStyle={detalhesFilmeStyles.scrollViewContent}>
-                {posterUrl ? (
-                    <Image
-                        source={{ uri: posterUrl }}
-                        style={detalhesFilmeStyles.moviePoster}
-                    />
-                ) : (
-                    <View style={detalhesFilmeStyles.externalMoviePlaceholderLarge}>
-                         <Text style={detalhesFilmeStyles.externalMoviePlaceholderTextLarge} numberOfLines={3}>{placeholderText}</Text>
-                    </View>
-                )}
-
-                <View style={styles.textInput}>
-                    <TextInput
-                        placeholder="Título"
-                        placeholderTextColor={"black"}
-                        style={styles.input}
-                        onChangeText={setTitulo}
-                        value={titulo}
-                    />
-                </View>
-                <View style={styles.textInput}>
-                    <TextInput
-                        placeholder="Ano de Lançamento"
-                        placeholderTextColor={"black"}
-                        style={styles.input}
-                        onChangeText={setAnoLancamento}
-                        value={anoLancamento}
-                        keyboardType="numeric"
-                    />
-                </View>
-                <View style={styles.textInput}>
-                    <TextInput
-                        placeholder="Diretor"
-                        placeholderTextColor={"black"}
-                        style={styles.input}
-                        onChangeText={setDiretor}
-                        value={diretor}
-                    />
-                </View>
-                <View style={styles.textInput}>
-                    <TextInput
-                        placeholder="Duração (minutos)"
-                        placeholderTextColor={"black"}
-                        style={styles.input}
-                        onChangeText={setDuracao}
-                        value={duracao}
-                        keyboardType="numeric"
-                    />
-                </View>
-                <View style={styles.textInput}>
-                    <TextInput
-                        placeholder="Gênero"
-                        placeholderTextColor={"black"}
-                        style={styles.input}
-                        onChangeText={setGenero}
-                        value={genero}
-                    />
-                </View>
-                <View style={styles.textInput}>
-                    <TextInput
-                        placeholder="URL do Poster"
-                        placeholderTextColor={"black"}
-                        style={styles.input}
-                        onChangeText={setPosterUrl}
-                        value={posterUrl || ''}
-                    />
-                </View>
-
-                <Text style={detalhesFilmeStyles.avaliacaoTitle}>Avaliação:</Text>
-                <View style={detalhesFilmeStyles.avaliacaoContainer}>
-                    <Pressable
-                        style={[
-                            detalhesFilmeStyles.avaliacaoButton,
-                            statusAvaliacao === 'like2' && detalhesFilmeStyles.avaliacaoButtonSelected,
-                        ]}
-                        onPress={() => setStatusAvaliacao('like2')}
-                    >
-                        <AntDesign name="like2" size={30} color={statusAvaliacao === 'like2' ? 'black' : '#eaeaea'} />
-                    </Pressable>
-                    <Pressable
-                        style={[
-                            detalhesFilmeStyles.avaliacaoButton,
-                            statusAvaliacao === 'dislike2' && detalhesFilmeStyles.avaliacaoButtonSelected,
-                        ]}
-                        onPress={() => setStatusAvaliacao('dislike2')}
-                    >
-                        <AntDesign name="dislike2" size={30} color={statusAvaliacao === 'dislike2' ? 'black' : '#eaeaea'} />
-                    </Pressable>
-                    <Pressable
-                        style={[
-                            detalhesFilmeStyles.avaliacaoButton,
-                            statusAvaliacao === 'staro' && detalhesFilmeStyles.avaliacaoButtonSelected,
-                        ]}
-                        onPress={() => setStatusAvaliacao('staro')}
-                    >
-                        <AntDesign name="staro" size={30} color={statusAvaliacao === 'staro' ? 'black' : '#eaeaea'} />
-                    </Pressable>
-                </View>
-
-                <Pressable style={detalhesFilmeStyles.saveButton} onPress={handleSave}>
-                    <Text style={styles.textoBotao}>Salvar Alterações</Text>
-                </Pressable>
-            </ScrollView>
-        </View>
+      <View style={[styles.container, { justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color="#3E9C9C" />
+      </View>
     );
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={detalhesExternoStyles.header}>
+        <Pressable onPress={() => router.back()} style={{ marginRight: 20 }}>
+          <AntDesign name="arrowleft" size={24} color="#eaeaea" />
+        </Pressable>
+        <Text style={detalhesExternoStyles.headerTitle} numberOfLines={1}>
+          Detalhes do Filme Externo
+        </Text>
+        <Pressable onPress={handleEditMovie}>
+            <AntDesign name="edit" size={24} color="#eaeaea" />
+        </Pressable>
+      </View>
+
+      <ScrollView contentContainerStyle={detalhesExternoStyles.scrollViewContent}>
+        {movie.posterUrl ? (
+          <Image source={{ uri: movie.posterUrl }} style={detalhesExternoStyles.moviePoster} />
+        ) : (
+          <View style={detalhesExternoStyles.placeholderPoster}>
+            <Text style={detalhesExternoStyles.placeholderText}>{movie.title}</Text>
+          </View>
+        )}
+
+        <Text style={detalhesExternoStyles.title}>{movie.title}</Text>
+        <Text style={detalhesExternoStyles.subtitle}>
+          {movie.releaseYear}{movie.genre && ` • ${movie.genre}`} {movie.duration && ` • ${movie.duration} min`}
+        </Text>
+
+        <Text style={detalhesExternoStyles.sectionTitle}>Sinopse:</Text>
+        <Text style={detalhesExternoStyles.sinopseText}>{movie.overview || 'Sinopse não disponível.'}</Text> {/* CORREÇÃO: Usar sinopseText */}
+
+        {/* REMOVIDO: Campo Diretor */}
+        {/* {movie.director && (
+          <>
+            <Text style={detalhesExternoStyles.sectionTitle}>Diretor:</Text>
+            <Text style={detalhesExternoStyles.text}>{movie.director}</Text>
+          </>
+        )} */}
+        
+        <Text style={detalhesExternoStyles.sectionTitle}>Sua Avaliação:</Text>
+        {review ? (
+            <View style={detalhesExternoStyles.reviewContainer}>
+                <AntDesign 
+                    name={review.reviewType === 'like' ? 'like2' : review.reviewType === 'dislike' ? 'dislike2' : 'staro'} 
+                    size={24} 
+                    color="#3E9C9C" 
+                />
+                <Text style={detalhesExternoStyles.reviewContent}>{review.content || 'Sem comentário adicional.'}</Text>
+            </View>
+        ) : (
+            <Text style={detalhesExternoStyles.noReviewText}>Você ainda não avaliou este filme.</Text>
+        )}
+
+        {review && <ComentariosColapsaveis avaliacaoId={review.id || ''} />} 
+        
+        <Pressable style={detalhesExternoStyles.evaluateButton} onPress={handleAvaliacao}>
+          <AntDesign name="staro" size={20} color="#eaeaea" />
+          <Text style={detalhesExternoStyles.evaluateButtonText}>Avaliar Filme</Text>
+        </Pressable>
+
+      </ScrollView>
+    </View>
+  );
 }
 
 export default DetalhesFilmeExterno;
 
-const detalhesFilmeStyles = StyleSheet.create({
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingTop: 40,
-        paddingBottom: 20,
-        backgroundColor: "#2E3D50",
-    },
-    headerTitle: {
-        color: "#eaeaea",
-        fontSize: 20,
-        fontWeight: "bold",
-        flex: 1,
-        marginHorizontal: 15,
-    },
-    scrollViewContent: {
-        padding: 20,
-        paddingBottom: 100,
-        alignItems: 'center',
-    },
-    moviePoster: {
-        width: 150,
-        height: 225,
-        borderRadius: 12,
-        marginBottom: 20,
-        resizeMode: 'cover',
-    },
-    externalMoviePlaceholderLarge: {
-        width: 150,
-        height: 225,
-        borderRadius: 12,
-        backgroundColor: '#4A6B8A',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 20,
-        paddingHorizontal: 10,
-    },
-    externalMoviePlaceholderTextLarge: {
-        color: '#eaeaea',
-        fontSize: 18,
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
-    avaliacaoTitle: {
-        color: "#eaeaea",
-        fontSize: 16,
-        fontWeight: "bold",
-        marginTop: 20,
-        marginBottom: 10,
-        alignSelf: 'center',
-    },
-    avaliacaoContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        width: '80%',
-        marginBottom: 20,
-    },
-    avaliacaoButton: {
-        backgroundColor: '#1A2B3E',
-        padding: 15,
-        borderRadius: 50,
-        borderWidth: 2,
-        borderColor: '#4A6B8A',
-    },
-    avaliacaoButtonSelected: {
-        backgroundColor: '#3E9C9C',
-        borderColor: '#3E9C9C',
-    },
-    saveButton: {
-        backgroundColor: '#3E9C9C',
-        paddingVertical: 15,
-        paddingHorizontal: 30,
-        borderRadius: 30,
-        marginTop: 30,
-        width: '80%',
-        alignItems: 'center',
-    },
+const detalhesExternoStyles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 40,
+    paddingBottom: 20,
+    backgroundColor: "#2E3D50",
+  },
+  headerTitle: {
+    color: "#eaeaea",
+    fontSize: 20,
+    fontWeight: "bold",
+    flex: 1,
+    marginHorizontal: 15,
+  },
+  scrollViewContent: {
+    padding: 20,
+    paddingBottom: 100,
+    alignItems: 'center',
+  },
+  moviePoster: { 
+    width: 200, 
+    height: 300, 
+    borderRadius: 12,
+    marginBottom: 20,
+    resizeMode: 'cover',
+  },
+  placeholderPoster: { 
+    width: 200,
+    height: 300,
+    borderRadius: 12,
+    backgroundColor: '#4A6B8A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 10,
+  },
+  placeholderText: {
+    color: '#eaeaea',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  title: { 
+    color: '#eaeaea',
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 5,
+  },
+  subtitle: { 
+    color: '#b0b0b0',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  sectionTitle: { 
+    color: '#eaeaea',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 15,
+    marginBottom: 5,
+    alignSelf: 'flex-start', 
+  },
+  // CORREÇÃO: Novo estilo para a sinopse alinhada à esquerda
+  sinopseText: { 
+    color: '#ccc',
+    fontSize: 14,
+    textAlign: 'left', // Alinhado à esquerda
+    marginBottom: 10,
+    width: '100%', // Ocupa toda a largura para o alinhamento funcionar
+  },
+  reviewContainer: { 
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#1A2B3E',
+      borderRadius: 8,
+      padding: 10,
+      width: '100%',
+      marginTop: 15,
+      marginBottom: 10,
+  },
+  reviewContent: {
+      color: '#eaeaea',
+      fontSize: 14,
+      marginLeft: 10,
+      flexShrink: 1, 
+  },
+  noReviewText: {
+      color: '#b0b0b0',
+      fontSize: 14,
+      width: '100%',
+      marginBottom: 10,
+  },
+  evaluateButton: { 
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#3E9C9C",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    marginTop: 20,
+  },
+  evaluateButtonText: {
+    color: "#eaeaea",
+    marginLeft: 10,
+    fontWeight: "bold",
+    fontSize: 16,
+  },
 });

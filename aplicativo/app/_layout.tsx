@@ -48,10 +48,11 @@ export default function RootLayout() {
       <Stack.Screen name="telas/DetalhesPlaylist" options={{ headerShown: false }} />
       <Stack.Screen name="telas/AdicionarFilmeExterno" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="telas/CriarAvaliacao" options={{ headerShown: false, presentation: 'modal' }} />
-      {/* <<<<<<< VERIFIQUE SE ESTA LINHA ESTÁ PRESENTE E CORRETA >>>>>>> */}
-      <Stack.Screen name="telas/Tags" options={{ headerShown: false, presentation: 'modal' }} /> 
+      <Stack.Screen name="telas/Tags" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="telas/DetalhesFilmeTMDB" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="telas/DetalhesFilmeExterno" options={{ headerShown: false, presentation: 'modal' }} />
+      {/* NOVO: Adicione a rota para a tela de edição de filmes externos */}
+      <Stack.Screen name="telas/EditarFilmeExterno" options={{ headerShown: false, presentation: 'modal' }} />
     </Stack>
   );
 }

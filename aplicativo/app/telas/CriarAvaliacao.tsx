@@ -68,6 +68,23 @@ export default function CriarAvaliacao() {
     );
   }
 
+  // Função auxiliar para renderizar o pôster
+  const renderMoviePoster = () => {
+    if (movie?.posterUrl) {
+      return <Image source={{ uri: movie.posterUrl }} style={criarAvaliacao.moviePoster} />;
+    } else {
+      // NOVO: Pôster genérico para filmes sem foto
+      return (
+        <View style={criarAvaliacao.genericPosterPlaceholder}>
+          <Text style={criarAvaliacao.genericPosterText} numberOfLines={2}>
+            {movie?.title}
+            {movie?.releaseYear ? ` (${movie.releaseYear})` : ''}
+          </Text>
+        </View>
+      );
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={criarAvaliacao.header}>
@@ -80,14 +97,7 @@ export default function CriarAvaliacao() {
       </View>
 
       <ScrollView contentContainerStyle={criarAvaliacao.scrollViewContent}>
-        <Image
-          source={
-            movie.posterUrl
-              ? { uri: movie.posterUrl }
-              : require("../../assets/images/filmeia-logo2.png")
-          }
-          style={criarAvaliacao.moviePoster}
-        />
+        {renderMoviePoster()} {/* Usa a função auxiliar */}
 
         <Text style={styles.textoBotao}>O que você achou de "{movie.title}"?</Text>
         <View style={[styles.textInput, {marginTop: 15}]}>
@@ -148,6 +158,23 @@ const criarAvaliacao = StyleSheet.create({
   headerTitle: { color: "#eaeaea", fontSize: 20, fontWeight: "bold", flex: 1, marginLeft: 15, },
   scrollViewContent: { padding: 20, paddingBottom: 100, alignItems: "center", },
   moviePoster: { width: 150, height: 225, borderRadius: 12, marginBottom: 20, resizeMode: "cover", },
+  // NOVO: Estilos para o pôster genérico
+  genericPosterPlaceholder: {
+    width: 150,
+    height: 225, // Proporções 2:3
+    borderRadius: 12,
+    backgroundColor: '#4A6B8A', // Fundo azulado
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 10,
+  },
+  genericPosterText: {
+    color: '#eaeaea',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
   avaliacaoTitle: { color: "#eaeaea", fontSize: 16, fontWeight: "bold", marginTop: 20, marginBottom: 10, alignSelf: "center", },
   avaliacaoContainer: { flexDirection: "row", justifyContent: "space-around", width: "80%", marginBottom: 20, },
   avaliacaoButton: { backgroundColor: "#1A2B3E", padding: 15, borderRadius: 50, borderWidth: 2, borderColor: "#4A6B8A", },
