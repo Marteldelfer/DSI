@@ -1,12 +1,11 @@
 // aplicativo/src/models/Comment.ts
-export class Comment {
+export class Comment { // <<<<< O NOME DA CLASSE AGORA É Comment
   id: string;
-  reviewId: string; // Associado a uma avaliação
+  reviewId: string; 
   content: string;
-  // userId: string; // Adicionar se necessário
 
   constructor(data: { id?: string; reviewId: string; content: string }) {
-    this.id = data.id || `com-${Date.now()}`;
+    this.id = data.id || `com-${Date.now()}`; 
     this.reviewId = data.reviewId;
     this.content = data.content;
   }

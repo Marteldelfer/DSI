@@ -1,15 +1,14 @@
 // aplicativo/src/models/Review.ts
 export type ReviewType = "like" | "dislike" | "favorite";
 
-export class Review {
+export class Review { // <<<<< O NOME DA CLASSE AGORA É Review
   id: string;
   movieId: string;
-  content?: string;
-  reviewType: ReviewType;
-  // userId: string; // Adicionar se for necessário associar a um usuário
+  content?: string; // O conteúdo do comentário principal da avaliação
+  reviewType: ReviewType; // Tipo da avaliação (like, dislike, favorite)
 
   constructor(data: { id?: string; movieId: string; content?: string; reviewType: ReviewType }) {
-    this.id = data.id || `rev-${Date.now()}`; // Gerar ID se não fornecido
+    this.id = data.id || `rev-${Date.now()}`; // Garante um ID único
     this.movieId = data.movieId;
     this.content = data.content;
     this.reviewType = data.reviewType;

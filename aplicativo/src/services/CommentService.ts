@@ -1,7 +1,7 @@
 // aplicativo/src/services/CommentService.ts
-import { Comment } from '../models/Comment';
+import { Comment } from '../models/Comment'; // <<<<< Importa a CLASSE Comment
 
-let localComments: Comment[] = [];
+let localComments: Comment[] = []; 
 
 export class CommentService {
   private static instance: CommentService;
@@ -16,8 +16,11 @@ export class CommentService {
   }
 
   createComment(reviewId: string, content: string): Comment {
-    const newComment = new Comment({ reviewId, content });
-    localComments.push(newComment);
+    const newComment = new Comment({ reviewId, content }); // <<<<< Instancia a CLASSE Comment
+    if (!newComment.id) {
+        newComment.id = `com-${Date.now()}`;
+    }
+    localComments.push(newComment); 
     return newComment;
   }
 

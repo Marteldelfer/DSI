@@ -4,10 +4,13 @@ import { View, Text, ScrollView, Image, StyleSheet, Pressable, ActivityIndicator
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
 
-import { styles } from '../styles'; // Seus estilos globais
+import { styles } from '../styles'; 
 import { Movie } from '../../src/models/Movie'; 
 import { MovieService } from '../../src/services/MovieService'; 
-import { getMovieDetails as fetchTmdbMovieDetails } from '../../src/api/tmdb'; //
+import { getMovieDetails as fetchTmdbMovieDetails } from '../../src/api/tmdb'; 
+import { Review } from '../../src/models/Review'; // Importa a CLASSE Review
+import { ReviewService } from '../../src/services/ReviewService';
+import ComentariosColapsaveis from '../componentes/ComentariosColapsaveis'; 
 
 function DetalhesFilmeTMDB() {
   const router = useRouter();
@@ -15,29 +18,36 @@ function DetalhesFilmeTMDB() {
   
   const [movie, setMovie] = useState<Movie | null>(null);
   const [loading, setLoading] = useState(true);
+  const [review, setReview] = useState<Review | null>(null); // Estado para a avaliação do filme
 
   const movieService = MovieService.getInstance();
+  const reviewService = ReviewService.getInstance();
 
   useFocusEffect(
     useCallback(() => {
-      const loadMovieDetails = async () => {
+      const loadMovieDetailsAndReview = async () => {
         setLoading(true);
         if (movieId) {
           try {
             let foundMovie = await movieService.getMovieById(movieId as string);
 
-            // Mesmo com a versão anterior do tmdb.ts, ainda tentamos puxar os detalhes
-            // para garantir que tenhamos o máximo de informações possível,
-            // especialmente o `runtime` e o `genres` do objeto principal.
             const tmdbDetails = await fetchTmdbMovieDetails(movieId as string); 
             if (tmdbDetails) {
-                // Atualiza o cache local com os detalhes completos retornados (mesmo sem créditos)
-                movieService.addMovieToLocalStore(tmdbDetails);
-                foundMovie = tmdbDetails; // Usa a versão mais detalhada
+                movieService.addMovieToLocalStore(tmdbDetails); 
+                foundMovie = tmdbDetails;
             }
 
             if (foundMovie) {
               setMovie(foundMovie);
+              // Busca a avaliação mais recente para este filme
+              const movieReviews = reviewService.getReviewsByMovieId(foundMovie.id);
+              // Como createReview agora faz upsert, movieReviews.length deve ser 0 ou 1 para cada filme
+              if (movieReviews.length > 0) {
+                  setReview(movieReviews[0]); 
+              } else {
+                  setReview(null);
+              }
+
             } else {
               Alert.alert('Erro', 'Filme não encontrado ou detalhes não disponíveis.');
               router.back();
@@ -50,8 +60,8 @@ function DetalhesFilmeTMDB() {
         }
         setLoading(false);
       };
-      loadMovieDetails();
-    }, [movieId, movieService])
+      loadMovieDetailsAndReview();
+    }, [movieId, movieService, reviewService]) 
   );
 
   const handleAvaliacao = () => {
@@ -80,8 +90,7 @@ function DetalhesFilmeTMDB() {
         <Text style={detalhesTmdbStyles.headerTitle} numberOfLines={1}>
           Detalhes do Filme
         </Text>
-        {/* Estrela no canto superior direito removida, pois já há um botão de avaliar no final da página */}
-        <View style={{width: 24}} /> {/* Placeholder para manter alinhamento */}
+        <View style={{width: 24}} />
       </View>
 
       <ScrollView contentContainerStyle={detalhesTmdbStyles.scrollViewContent}>
@@ -101,14 +110,24 @@ function DetalhesFilmeTMDB() {
         <Text style={detalhesTmdbStyles.sectionTitle}>Sinopse:</Text>
         <Text style={detalhesTmdbStyles.text}>{movie.overview || 'Sinopse não disponível.'}</Text>
 
-        {/* Parte do diretor removida conforme solicitado */}
-        {/* {movie.director && (
-          <>
-            <Text style={detalhesTmdbStyles.sectionTitle}>Diretor:</Text>
-            <Text style={detalhesTmdbStyles.text}>{movie.director}</Text>
-          </>
-        )} */}
+        {/* Seção de Avaliação */}
+        <Text style={detalhesTmdbStyles.sectionTitle}>Sua Avaliação:</Text>
+        {review ? (
+            <View style={detalhesTmdbStyles.reviewContainer}>
+                <AntDesign 
+                    name={review.reviewType === 'like' ? 'like2' : review.reviewType === 'dislike' ? 'dislike2' : 'staro'} 
+                    size={24} 
+                    color="#3E9C9C" 
+                />
+                <Text style={detalhesTmdbStyles.reviewContent}>{review.content || 'Sem comentário adicional.'}</Text>
+            </View>
+        ) : (
+            <Text style={detalhesTmdbStyles.noReviewText}>Você ainda não avaliou este filme.</Text>
+        )}
 
+        {/* Componente de Comentários Colapsáveis */}
+        {review && <ComentariosColapsaveis avaliacaoId={review.id || ''} />} 
+        
         <Pressable style={detalhesTmdbStyles.evaluateButton} onPress={handleAvaliacao}>
           <AntDesign name="staro" size={20} color="#eaeaea" />
           <Text style={detalhesTmdbStyles.evaluateButtonText}>Avaliar Filme</Text>
@@ -192,6 +211,27 @@ const detalhesTmdbStyles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'justify',
     marginBottom: 10,
+  },
+  reviewContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#1A2B3E',
+      borderRadius: 8,
+      padding: 10,
+      width: '100%',
+      marginBottom: 10,
+  },
+  reviewContent: {
+      color: '#eaeaea',
+      fontSize: 14,
+      marginLeft: 10,
+      flexShrink: 1,
+  },
+  noReviewText: {
+      color: '#b0b0b0',
+      fontSize: 14,
+      width: '100%',
+      marginBottom: 10,
   },
   evaluateButton: {
     flexDirection: "row",

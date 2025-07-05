@@ -4,13 +4,12 @@ import { AntDesign } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useState, useCallback } from "react";
 
-// Importe as novas classes e serviços
-import { Movie, MovieStatus } from '../../src/models/Movie';
-import { Review, ReviewType } from '../../src/models/Review';
+import { styles } from "@/app/styles"; 
+import { Movie, MovieStatus } from '../../src/models/Movie'; 
+import { Review, ReviewType } from '../../src/models/Review'; 
 import { MovieService } from '../../src/services/MovieService';
 import { ReviewService } from '../../src/services/ReviewService';
 
-import { styles } from "@/app/styles";
 
 export default function CriarAvaliacao() {
   const { movieId, review: preReview } = useLocalSearchParams();
@@ -20,7 +19,7 @@ export default function CriarAvaliacao() {
     preReview as ReviewType || null
   );
   const [movie, setMovie] = useState<Movie | undefined>(undefined);
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState(""); 
   const [loading, setLoading] = useState(true);
 
   const movieService = MovieService.getInstance();
@@ -42,7 +41,7 @@ export default function CriarAvaliacao() {
         setLoading(false);
       };
       fetchMovie();
-    }, [movieId, movieService]) // Adicionar movieService como dependência
+    }, [movieId, movieService])
   );
 
 	function handleCriarAvaliacao() {
@@ -50,11 +49,13 @@ export default function CriarAvaliacao() {
 			Alert.alert("Erro", "Uma avaliação (gostei, não gostei ou favorito) é necessária.");
 			return;
 		}
-		reviewService.createReview({
+		
+    const createdReview = reviewService.createReview({
 			movieId: movieId as string,
-			content: content,
-			reviewType: reviewType // Usar reviewType
+			content: content, 
+			reviewType: reviewType
 		});
+
     Alert.alert("Sucesso", "Sua avaliação foi publicada!");
 		router.back();
 	}

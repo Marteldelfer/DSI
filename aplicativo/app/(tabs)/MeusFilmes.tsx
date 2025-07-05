@@ -107,13 +107,13 @@ function MeusFilmes() {
                     style={[meusFilmesStyles.filterButton, filterType === 'app_db' && meusFilmesStyles.filterButtonSelected]}
                     onPress={() => { setFilterType('app_db'); setSearchTerm(''); }}
                 >
-                    <Text style={filterType === 'app_db' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Da API</Text>
+                    <Text style={filterType === 'app_db' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Filmes TMDB</Text>
                 </Pressable>
                 <Pressable
                     style={[meusFilmesStyles.filterButton, filterType === 'external' && meusFilmesStyles.filterButtonSelected]}
                     onPress={() => { setFilterType('external'); setSearchTerm(''); }}
                 >
-                    <Text style={filterType === 'external' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Adicionados</Text>
+                    <Text style={filterType === 'external' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Filmes Externos</Text>
                 </Pressable>
             </View>
 

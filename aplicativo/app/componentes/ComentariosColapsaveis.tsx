@@ -4,11 +4,10 @@ import { View, Text, Pressable, TextInput, Alert, StyleSheet } from 'react-nativ
 import { AntDesign } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 
-import { styles } from '../styles';
-// Importe as novas classes e serviços
-import { Comment } from '../../src/models/Comment'; // Importe a classe Comment
+import { styles } from '../styles'; 
+import { Comment } from '../../src/models/Comment'; // <<<<< Importa a CLASSE Comment
 import { CommentService } from '../../src/services/CommentService';
-import { ReviewService } from '../../src/services/ReviewService'; // Para verificar se a avaliação existe
+import { ReviewService } from '../../src/services/ReviewService'; 
 
 interface ComentariosColapsaveisProps {
     avaliacaoId: string;
@@ -20,19 +19,17 @@ function ComentariosColapsaveis({ avaliacaoId }: ComentariosColapsaveisProps) {
     const [newCommentText, setNewCommentText] = useState('');
 
     const commentService = CommentService.getInstance();
-    const reviewService = ReviewService.getInstance();
+    const reviewService = ReviewService.getInstance(); 
 
     const fetchComments = useCallback(() => {
-        // Antes de buscar comentários, verificar se a avaliação existe.
         const reviewExists = reviewService.getReviewById(avaliacaoId);
         if (reviewExists) {
             const fetchedComments = commentService.getCommentsByReviewId(avaliacaoId);
             setComments(fetchedComments);
         } else {
-            // Se a avaliação não existe, não há comentários para mostrar.
             setComments([]);
         }
-    }, [avaliacaoId, commentService, reviewService]); // Adicione services como dependência
+    }, [avaliacaoId, commentService, reviewService]);
 
     useFocusEffect(
         useCallback(() => {
@@ -44,7 +41,7 @@ function ComentariosColapsaveis({ avaliacaoId }: ComentariosColapsaveisProps) {
         if (newCommentText.trim()) {
             commentService.createComment(avaliacaoId, newCommentText.trim());
             setNewCommentText('');
-            fetchComments(); // Recarrega os comentários após adicionar
+            fetchComments(); 
         } else {
             Alert.alert("Erro", "O comentário não pode estar vazio.");
         }
