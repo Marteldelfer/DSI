@@ -1,12 +1,12 @@
 // aplicativo/app/telas/CriarPlaylist.tsx
-import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, Alert, StyleSheet, Image, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, TextInput, Pressable, ScrollView, Alert, StyleSheet, Image, ActivityIndicator, FlatList } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
-import { styles } from '../styles';
+import { styles } from '../styles'; //
 
 // Importe as novas classes e serviços
-import { Movie } from '../../src/models/Movie';
+import { Movie } from '../../src/models/Movie'; 
 import { MovieService } from '../../src/services/MovieService';
 import { PlaylistService } from '../../src/services/PlaylistService';
 
@@ -17,6 +17,9 @@ function CriarPlaylist() {
     const [selectedMovieIds, setSelectedMovieIds] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const [searchTerm, setSearchTerm] = useState(''); // NOVO: Estado para o termo de pesquisa de filmes
+    const [filteredMovies, setFilteredMovies] = useState<Movie[]>([]); // NOVO: Estado para filmes filtrados
+
     const movieService = MovieService.getInstance();
     const playlistService = PlaylistService.getInstance();
 
@@ -24,14 +27,34 @@ function CriarPlaylist() {
         setLoading(true);
         const fetchedMovies = movieService.getAllMovies();
         setAllMovies(fetchedMovies);
+        // NOVO: Inicializa filteredMovies com todos os filmes
+        setFilteredMovies(fetchedMovies); 
         setLoading(false);
-    }, [movieService]); // Adicione movieService como dependência
+    }, [movieService]);
 
     useFocusEffect(
         useCallback(() => {
             fetchAllMovies();
         }, [fetchAllMovies])
     );
+
+    // NOVO: Efeito para filtrar filmes quando o termo de busca ou a lista de todos os filmes muda
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            if (searchTerm.trim()) {
+                const filtered = allMovies.filter(movie =>
+                    movie.title.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+                setFilteredMovies(filtered);
+            } else {
+                setFilteredMovies(allMovies); // Se a busca estiver vazia, mostra todos
+            }
+        }, 300); // Debounce de 300ms
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [searchTerm, allMovies]);
 
     const toggleMovieSelection = (movieId: string) => {
         setSelectedMovieIds(prevSelected =>
@@ -86,9 +109,27 @@ function CriarPlaylist() {
                 </View>
 
                 <Text style={criarPlaylistStyles.sectionTitle}>Filmes Disponíveis:</Text>
-                <View style={criarPlaylistStyles.movieGrid}>
-                    {allMovies.length > 0 ? (
-                        allMovies.map((movie) => (
+                
+                {/* NOVO: Barra de pesquisa de filmes */}
+                <View style={criarPlaylistStyles.searchContainer}>
+                    <AntDesign name="search1" size={20} color="#7f8c8d" style={criarPlaylistStyles.searchIcon} />
+                    <TextInput
+                        placeholder="Buscar filmes para adicionar..."
+                        placeholderTextColor="#7f8c8d"
+                        style={criarPlaylistStyles.searchInput}
+                        onChangeText={setSearchTerm}
+                        value={searchTerm}
+                    />
+                </View>
+
+                {loading && searchTerm.trim() ? (
+                    <ActivityIndicator size="large" color="#3E9C9C" style={{marginTop: 20}} />
+                ) : filteredMovies.length > 0 ? (
+                    <FlatList // Usando FlatList para melhor performance em listas de filmes
+                        data={filteredMovies}
+                        numColumns={3} // Exibe 3 filmes por linha
+                        keyExtractor={(item) => item.id}
+                        renderItem={({ item: movie }) => (
                             <Pressable
                                 key={movie.id}
                                 style={[
@@ -111,11 +152,15 @@ function CriarPlaylist() {
                                     </View>
                                 )}
                             </Pressable>
-                        ))
-                    ) : (
-                        <Text style={criarPlaylistStyles.noMoviesText}>Nenhum filme disponível para adicionar.</Text>
-                    )}
-                </View>
+                        )}
+                        contentContainerStyle={criarPlaylistStyles.movieGrid}
+                        scrollEnabled={false} // Desabilita o scroll interno para a ScrollView principal
+                    />
+                ) : (
+                    <Text style={criarPlaylistStyles.noMoviesText}>
+                        {searchTerm.trim() ? "Nenhum filme encontrado com este nome." : "Nenhum filme disponível para adicionar."}
+                    </Text>
+                )}
 
                 <Pressable style={criarPlaylistStyles.createButton} onPress={handleCreatePlaylist}>
                     <Text style={styles.textoBotao}>Criar Playlist</Text>
@@ -156,14 +201,34 @@ const criarPlaylistStyles = StyleSheet.create({
         marginBottom: 15,
         alignSelf: 'flex-start',
     },
-    movieGrid: {
+    // NOVO: Estilos da barra de pesquisa de filmes
+    searchContainer: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'flex-start',
+        alignItems: 'center',
+        backgroundColor: '#1A2B3E',
+        borderRadius: 25,
         width: '100%',
+        paddingHorizontal: 15,
+        marginBottom: 20, 
+        borderWidth: 1,
+        borderColor: '#4A6B8A',
+    },
+    searchIcon: {
+        marginRight: 10,
+        color: '#7f8c8d',
+    },
+    searchInput: {
+        flex: 1,
+        color: '#eaeaea',
+        fontSize: 16,
+        height: 40,
+    },
+    movieGrid: {
+        justifyContent: 'flex-start',
+        width: '100%', // Para ocupar toda a largura e permitir 3 por linha
     },
     movieItem: {
-        width: '30%', // Aproximadamente 3 por linha com margem
+        width: '30%', // Ajustado para 3 por linha com margem
         margin: '1.5%',
         alignItems: 'center',
         position: 'relative',
@@ -201,7 +266,7 @@ const criarPlaylistStyles = StyleSheet.create({
         fontSize: 12,
         textAlign: 'center',
         marginTop: 5,
-        minHeight: 30, // Para garantir espaço para duas linhas
+        minHeight: 30, 
     },
     checkmarkOverlay: {
         position: 'absolute',

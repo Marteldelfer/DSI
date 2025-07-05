@@ -1,13 +1,13 @@
 // aplicativo/app/telas/DetalhesPlaylist.tsx
-import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, TextInput, StyleSheet, Alert, Image, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, ScrollView, Pressable, TextInput, StyleSheet, Alert, Image, ActivityIndicator, FlatList } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
-import { styles } from '../styles';
+import { styles } from '../styles'; //
 
 // Importe as novas classes e serviços
-import { Playlist } from '../../src/models/Playlist';
-import { Movie } from '../../src/models/Movie';
+import { Playlist } from '../../src/models/Playlist'; 
+import { Movie } from '../../src/models/Movie'; 
 import { PlaylistService } from '../../src/services/PlaylistService';
 import { MovieService } from '../../src/services/MovieService';
 
@@ -21,6 +21,12 @@ function DetalhesPlaylist() {
     const [allAvailableMovies, setAllAvailableMovies] = useState<Movie[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const [searchTermPlaylistMovies, setSearchTermPlaylistMovies] = useState(''); // NOVO: Estado para termo de busca em filmes da playlist
+    const [filteredPlaylistMovies, setFilteredPlaylistMovies] = useState<Movie[]>([]); // NOVO: Estado para filmes filtrados da playlist
+
+    const [searchTermAllMovies, setSearchTermAllMovies] = useState(''); // NOVO: Estado para termo de busca em todos os filmes disponíveis
+    const [filteredAllMovies, setFilteredAllMovies] = useState<Movie[]>([]); // NOVO: Estado para todos os filmes disponíveis filtrados
+
     const playlistService = PlaylistService.getInstance();
     const movieService = MovieService.getInstance();
 
@@ -33,16 +39,19 @@ function DetalhesPlaylist() {
                 setEditableName(foundPlaylist.name);
                 const movies = playlistService.getMoviesInPlaylist(foundPlaylist.id);
                 setMoviesInPlaylist(movies);
+                setFilteredPlaylistMovies(movies); // Inicializa a lista filtrada de filmes na playlist
 
+                // Carrega todos os filmes disponíveis para adicionar/remover
                 const allMovies = movieService.getAllMovies();
                 setAllAvailableMovies(allMovies);
+                setFilteredAllMovies(allMovies); // Inicializa a lista filtrada de todos os filmes
             } else {
                 Alert.alert("Erro", "Playlist não encontrada.");
                 router.back();
             }
         }
         setLoading(false);
-    }, [playlistId, playlistService, movieService]);
+    }, [playlistId, playlistService, movieService]); 
 
     useFocusEffect(
         useCallback(() => {
@@ -50,15 +59,51 @@ function DetalhesPlaylist() {
         }, [fetchPlaylistData])
     );
 
+    // NOVO: Efeito para filtrar filmes NA PLAYLIST
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            if (searchTermPlaylistMovies.trim()) {
+                const filtered = moviesInPlaylist.filter(movie =>
+                    movie.title.toLowerCase().includes(searchTermPlaylistMovies.toLowerCase())
+                );
+                setFilteredPlaylistMovies(filtered);
+            } else {
+                setFilteredPlaylistMovies(moviesInPlaylist);
+            }
+        }, 300); // Debounce de 300ms
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [searchTermPlaylistMovies, moviesInPlaylist]);
+
+    // NOVO: Efeito para filtrar TODOS OS FILMES DISPONÍVEIS
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            if (searchTermAllMovies.trim()) {
+                const filtered = allAvailableMovies.filter(movie =>
+                    movie.title.toLowerCase().includes(searchTermAllMovies.toLowerCase())
+                );
+                setFilteredAllMovies(filtered);
+            } else {
+                setFilteredAllMovies(allAvailableMovies);
+            }
+        }, 300); // Debounce de 300ms
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [searchTermAllMovies, allAvailableMovies]);
+
+
     const handleUpdatePlaylistName = () => {
         if (!playlist || !editableName.trim()) {
             Alert.alert("Erro", "O nome da playlist não pode estar vazio.");
             return;
         }
-        // CORREÇÃO: Instanciar a classe Playlist
         const updatedPlaylist = new Playlist({ ...playlist, name: editableName.trim() });
         playlistService.updatePlaylist(updatedPlaylist);
-        setPlaylist(updatedPlaylist);
+        setPlaylist(updatedPlaylist); 
         Alert.alert("Sucesso", "Nome da playlist atualizado!");
     };
 
@@ -92,8 +137,7 @@ function DetalhesPlaylist() {
             updatedMovieIds.add(movieId);
         }
 
-        // CORREÇÃO: Instanciar a classe Playlist
-        const newPlaylist = new Playlist({
+        const newPlaylist = new Playlist({ 
             ...playlist,
             movieIds: Array.from(updatedMovieIds),
         });
@@ -105,13 +149,15 @@ function DetalhesPlaylist() {
                 else newPlaylist.coverImageUrl = null;
                 playlistService.updatePlaylist(newPlaylist);
                 setPlaylist(newPlaylist);
-                setMoviesInPlaylist(playlistService.getMoviesInPlaylist(newPlaylist.id));
+                setMoviesInPlaylist(playlistService.getMoviesInPlaylist(newPlaylist.id)); 
+                setFilteredPlaylistMovies(playlistService.getMoviesInPlaylist(newPlaylist.id)); // Atualiza a lista filtrada da playlist
             });
         } else {
             newPlaylist.coverImageUrl = null;
             playlistService.updatePlaylist(newPlaylist);
             setPlaylist(newPlaylist);
             setMoviesInPlaylist([]);
+            setFilteredPlaylistMovies([]); // Atualiza a lista filtrada da playlist
         }
     };
 
@@ -122,6 +168,23 @@ function DetalhesPlaylist() {
             </View>
         );
     }
+
+    // Função auxiliar para renderizar o pôster do filme (copiado de MeusFilmes ou CriarAvaliacao)
+    const renderMoviePoster = (movie: Movie) => {
+        if (movie.posterUrl) {
+            return <Image source={{ uri: movie.posterUrl }} style={detalhesPlaylistStyles.moviePoster} />;
+        } else {
+            return (
+                <View style={detalhesPlaylistStyles.genericPosterPlaceholder}>
+                    <Text style={detalhesPlaylistStyles.genericPosterText} numberOfLines={2}>
+                        {movie.title}
+                        {movie.releaseYear ? ` (${movie.releaseYear})` : ''}
+                    </Text>
+                </View>
+            );
+        }
+    };
+
 
     return (
         <View style={styles.container}>
@@ -155,36 +218,68 @@ function DetalhesPlaylist() {
                 </View>
 
                 <Text style={detalhesPlaylistStyles.sectionTitle}>Filmes na Playlist:</Text>
-                {moviesInPlaylist.length > 0 ? (
-                    <View style={detalhesPlaylistStyles.movieGrid}>
-                        {moviesInPlaylist.map((movie) => (
+                
+                {/* NOVO: Barra de pesquisa de filmes na playlist */}
+                <View style={detalhesPlaylistStyles.searchContainer}>
+                    <AntDesign name="search1" size={20} color="#7f8c8d" style={detalhesPlaylistStyles.searchIcon} />
+                    <TextInput
+                        placeholder="Buscar filmes na playlist..."
+                        placeholderTextColor="#7f8c8d"
+                        style={detalhesPlaylistStyles.searchInput}
+                        onChangeText={setSearchTermPlaylistMovies}
+                        value={searchTermPlaylistMovies}
+                    />
+                </View>
+
+                {loading && searchTermPlaylistMovies.trim() ? (
+                    <ActivityIndicator size="large" color="#3E9C9C" style={{marginTop: 20}} />
+                ) : filteredPlaylistMovies.length > 0 ? (
+                    <FlatList
+                        data={filteredPlaylistMovies}
+                        numColumns={3}
+                        keyExtractor={(item) => item.id}
+                        renderItem={({ item: movie }) => (
                             <Pressable
                                 key={movie.id}
                                 style={detalhesPlaylistStyles.movieItem}
                                 onPress={() => toggleMovieInPlaylist(movie.id)}
                             >
-                                {movie.posterUrl ? (
-                                    <Image source={{ uri: movie.posterUrl }} style={detalhesPlaylistStyles.moviePoster} />
-                                ) : (
-                                    <View style={detalhesPlaylistStyles.moviePlaceholder}>
-                                        <Text style={detalhesPlaylistStyles.moviePlaceholderText} numberOfLines={2}>{movie.title}</Text>
-                                    </View>
-                                )}
+                                {renderMoviePoster(movie)}
                                 <Text style={detalhesPlaylistStyles.movieTitle} numberOfLines={2}>{movie.title}</Text>
                                 <View style={detalhesPlaylistStyles.removeIconOverlay}>
                                     <AntDesign name="minuscircle" size={24} color="#FF6347" />
                                 </View>
                             </Pressable>
-                        ))}
-                    </View>
+                        )}
+                        contentContainerStyle={detalhesPlaylistStyles.movieGrid}
+                        scrollEnabled={false}
+                    />
                 ) : (
                     <Text style={detalhesPlaylistStyles.noMoviesText}>Nenhum filme nesta playlist.</Text>
                 )}
 
                 <Text style={detalhesPlaylistStyles.sectionTitle}>Adicionar/Remover Filmes:</Text>
-                <View style={detalhesPlaylistStyles.movieGrid}>
-                    {allAvailableMovies.length > 0 ? (
-                        allAvailableMovies.map((movie) => (
+                
+                {/* NOVO: Barra de pesquisa para todos os filmes disponíveis */}
+                <View style={detalhesPlaylistStyles.searchContainer}>
+                    <AntDesign name="search1" size={20} color="#7f8c8d" style={detalhesPlaylistStyles.searchIcon} />
+                    <TextInput
+                        placeholder="Buscar todos os filmes disponíveis..."
+                        placeholderTextColor="#7f8c8d"
+                        style={detalhesPlaylistStyles.searchInput}
+                        onChangeText={setSearchTermAllMovies}
+                        value={searchTermAllMovies}
+                    />
+                </View>
+
+                {loading && searchTermAllMovies.trim() ? (
+                    <ActivityIndicator size="large" color="#3E9C9C" style={{marginTop: 20}} />
+                ) : filteredAllMovies.length > 0 ? (
+                    <FlatList
+                        data={filteredAllMovies}
+                        numColumns={3}
+                        keyExtractor={(item) => item.id}
+                        renderItem={({ item: movie }) => (
                             <Pressable
                                 key={movie.id}
                                 style={[
@@ -193,13 +288,7 @@ function DetalhesPlaylist() {
                                 ]}
                                 onPress={() => toggleMovieInPlaylist(movie.id)}
                             >
-                                {movie.posterUrl ? (
-                                    <Image source={{ uri: movie.posterUrl }} style={detalhesPlaylistStyles.moviePoster} />
-                                ) : (
-                                    <View style={detalhesPlaylistStyles.moviePlaceholder}>
-                                        <Text style={detalhesPlaylistStyles.moviePlaceholderText} numberOfLines={2}>{movie.title}</Text>
-                                    </View>
-                                )}
+                                {renderMoviePoster(movie)}
                                 <Text style={detalhesPlaylistStyles.movieTitle} numberOfLines={2}>{movie.title}</Text>
                                 {playlist.movieIds.includes(movie.id) ? (
                                     <View style={detalhesPlaylistStyles.checkmarkOverlay}>
@@ -211,11 +300,15 @@ function DetalhesPlaylist() {
                                     </View>
                                 )}
                             </Pressable>
-                        ))
-                    ) : (
-                        <Text style={detalhesPlaylistStyles.noMoviesText}>Nenhum filme disponível para gerenciar.</Text>
-                    )}
-                </View>
+                        )}
+                        contentContainerStyle={detalhesPlaylistStyles.movieGrid}
+                        scrollEnabled={false}
+                    />
+                ) : (
+                    <Text style={detalhesPlaylistStyles.noMoviesText}>
+                        {searchTermAllMovies.trim() ? "Nenhum filme encontrado com este nome." : "Nenhum filme disponível para gerenciar."}
+                    </Text>
+                )}
             </ScrollView>
         </View>
     );
@@ -261,14 +354,34 @@ const detalhesPlaylistStyles = StyleSheet.create({
         alignSelf: 'flex-start',
         width: '100%',
     },
-    movieGrid: {
+    // NOVO: Estilos da barra de pesquisa
+    searchContainer: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
+        alignItems: 'center',
+        backgroundColor: '#1A2B3E',
+        borderRadius: 25,
+        width: '100%',
+        paddingHorizontal: 15,
+        marginBottom: 20, 
+        borderWidth: 1,
+        borderColor: '#4A6B8A',
+    },
+    searchIcon: {
+        marginRight: 10,
+        color: '#7f8c8d',
+    },
+    searchInput: {
+        flex: 1,
+        color: '#eaeaea',
+        fontSize: 16,
+        height: 40,
+    },
+    movieGrid: {
         justifyContent: 'flex-start',
         width: '100%',
     },
     movieItem: {
-        width: '30%',
+        width: '30%', 
         margin: '1.5%',
         alignItems: 'center',
         position: 'relative',
@@ -280,22 +393,23 @@ const detalhesPlaylistStyles = StyleSheet.create({
         borderColor: '#3E9C9C',
         borderWidth: 3,
     },
-    moviePoster: {
+    moviePoster: { // Pôster de tamanho regular
         width: '100%',
         height: 150,
         borderRadius: 8,
         resizeMode: 'cover',
     },
-    moviePlaceholder: {
+    // NOVO: Estilos para o pôster genérico (para filmes sem foto)
+    genericPosterPlaceholder: {
         width: '100%',
-        height: 150,
+        height: 150, // Proporções 2:3
         borderRadius: 8,
-        backgroundColor: '#4A6B8A',
+        backgroundColor: '#4A6B8A', // Fundo azulado
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: 5,
     },
-    moviePlaceholderText: {
+    genericPosterText: {
         color: '#eaeaea',
         fontSize: 12,
         fontWeight: 'bold',
@@ -306,7 +420,7 @@ const detalhesPlaylistStyles = StyleSheet.create({
         fontSize: 12,
         textAlign: 'center',
         marginTop: 5,
-        minHeight: 30,
+        minHeight: 30, 
     },
     removeIconOverlay: {
         position: 'absolute',

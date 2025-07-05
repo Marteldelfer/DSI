@@ -51,8 +51,9 @@ export default function RootLayout() {
       <Stack.Screen name="telas/Tags" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="telas/DetalhesFilmeTMDB" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="telas/DetalhesFilmeExterno" options={{ headerShown: false, presentation: 'modal' }} />
-      {/* NOVO: Adicione a rota para a tela de edição de filmes externos */}
       <Stack.Screen name="telas/EditarFilmeExterno" options={{ headerShown: false, presentation: 'modal' }} />
+      {/* CORREÇÃO: Adicione a rota para ListaPlaylists e oculte o cabeçalho */}
+      <Stack.Screen name="telas/ListaPlaylists" options={{ headerShown: false }} />
     </Stack>
   );
 }

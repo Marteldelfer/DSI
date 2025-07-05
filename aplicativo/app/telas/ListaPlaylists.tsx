@@ -1,28 +1,33 @@
 // aplicativo/app/telas/ListaPlaylists.tsx
-import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, TextInput, RefreshControl, StyleSheet, Image } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react'; // Adicionado useEffect
+import { View, Text, ScrollView, Pressable, TextInput, RefreshControl, StyleSheet, Image, ActivityIndicator // Adicionado ActivityIndicator
+} from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
-import { styles } from '../styles';
+import { styles } from '../styles'; //
 
 // Importe as novas classes e serviços
-import { Playlist } from '../../src/models/Playlist';
+import { Playlist } from '../../src/models/Playlist'; 
 import { PlaylistService } from '../../src/services/PlaylistService';
 
 function ListaPlaylists() {
     const router = useRouter();
     const [playlists, setPlaylists] = useState<Playlist[]>([]);
-    const [newPlaylistName, setNewPlaylistName] = useState('');
+    const [filteredPlaylists, setFilteredPlaylists] = useState<Playlist[]>([]); // NOVO: Estado para playlists filtradas
+    const [searchTerm, setSearchTerm] = useState(''); // NOVO: Estado para o termo de pesquisa
     const [refreshing, setRefreshing] = useState(false);
+    const [loading, setLoading] = useState(true); // NOVO: Estado de carregamento
 
-    const playlistService = PlaylistService.getInstance(); // Obtenha a instância do PlaylistService
+    const playlistService = PlaylistService.getInstance(); 
 
     const fetchPlaylists = useCallback(() => {
+        setLoading(true);
         setRefreshing(true);
-        const fetchedPlaylists = playlistService.getPlaylists();
-        setPlaylists(fetchedPlaylists);
+        const fetched = playlistService.getPlaylists();
+        setPlaylists(fetched); // Guarda todas as playlists
+        setLoading(false);
         setRefreshing(false);
-    }, [playlistService]); // Adicione playlistService como dependência
+    }, [playlistService]);
 
     useFocusEffect(
         useCallback(() => {
@@ -34,12 +39,26 @@ function ListaPlaylists() {
         fetchPlaylists();
     }, [fetchPlaylists]);
 
-    const handleAddPlaylist = () => {
-        if (newPlaylistName.trim()) {
-            playlistService.addPlaylist(newPlaylistName.trim());
-            setNewPlaylistName('');
-            fetchPlaylists(); // Recarrega a lista após adicionar
-        }
+    // NOVO: Efeito para filtrar playlists quando o termo de busca ou a lista de playlists muda
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            if (searchTerm.trim()) {
+                const filtered = playlists.filter(playlist =>
+                    playlist.name.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+                setFilteredPlaylists(filtered);
+            } else {
+                setFilteredPlaylists(playlists); // Se a busca estiver vazia, mostra todas
+            }
+        }, 300); // Debounce de 300ms
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [searchTerm, playlists]); // Depende do searchTerm e da lista completa de playlists
+
+    const handleCreateNewPlaylist = () => {
+        router.push("/telas/CriarPlaylist");
     };
 
     const navigateToPlaylistDetails = (playlistId: string) => {
@@ -48,6 +67,14 @@ function ListaPlaylists() {
             params: { playlistId },
         });
     };
+
+    if (loading && !refreshing && playlists.length === 0 && !searchTerm.trim()) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center' }]}>
+                <ActivityIndicator size="large" color="#3E9C9C" />
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
@@ -59,18 +86,18 @@ function ListaPlaylists() {
                 <AntDesign name="delete" size={24} color="transparent" />{/* Ícone fantasma para centralizar título */}
             </View>
 
-            <View style={listaPlaylistsStyles.addPlaylistContainer}>
+            {/* NOVO: Barra de pesquisa */}
+            <View style={listaPlaylistsStyles.searchContainer}>
+                <AntDesign name="search1" size={20} color="#7f8c8d" style={listaPlaylistsStyles.searchIcon} />
                 <TextInput
-                    placeholder="Nome da nova playlist"
-                    placeholderTextColor="grey"
-                    style={[styles.input, { flex: 1 }]}
-                    onChangeText={setNewPlaylistName}
-                    value={newPlaylistName}
+                    placeholder="Buscar playlists..."
+                    placeholderTextColor="#7f8c8d"
+                    style={listaPlaylistsStyles.searchInput}
+                    onChangeText={setSearchTerm}
+                    value={searchTerm}
                 />
-                <Pressable style={listaPlaylistsStyles.addButton} onPress={handleAddPlaylist}>
-                    <AntDesign name="pluscircleo" size={24} color="#eaeaea" />
-                </Pressable>
             </View>
+
 
             <ScrollView
                 style={listaPlaylistsStyles.playlistListContainer}
@@ -79,8 +106,10 @@ function ListaPlaylists() {
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3E9C9C" />
                 }
             >
-                {playlists.length > 0 ? (
-                    playlists.map((playlist) => (
+                {loading && searchTerm.trim() ? (
+                    <ActivityIndicator size="large" color="#3E9C9C" style={{marginTop: 20}} />
+                ) : filteredPlaylists.length > 0 ? (
+                    filteredPlaylists.map((playlist) => (
                         <Pressable key={playlist.id} style={listaPlaylistsStyles.playlistItem} onPress={() => navigateToPlaylistDetails(playlist.id)}>
                             <Image
                                 source={playlist.coverImageUrl ? { uri: playlist.coverImageUrl } : require('../../assets/images/filmeia-logo2.png')}
@@ -91,9 +120,20 @@ function ListaPlaylists() {
                         </Pressable>
                     ))
                 ) : (
-                    <Text style={listaPlaylistsStyles.noPlaylistsText}>Nenhuma playlist criada ainda.</Text>
+                    <Text style={listaPlaylistsStyles.noPlaylistsText}>
+                        {searchTerm.trim() ? "Nenhuma playlist encontrada com este nome." : "Nenhuma playlist criada ainda."}
+                    </Text>
                 )}
             </ScrollView>
+
+            {/* NOVO: Botão flutuante para criar nova playlist */}
+            <Pressable 
+                style={listaPlaylistsStyles.createPlaylistFloatingButton} 
+                onPress={handleCreateNewPlaylist}
+            >
+                <AntDesign name="plus" size={24} color="#eaeaea" style={{marginRight: 8}} />
+                <Text style={listaPlaylistsStyles.createPlaylistButtonText}>Nova Playlist</Text>
+            </Pressable>
         </View>
     );
 }
@@ -116,6 +156,30 @@ const listaPlaylistsStyles = StyleSheet.create({
         flex: 1,
         marginLeft: 15,
     },
+    // NOVO: Estilos da barra de pesquisa
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#1A2B3E',
+        borderRadius: 25,
+        marginHorizontal: 20,
+        paddingHorizontal: 15,
+        marginBottom: 20, // Espaçamento abaixo da barra de pesquisa
+        borderWidth: 1,
+        borderColor: '#4A6B8A',
+    },
+    searchIcon: {
+        marginRight: 10,
+        color: '#7f8c8d',
+    },
+    searchInput: {
+        flex: 1,
+        color: '#eaeaea',
+        fontSize: 16,
+        height: 40,
+    },
+    // REMOVIDO: Estilos do addPlaylistContainer e addButton
+    /*
     addPlaylistContainer: {
         flexDirection: 'row',
         padding: 20,
@@ -129,12 +193,14 @@ const listaPlaylistsStyles = StyleSheet.create({
         backgroundColor: '#3E9C9C',
         borderRadius: 25,
     },
+    */
     playlistListContainer: {
         flex: 1,
         width: '100%',
     },
     playlistListContent: {
         padding: 20,
+        paddingBottom: 100, // Espaço para o botão flutuante
         alignItems: 'center',
     },
     playlistItem: {
@@ -167,5 +233,25 @@ const listaPlaylistsStyles = StyleSheet.create({
         fontSize: 16,
         textAlign: 'center',
         marginTop: 50,
+    },
+    // NOVO: Estilos do botão flutuante "Nova Playlist"
+    createPlaylistFloatingButton: {
+        position: 'absolute',
+        bottom: 90, // Acima da tab bar
+        left: 20, // Canto inferior esquerdo
+        backgroundColor: '#3E9C9C',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 30,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 5,
+        zIndex: 10,
+    },
+    createPlaylistButtonText: {
+        color: 'black',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
 });
