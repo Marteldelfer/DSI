@@ -13,31 +13,32 @@ import {
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
-
-import { styles } from '../styles'; //
-import { Movie } from '../../src/models/Movie'; 
+import { styles } from '../styles';
+import { Movie, MovieStatus } from '../../src/models/Movie'; 
 import { MovieService } from '../../src/services/MovieService';
 
-type MovieFilterType = 'all' | 'external' | 'app_db';
+type MovieSourceFilter = 'all' | 'external' | 'app_db';
+type ReviewStatusFilter = MovieStatus | 'all';
 
 function MeusFilmes() {
     const router = useRouter();
     const [refreshing, setRefreshing] = useState(false);
     const [movies, setMovies] = useState<Movie[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterType, setFilterType] = useState<MovieFilterType>('all');
+    const [sourceFilter, setSourceFilter] = useState<MovieSourceFilter>('all');
+    const [statusFilter, setStatusFilter] = useState<ReviewStatusFilter>('all');
 
     const movieService = MovieService.getInstance();
 
     const fetchMovies = useCallback(() => {
         setRefreshing(true);
-        const fetchedMovies = movieService.getFilteredAndRatedMovies(filterType);
-        const filtered = fetchedMovies.filter(movie =>
+        const fetchedMovies = movieService.getFilteredAndRatedMovies(sourceFilter, statusFilter);
+        const filteredBySearch = fetchedMovies.filter(movie =>
             movie.title.toLowerCase().includes(searchTerm.toLowerCase())
         );
-        setMovies(filtered);
+        setMovies(filteredBySearch);
         setRefreshing(false);
-    }, [searchTerm, filterType, movieService]);
+    }, [searchTerm, sourceFilter, statusFilter, movieService]);
 
     useFocusEffect(
         useCallback(() => {
@@ -76,12 +77,10 @@ function MeusFilmes() {
         });
     };
 
-    // Função auxiliar para renderizar o pôster na lista
     const renderMoviePoster = (movie: Movie) => {
         if (movie.posterUrl) {
             return <Image source={{ uri: movie.posterUrl }} style={meusFilmesStyles.moviePoster} />;
         } else {
-            // NOVO: Pôster genérico para filmes sem foto
             return (
                 <View style={meusFilmesStyles.genericPosterPlaceholder}>
                     <Text style={meusFilmesStyles.genericPosterText} numberOfLines={2}>
@@ -99,80 +98,110 @@ function MeusFilmes() {
                 <Text style={meusFilmesStyles.headerTitle}>Meus Filmes</Text>
             </View>
 
-            <View style={meusFilmesStyles.searchContainer}>
-                <AntDesign name="search1" size={20} color="#7f8c8d" style={meusFilmesStyles.searchIcon} />
-                <TextInput
-                    placeholder="Buscar filmes avaliados..."
-                    placeholderTextColor="#7f8c8d"
-                    style={meusFilmesStyles.searchInput}
-                    onChangeText={setSearchTerm}
-                    value={searchTerm}
-                    onEndEditing={fetchMovies}
-                />
-            </View>
-
-            <View style={meusFilmesStyles.filterButtonsContainer}>
-                <Pressable
-                    style={[meusFilmesStyles.filterButton, filterType === 'all' && meusFilmesStyles.filterButtonSelected]}
-                    onPress={() => { setFilterType('all'); setSearchTerm(''); }}
-                >
-                    <Text style={filterType === 'all' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Todos</Text>
-                </Pressable>
-                <Pressable
-                    style={[meusFilmesStyles.filterButton, filterType === 'app_db' && meusFilmesStyles.filterButtonSelected]}
-                    onPress={() => { setFilterType('app_db'); setSearchTerm(''); }}
-                >
-                    <Text style={filterType === 'app_db' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Filmes TMDB</Text>
-                </Pressable>
-                <Pressable
-                    style={[meusFilmesStyles.filterButton, filterType === 'external' && meusFilmesStyles.filterButtonSelected]}
-                    onPress={() => { setFilterType('external'); setSearchTerm(''); }}
-                >
-                    <Text style={filterType === 'external' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Filmes Externos</Text>
-                </Pressable>
-            </View>
-
-            <Pressable style={{ width: '100%', marginBottom: 12, paddingHorizontal: 20}} onPress={() => router.push('/telas/ListaPlaylists')}>
-                <View style={{ backgroundColor: "#3E9C9C", padding: 12, borderRadius: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'center'}}>
-                    <AntDesign name="videocamera" size={24} color="black" style={{marginRight: 10}}/>
-                    <Text style={styles.textoBotao}>MINHAS PLAYLISTS</Text>
+            <View style={{paddingHorizontal: 20}}>
+                <View style={meusFilmesStyles.searchContainer}>
+                    <AntDesign name="search1" size={20} color="#7f8c8d" style={meusFilmesStyles.searchIcon} />
+                    <TextInput
+                        placeholder="Buscar filmes avaliados..."
+                        placeholderTextColor="#7f8c8d"
+                        style={meusFilmesStyles.searchInput}
+                        onChangeText={setSearchTerm}
+                        value={searchTerm}
+                    />
                 </View>
-            </Pressable>
+
+                <Text style={meusFilmesStyles.filterSectionTitle}>Fonte do Filme</Text>
+                <View style={meusFilmesStyles.filterButtonsContainer}>
+                    <Pressable
+                        style={[meusFilmesStyles.filterButton, sourceFilter === 'all' && meusFilmesStyles.filterButtonSelected]}
+                        onPress={() => setSourceFilter('all')}
+                    >
+                        <Text style={sourceFilter === 'all' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Todos</Text>
+                    </Pressable>
+                    <Pressable
+                        style={[meusFilmesStyles.filterButton, sourceFilter === 'app_db' && meusFilmesStyles.filterButtonSelected]}
+                        onPress={() => setSourceFilter('app_db')}
+                    >
+                        <Text style={sourceFilter === 'app_db' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>TMDB</Text>
+                    </Pressable>
+                    <Pressable
+                        style={[meusFilmesStyles.filterButton, sourceFilter === 'external' && meusFilmesStyles.filterButtonSelected]}
+                        onPress={() => setSourceFilter('external')}
+                    >
+                        <Text style={sourceFilter === 'external' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Externos</Text>
+                    </Pressable>
+                </View>
+                
+                <Text style={meusFilmesStyles.filterSectionTitle}>Filtrar por Avaliação</Text>
+                <View style={meusFilmesStyles.filterButtonsContainer}>
+                    <Pressable
+                        style={[meusFilmesStyles.filterButton, statusFilter === 'all' && meusFilmesStyles.filterButtonSelected]}
+                        onPress={() => setStatusFilter('all')}
+                    >
+                        <Text style={statusFilter === 'all' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Todos</Text>
+                    </Pressable>
+                    <Pressable
+                        style={[meusFilmesStyles.filterButton, { paddingHorizontal: 20 }, statusFilter === 'like2' && meusFilmesStyles.filterButtonSelected]}
+                        onPress={() => setStatusFilter('like2')}
+                    >
+                        <AntDesign name="like2" size={16} color={statusFilter === 'like2' ? 'black' : '#eaeaea'} />
+                    </Pressable>
+                    <Pressable
+                        style={[meusFilmesStyles.filterButton, { paddingHorizontal: 20 }, statusFilter === 'dislike2' && meusFilmesStyles.filterButtonSelected]}
+                        onPress={() => setStatusFilter('dislike2')}
+                    >
+                        <AntDesign name="dislike2" size={16} color={statusFilter === 'dislike2' ? 'black' : '#eaeaea'} />
+                    </Pressable>
+                    <Pressable
+                        style={[meusFilmesStyles.filterButton, { paddingHorizontal: 20 }, statusFilter === 'staro' && meusFilmesStyles.filterButtonSelected]}
+                        onPress={() => setStatusFilter('staro')}
+                    >
+                        <AntDesign name="staro" size={16} color={statusFilter === 'staro' ? 'black' : '#eaeaea'} />
+                    </Pressable>
+                </View>
+
+                {/* BOTÃO DE PLAYLISTS REINSERIDO AQUI */}
+                <Pressable style={{ width: '100%', marginBottom: 12}} onPress={() => router.push('/telas/ListaPlaylists')}>
+                    <View style={meusFilmesStyles.playlistButton}>
+                        <AntDesign name="videocamera" size={24} color="black" style={{marginRight: 10}}/>
+                        <Text style={styles.textoBotao}>MINHAS PLAYLISTS</Text>
+                    </View>
+                </Pressable>
+            </View>
 
 
             <ScrollView
                 style={meusFilmesStyles.movieListContainer}
-                contentContainerStyle={meusFilmesStyles.movieListContent}
+                contentContainerStyle={{paddingBottom: 150}}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3E9C9C" />
                 }
             >
-                <View style={meusFilmesStyles.sectionContainer}>
-                    <Text style={meusFilmesStyles.sectionTitle}>Filmes que você avaliou</Text>
-                    <View style={meusFilmesStyles.moviesGrid}>
-                        {movies.length > 0 ? (
-                            movies.map(movie => (
-                                <View key={movie.id} style={meusFilmesStyles.movieItem}>
-                                    <Pressable onPress={() => navigateToMovieDetails(movie)}>
-                                        {renderMoviePoster(movie)} {/* Usa a função auxiliar */}
-                                        <Text style={meusFilmesStyles.movieTitle} numberOfLines={2}>{movie.title}</Text>
-                                        {movie.status && (
-                                            <AntDesign name={movie.status} size={18} color="#FFD700" style={meusFilmesStyles.statusIconWrapper} />
-                                        )}
+                <View style={meusFilmesStyles.moviesGrid}>
+                    {movies.length > 0 ? (
+                        movies.map(movie => (
+                            <View key={movie.id} style={meusFilmesStyles.movieItem}>
+                                <Pressable onPress={() => navigateToMovieDetails(movie)}>
+                                    {renderMoviePoster(movie)}
+                                    <Text style={meusFilmesStyles.movieTitle} numberOfLines={2}>{movie.title}</Text>
+                                    {movie.status && (
+                                        <AntDesign name={movie.status} size={18} color="#FFD700" style={meusFilmesStyles.statusIconWrapper} />
+                                    )}
+                                </Pressable>
+                                <View style={meusFilmesStyles.interactionIconsContainer}>
+                                    <Pressable onPress={() => navigateToTags(movie.id)}>
+                                        <View style={meusFilmesStyles.iconWrapper}>
+                                            <AntDesign name="tags" size={20} color="black"/>
+                                        </View>
                                     </Pressable>
-                                    <View style={meusFilmesStyles.interactionIconsContainer}>
-                                        <Pressable onPress={() => navigateToTags(movie.id)}>
-                                            <View style={meusFilmesStyles.iconWrapper}>
-                                                <AntDesign name="tags" size={20} color="black"/>
-                                            </View>
-                                        </Pressable>
-                                    </View>
                                 </View>
-                            ))
-                        ) : (
+                            </View>
+                        ))
+                    ) : (
+                        <View style={meusFilmesStyles.noMoviesContainer}>
                             <Text style={meusFilmesStyles.noMoviesText}>Nenhum filme encontrado.</Text>
-                        )}
-                    </View>
+                        </View>
+                    )}
                 </View>
             </ScrollView>
             
@@ -180,7 +209,7 @@ function MeusFilmes() {
                 style={meusFilmesStyles.addExternalMovieFloatingButton} 
                 onPress={handleAddMovie}
             >
-                <Text style={meusFilmesStyles.addExternalMovieButtonText}>Adicionar Filme Externo +</Text>
+                <AntDesign name="plus" size={20} color="black" />
             </Pressable>
         </View>
     );
@@ -190,7 +219,7 @@ const meusFilmesStyles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         paddingHorizontal: 20,
         paddingTop: 40,
         paddingBottom: 20,
@@ -206,9 +235,8 @@ const meusFilmesStyles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: '#1A2B3E',
         borderRadius: 25,
-        marginHorizontal: 20,
         paddingHorizontal: 15,
-        marginBottom: 10,
+        marginVertical: 10,
         borderWidth: 1,
         borderColor: '#4A6B8A',
     },
@@ -222,12 +250,17 @@ const meusFilmesStyles = StyleSheet.create({
         fontSize: 16,
         height: 40,
     },
+    filterSectionTitle: {
+        color: '#b0b0b0',
+        fontSize: 14,
+        marginLeft: 5,
+        marginBottom: 10,
+    },
     filterButtonsContainer: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
+        justifyContent: 'space-between',
         marginBottom: 20,
-        width: '100%',
-        paddingHorizontal: 20,
+        gap: 10,
     },
     filterButton: {
         backgroundColor: '#1A2B3E',
@@ -236,6 +269,10 @@ const meusFilmesStyles = StyleSheet.create({
         borderRadius: 20,
         borderWidth: 1,
         borderColor: '#4A6B8A',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 1,
     },
     filterButtonSelected: {
         backgroundColor: '#3E9C9C',
@@ -244,53 +281,44 @@ const meusFilmesStyles = StyleSheet.create({
     filterButtonText: {
         color: '#eaeaea',
         fontWeight: 'bold',
+        fontSize: 12,
     },
     filterButtonTextSelected: {
         color: 'black',
         fontWeight: 'bold',
+        fontSize: 12,
+    },
+    playlistButton: {
+        backgroundColor: "#3E9C9C", 
+        padding: 12, 
+        borderRadius: 26, 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'center'
     },
     addExternalMovieFloatingButton: {
         position: 'absolute',
         bottom: 90,
         right: 20,
         backgroundColor: '#3E9C9C',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
+        width: 60,
+        height: 60,
         borderRadius: 30,
         alignItems: 'center',
         justifyContent: 'center',
-        flexDirection: 'row',
         elevation: 5,
         zIndex: 10,
-        minWidth: 180,
-    },
-    addExternalMovieButtonText: {
-        color: 'black',
-        fontSize: 16,
-        fontWeight: 'bold',
     },
     movieListContainer: {
         flex: 1,
         width: '100%',
-    },
-    movieListContent: {
-        padding: 10,
-        paddingBottom: 100,
-    },
-    sectionContainer: {
-        marginTop: 24,
         paddingHorizontal: 10,
-    },
-    sectionTitle: {
-        color: "#eaeaea",
-        fontWeight: "bold",
-        fontSize: 18,
-        marginBottom: 8,
     },
     moviesGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
+        paddingTop: 10,
     },
     movieItem: {
         width: '48%',
@@ -307,24 +335,7 @@ const meusFilmesStyles = StyleSheet.create({
         marginBottom: 10,
         resizeMode: 'cover',
     },
-    // NOVO: Estilos para o pôster genérico na lista de filmes
     genericPosterPlaceholder: {
-        width: '100%',
-        height: 200, // Proporções 2:3
-        borderRadius: 8,
-        backgroundColor: '#4A6B8A', // Fundo azulado
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 10,
-        paddingHorizontal: 5,
-    },
-    genericPosterText: {
-        color: '#eaeaea',
-        fontSize: 14,
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
-    externalMoviePlaceholder: { // Este estilo pode ser removido ou mesclado com genericPosterPlaceholder
         width: '100%',
         height: 200,
         borderRadius: 8,
@@ -334,7 +345,7 @@ const meusFilmesStyles = StyleSheet.create({
         marginBottom: 10,
         paddingHorizontal: 5,
     },
-    externalMoviePlaceholderText: { // Este estilo pode ser removido ou mesclado com genericPosterText
+    genericPosterText: {
         color: '#eaeaea',
         fontSize: 14,
         fontWeight: 'bold',
@@ -371,12 +382,17 @@ const meusFilmesStyles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center'
     },
+    noMoviesContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100%',
+        marginTop: 50,
+    },
     noMoviesText: {
         color: '#eaeaea',
         fontSize: 16,
         textAlign: 'center',
-        marginTop: 20,
-        width: '100%',
     },
 });
 

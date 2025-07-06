@@ -1,295 +1,143 @@
 // aplicativo/app/telas/CriarPlaylist.tsx
-import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, Alert, StyleSheet, Image, ActivityIndicator, FlatList } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { AntDesign } from '@expo/vector-icons';
-import { styles } from '../styles'; //
-
-// Importe as novas classes e serviços
-import { Movie } from '../../src/models/Movie'; 
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, FlatList, Pressable, Image, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
+import { styles } from '../../src/styles';
+import { Movie } from '../../src/models/Movie';
 import { MovieService } from '../../src/services/MovieService';
 import { PlaylistService } from '../../src/services/PlaylistService';
+import { AntDesign } from '@expo/vector-icons';
 
-function CriarPlaylist() {
-    const router = useRouter();
-    const [playlistName, setPlaylistName] = useState('');
-    const [allMovies, setAllMovies] = useState<Movie[]>([]);
-    const [selectedMovieIds, setSelectedMovieIds] = useState<string[]>([]);
-    const [loading, setLoading] = useState(true);
+export default function CriarPlaylist() {
+  const [playlistName, setPlaylistName] = useState('');
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [selectedMovieIds, setSelectedMovieIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  // NOVO: Estado para controlar o texto da busca
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const router = useRouter();
+  const movieService = MovieService.getInstance();
+  const playlistService = PlaylistService.getInstance();
 
-    const [searchTerm, setSearchTerm] = useState(''); // NOVO: Estado para o termo de pesquisa de filmes
-    const [filteredMovies, setFilteredMovies] = useState<Movie[]>([]); // NOVO: Estado para filmes filtrados
+  useEffect(() => {
+    setLoading(true);
+    const allRatedMovies = movieService.getFilteredAndRatedMovies('all');
+    setMovies(allRatedMovies);
+    setLoading(false);
+  }, []);
 
-    const movieService = MovieService.getInstance();
-    const playlistService = PlaylistService.getInstance();
-
-    const fetchAllMovies = useCallback(() => {
-        setLoading(true);
-        const fetchedMovies = movieService.getAllMovies();
-        setAllMovies(fetchedMovies);
-        // NOVO: Inicializa filteredMovies com todos os filmes
-        setFilteredMovies(fetchedMovies); 
-        setLoading(false);
-    }, [movieService]);
-
-    useFocusEffect(
-        useCallback(() => {
-            fetchAllMovies();
-        }, [fetchAllMovies])
+  const handleToggleMovie = (movieId: string) => {
+    setSelectedMovieIds(prev =>
+      prev.includes(movieId)
+        ? prev.filter(id => id !== movieId)
+        : [...prev, movieId]
     );
+  };
 
-    // NOVO: Efeito para filtrar filmes quando o termo de busca ou a lista de todos os filmes muda
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            if (searchTerm.trim()) {
-                const filtered = allMovies.filter(movie =>
-                    movie.title.toLowerCase().includes(searchTerm.toLowerCase())
-                );
-                setFilteredMovies(filtered);
-            } else {
-                setFilteredMovies(allMovies); // Se a busca estiver vazia, mostra todos
-            }
-        }, 300); // Debounce de 300ms
-
-        return () => {
-            clearTimeout(handler);
-        };
-    }, [searchTerm, allMovies]);
-
-    const toggleMovieSelection = (movieId: string) => {
-        setSelectedMovieIds(prevSelected =>
-            prevSelected.includes(movieId)
-                ? prevSelected.filter(id => id !== movieId)
-                : [...prevSelected, movieId]
-        );
-    };
-
-    const handleCreatePlaylist = () => {
-        if (!playlistName.trim()) {
-            Alert.alert("Erro", "O nome da playlist não pode estar vazio.");
-            return;
-        }
-
-        const selectedMovies = allMovies.filter(movie => selectedMovieIds.includes(movie.id));
-        const coverImageUrl = selectedMovies.length > 0 ? selectedMovies[0].posterUrl : null;
-
-        playlistService.addPlaylist(playlistName.trim(), selectedMovieIds, coverImageUrl || null);
-
-        Alert.alert("Sucesso", `Playlist "${playlistName}" criada!`);
-        router.back();
-    };
-
-    if (loading) {
-        return (
-            <View style={[styles.container, { justifyContent: 'center' }]}>
-                <ActivityIndicator size="large" color="#3E9C9C" />
-            </View>
-        );
+  const handleCreatePlaylist = () => {
+    if (!playlistName.trim()) {
+      Alert.alert('Erro', 'O nome da playlist não pode estar vazio.');
+      return;
     }
+    if (selectedMovieIds.length === 0) {
+      Alert.alert('Erro', 'Selecione pelo menos um filme para a playlist.');
+      return;
+    }
+    
+    const selectedMovies = movies.filter(movie => selectedMovieIds.includes(movie.id));
+    const coverImageUrl = selectedMovies.length > 0 ? selectedMovies[0].posterUrl : null;
 
+    playlistService.createPlaylist(playlistName, selectedMovieIds, coverImageUrl);
+    Alert.alert('Sucesso', 'Playlist criada com sucesso!', [
+      { text: 'OK', onPress: () => router.back() },
+    ]);
+  };
+
+  // NOVO: Filtra os filmes com base no termo de busca
+  const filteredMovies = movies.filter(movie =>
+    movie.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const renderMovieItem = ({ item }: { item: Movie }) => {
+    const isSelected = selectedMovieIds.includes(item.id);
     return (
-        <View style={styles.container}>
-            <View style={criarPlaylistStyles.header}>
-                <Pressable onPress={() => router.back()} style={{ marginRight: 20 }}>
-                    <AntDesign name="arrowleft" size={24} color="#eaeaea" />
-                </Pressable>
-                <Text style={criarPlaylistStyles.headerTitle}>Criar Nova Playlist</Text>
-                <AntDesign name="delete" size={24} color="transparent" />
-            </View>
-
-            <ScrollView contentContainerStyle={criarPlaylistStyles.scrollViewContent}>
-                <View style={styles.textInput}>
-                    <TextInput
-                        placeholder="Nome da Playlist"
-                        placeholderTextColor={"black"}
-                        style={styles.input}
-                        onChangeText={setPlaylistName}
-                        value={playlistName}
-                    />
-                </View>
-
-                <Text style={criarPlaylistStyles.sectionTitle}>Filmes Disponíveis:</Text>
-                
-                {/* NOVO: Barra de pesquisa de filmes */}
-                <View style={criarPlaylistStyles.searchContainer}>
-                    <AntDesign name="search1" size={20} color="#7f8c8d" style={criarPlaylistStyles.searchIcon} />
-                    <TextInput
-                        placeholder="Buscar filmes para adicionar..."
-                        placeholderTextColor="#7f8c8d"
-                        style={criarPlaylistStyles.searchInput}
-                        onChangeText={setSearchTerm}
-                        value={searchTerm}
-                    />
-                </View>
-
-                {loading && searchTerm.trim() ? (
-                    <ActivityIndicator size="large" color="#3E9C9C" style={{marginTop: 20}} />
-                ) : filteredMovies.length > 0 ? (
-                    <FlatList // Usando FlatList para melhor performance em listas de filmes
-                        data={filteredMovies}
-                        numColumns={3} // Exibe 3 filmes por linha
-                        keyExtractor={(item) => item.id}
-                        renderItem={({ item: movie }) => (
-                            <Pressable
-                                key={movie.id}
-                                style={[
-                                    criarPlaylistStyles.movieItem,
-                                    selectedMovieIds.includes(movie.id) && criarPlaylistStyles.movieItemSelected,
-                                ]}
-                                onPress={() => toggleMovieSelection(movie.id)}
-                            >
-                                {movie.posterUrl ? (
-                                    <Image source={{ uri: movie.posterUrl }} style={criarPlaylistStyles.moviePoster} />
-                                ) : (
-                                    <View style={criarPlaylistStyles.moviePlaceholder}>
-                                        <Text style={criarPlaylistStyles.moviePlaceholderText} numberOfLines={2}>{movie.title}</Text>
-                                    </View>
-                                )}
-                                <Text style={criarPlaylistStyles.movieTitle} numberOfLines={2}>{movie.title}</Text>
-                                {selectedMovieIds.includes(movie.id) && (
-                                    <View style={criarPlaylistStyles.checkmarkOverlay}>
-                                        <AntDesign name="checkcircle" size={24} color="#3E9C9C" />
-                                    </View>
-                                )}
-                            </Pressable>
-                        )}
-                        contentContainerStyle={criarPlaylistStyles.movieGrid}
-                        scrollEnabled={false} // Desabilita o scroll interno para a ScrollView principal
-                    />
-                ) : (
-                    <Text style={criarPlaylistStyles.noMoviesText}>
-                        {searchTerm.trim() ? "Nenhum filme encontrado com este nome." : "Nenhum filme disponível para adicionar."}
-                    </Text>
-                )}
-
-                <Pressable style={criarPlaylistStyles.createButton} onPress={handleCreatePlaylist}>
-                    <Text style={styles.textoBotao}>Criar Playlist</Text>
-                </Pressable>
-            </ScrollView>
+      <Pressable style={playlistStyles.movieItem} onPress={() => handleToggleMovie(item.id)}>
+        {item.posterUrl ? (
+          <Image source={{ uri: item.posterUrl }} style={playlistStyles.poster} />
+        ) : (
+          <View style={playlistStyles.placeholderPoster}>
+            <Text style={playlistStyles.placeholderText}>{item.title}</Text>
+          </View>
+        )}
+        <View style={playlistStyles.movieInfo}>
+          <Text style={playlistStyles.movieTitle} numberOfLines={2}>{item.title}</Text>
         </View>
+        {isSelected && (
+          <View style={playlistStyles.overlay}>
+             <AntDesign name="checkcircle" size={24} color="white" />
+          </View>
+        )}
+      </Pressable>
     );
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color="#3E9C9C" />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Criar Nova Playlist</Text>
+      <View style={styles.textInput}>
+        <TextInput
+          style={styles.input}
+          placeholder="Nome da Playlist"
+          placeholderTextColor="#b0b0b0"
+          value={playlistName}
+          onChangeText={setPlaylistName}
+        />
+      </View>
+
+      {/* NOVO: Barra de pesquisa de filmes */}
+      <View style={styles.textInput}>
+        <AntDesign name="search1" size={20} color="#b0b0b0" />
+        <TextInput
+          style={styles.input}
+          placeholder="Buscar filmes avaliados..."
+          placeholderTextColor="#b0b0b0"
+          value={searchTerm}
+          onChangeText={setSearchTerm}
+        />
+      </View>
+
+      <Text style={styles.subtitle}>Selecione os filmes:</Text>
+      <FlatList
+        // MODIFICADO: Usa a lista de filmes filtrada
+        data={filteredMovies}
+        renderItem={renderMovieItem}
+        keyExtractor={item => item.id}
+        numColumns={3}
+        contentContainerStyle={{ paddingBottom: 150 }}
+        ListEmptyComponent={<Text style={{color: '#b0b0b0', textAlign: 'center', marginTop: 20}}>Nenhum filme encontrado.</Text>}
+      />
+      <Pressable style={[styles.button, { position: 'absolute', bottom: 40, left: 20, right: 20 }]} onPress={handleCreatePlaylist}>
+        <Text style={styles.buttonText}>Criar Playlist</Text>
+      </Pressable>
+    </View>
+  );
 }
 
-export default CriarPlaylist;
-
-const criarPlaylistStyles = StyleSheet.create({
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingTop: 40,
-        paddingBottom: 20,
-        backgroundColor: "#2E3D50",
-    },
-    headerTitle: {
-        color: "#eaeaea",
-        fontSize: 20,
-        fontWeight: "bold",
-        flex: 1,
-        marginLeft: 15,
-    },
-    scrollViewContent: {
-        padding: 20,
-        paddingBottom: 100,
-        alignItems: 'center',
-    },
-    sectionTitle: {
-        color: '#eaeaea',
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginTop: 20,
-        marginBottom: 15,
-        alignSelf: 'flex-start',
-    },
-    // NOVO: Estilos da barra de pesquisa de filmes
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#1A2B3E',
-        borderRadius: 25,
-        width: '100%',
-        paddingHorizontal: 15,
-        marginBottom: 20, 
-        borderWidth: 1,
-        borderColor: '#4A6B8A',
-    },
-    searchIcon: {
-        marginRight: 10,
-        color: '#7f8c8d',
-    },
-    searchInput: {
-        flex: 1,
-        color: '#eaeaea',
-        fontSize: 16,
-        height: 40,
-    },
-    movieGrid: {
-        justifyContent: 'flex-start',
-        width: '100%', // Para ocupar toda a largura e permitir 3 por linha
-    },
-    movieItem: {
-        width: '30%', // Ajustado para 3 por linha com margem
-        margin: '1.5%',
-        alignItems: 'center',
-        position: 'relative',
-        backgroundColor: '#1A2B3E',
-        borderRadius: 8,
-        paddingBottom: 5,
-    },
-    movieItemSelected: {
-        borderColor: '#3E9C9C',
-        borderWidth: 3,
-    },
-    moviePoster: {
-        width: '100%',
-        height: 150,
-        borderRadius: 8,
-        resizeMode: 'cover',
-    },
-    moviePlaceholder: {
-        width: '100%',
-        height: 150,
-        borderRadius: 8,
-        backgroundColor: '#4A6B8A',
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 5,
-    },
-    moviePlaceholderText: {
-        color: '#eaeaea',
-        fontSize: 12,
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
-    movieTitle: {
-        color: '#eaeaea',
-        fontSize: 12,
-        textAlign: 'center',
-        marginTop: 5,
-        minHeight: 30, 
-    },
-    checkmarkOverlay: {
-        position: 'absolute',
-        top: 5,
-        right: 5,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        borderRadius: 15,
-        padding: 2,
-    },
-    createButton: {
-        backgroundColor: '#3E9C9C',
-        paddingVertical: 15,
-        paddingHorizontal: 30,
-        borderRadius: 30,
-        marginTop: 30,
-        width: '80%',
-        alignItems: 'center',
-    },
-    noMoviesText: {
-        color: '#eaeaea',
-        fontSize: 16,
-        textAlign: 'center',
-        marginTop: 20,
-        width: '100%',
-    },
+const playlistStyles = StyleSheet.create({
+  movieItem: { flex: 1, margin: 5, position: 'relative', maxWidth: '31%', aspectRatio: 2/3 },
+  poster: { width: '100%', height: '100%', borderRadius: 8 },
+  placeholderPoster: { width: '100%', height: '100%', borderRadius: 8, backgroundColor: '#1A2B3E', justifyContent: 'center', alignItems: 'center', padding: 5 },
+  placeholderText: { color: 'white', fontSize: 12, textAlign: 'center' },
+  movieInfo: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.6)', padding: 5, borderBottomLeftRadius: 8, borderBottomRightRadius: 8 },
+  movieTitle: { color: 'white', fontSize: 10, textAlign: 'center' },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(62, 156, 156, 0.7)', borderRadius: 8, borderWidth: 2, borderColor: '#3E9C9C', justifyContent: 'center', alignItems: 'center' },
 });

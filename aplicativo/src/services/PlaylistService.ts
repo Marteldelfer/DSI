@@ -1,12 +1,9 @@
 // aplicativo/src/services/PlaylistService.ts
 import { Playlist } from '../models/Playlist';
-import { Movie } from '../models/Movie'; // CORREÇÃO: Adicione esta linha
+import { Movie } from '../models/Movie';
 import { MovieService } from './MovieService';
 
-let localPlaylists: Playlist[] = [
-  // Exemplo de playlist inicial (se precisar, certifique-se de que o Movie com id "100" exista em MovieService)
-  new Playlist({ id: "p1", name: "Minhas Favoritas", movieIds: ["100"], coverImageUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/6pJB2t3MbQUy9m5pFIBHXLqnqNd.jpg" }),
-];
+let localPlaylists: Playlist[] = [];
 
 export class PlaylistService {
   private static instance: PlaylistService;
@@ -27,14 +24,17 @@ export class PlaylistService {
     return [...localPlaylists];
   }
 
-  addPlaylist(playlistName: string, movieIds: string[] = [], coverImageUrl: string | null = null): Playlist {
-    const newPlaylist = new Playlist({ name: playlistName, movieIds, coverImageUrl });
+  createPlaylist(name: string, movieIds: string[], coverImageUrl: string | null = null): Playlist {
+    const newPlaylist = new Playlist({ name, movieIds, coverImageUrl });
     localPlaylists.push(newPlaylist);
     return newPlaylist;
   }
 
   updatePlaylist(updatedPlaylist: Playlist): void {
-    localPlaylists = localPlaylists.map(p => p.id === updatedPlaylist.id ? updatedPlaylist : p);
+    const index = localPlaylists.findIndex(p => p.id === updatedPlaylist.id);
+    if (index !== -1) {
+      localPlaylists[index] = updatedPlaylist;
+    }
   }
 
   deletePlaylist(playlistId: string): void {
@@ -45,7 +45,38 @@ export class PlaylistService {
     return localPlaylists.find(p => p.id === id);
   }
 
-  // Retorna os filmes de uma playlist
+  addMoviesToPlaylist(playlistId: string, movieIds: string[]): void {
+    const playlist = this.getPlaylistById(playlistId);
+    if (playlist) {
+      movieIds.forEach(movieId => {
+        if (!playlist.movieIds.includes(movieId)) {
+          playlist.movieIds.push(movieId);
+        }
+      });
+      this.updatePlaylist(playlist);
+    }
+  }
+
+  // --- LÓGICA DE EXCLUSÃO AUTOMÁTICA ADICIONADA AQUI ---
+  // O método agora retorna 'true' se a playlist foi deletada, e 'false' caso contrário.
+  removeMovieFromPlaylist(playlistId: string, movieId: string): boolean {
+    const playlist = this.getPlaylistById(playlistId);
+    if (playlist) {
+      playlist.movieIds = playlist.movieIds.filter(id => id !== movieId);
+
+      // Se a lista de filmes ficar vazia, exclui a playlist
+      if (playlist.movieIds.length === 0) {
+        this.deletePlaylist(playlistId);
+        return true; // Indica que a playlist foi excluída
+      } else {
+        // Se não, apenas atualiza
+        this.updatePlaylist(playlist);
+        return false; // Indica que a playlist foi apenas atualizada
+      }
+    }
+    return false;
+  }
+  
   getMoviesInPlaylist(playlistId: string): Movie[] {
     const playlist = this.getPlaylistById(playlistId);
     if (!playlist) return [];

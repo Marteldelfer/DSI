@@ -1,15 +1,11 @@
 // aplicativo/src/services/MovieService.ts
 import { Movie, MovieStatus } from '../models/Movie';
-import { getMovieDetails } from '../api/tmdb'; // Importe a função existente da API
+import { getMovieDetails } from '../api/tmdb';
 
-// Simulação de banco de dados em memória
-let localMovies: Movie[] = [
-  { id: "100", title: "Lock, Stock and Two Smoking Barrels", posterUrl: "http://image.tmdb.org/t/p/w600_and_h900_bestv2/6pJB2t3MbQUy9m5pFIBHXLqnqNd.jpg", status: "like2", isExternal: false, isTmdb: true },
-];
+let localMovies: Movie[] = [];
 
 export class MovieService { 
   private static instance: MovieService;
-
   private constructor() {}
 
   public static getInstance(): MovieService {
@@ -19,78 +15,72 @@ export class MovieService {
     return MovieService.instance;
   }
 
-  // Adiciona um filme ao cache local se não existir
-  addMovieToLocalStore(movie: Movie): void {
-    const movieExists = localMovies.some(m => m.id === movie.id);
-    if (!movieExists) {
-      localMovies.push(movie);
-    }
-  }
+  // Função robusta para adicionar ou atualizar um filme
+  addMovieToLocalStore(movie: Movie): Movie {
+    const existingIndex = localMovies.findIndex(m => m.id === movie.id);
 
-  // Obtém um filme por ID (do cache ou da API)
-  async getMovieById(id: string): Promise<Movie | undefined> {
-    let movie = localMovies.find(m => m.id === id);
-    if (movie) {
+    if (existingIndex > -1) {
+      // Se já existe, mescla os dados para não perder informações como o 'status'
+      const existingMovie = localMovies[existingIndex];
+      localMovies[existingIndex] = new Movie({
+        ...existingMovie, // Base são os dados que já temos
+        ...movie,       // Sobrescreve com os dados mais novos (ex: da API)
+        status: existingMovie.status, // Garante que o status da avaliação nunca se perca
+      });
+      return localMovies[existingIndex];
+    } else {
+      localMovies.push(movie);
       return movie;
     }
+  }
 
-    const tmdbMovieData = await getMovieDetails(id);
-    if (tmdbMovieData) {
-      const tmdbMovie = new Movie(tmdbMovieData); // Cria uma instância da classe Movie
-      this.addMovieToLocalStore(tmdbMovie);
-      return tmdbMovie;
+  async getMovieById(id: string): Promise<Movie | undefined> {
+    let movie = localMovies.find(m => m.id === id);
+
+    // Busca da API para garantir dados atualizados, mas só se não tivermos os detalhes completos
+    if (!movie || !movie.director) {
+        const tmdbMovieData = await getMovieDetails(id);
+        if (tmdbMovieData) {
+            // Usa a nova função robusta para mesclar os dados
+            movie = this.addMovieToLocalStore(tmdbMovieData);
+        }
     }
-    return undefined;
+    return movie;
   }
 
-  // Adiciona um filme externo (criado manualmente)
-  addExternalMovie(movieData: {
-    title: string;
-    releaseYear?: string;
-    director?: string;
-    duration?: string;
-    genre?: string;
-    posterUrl: string | null;
-    status?: MovieStatus;
-  }): void {
-    const newId = `external-${Date.now()}`;
-    const newMovie = new Movie({ ...movieData, id: newId, isExternal: true, isTmdb: false });
-    localMovies.push(newMovie);
+  addExternalMovie(movieData: Partial<Movie>): Movie {
+    const newMovie = new Movie({ ...movieData, id: `external-${Date.now()}`, isExternal: true, isTmdb: false });
+    return this.addMovieToLocalStore(newMovie);
   }
 
-  // Atualiza um filme existente
   updateMovie(updatedMovie: Movie): void {
-    const index = localMovies.findIndex(m => m.id === updatedMovie.id);
-    if (index !== -1) {
-      localMovies[index] = updatedMovie;
-    }
+    this.addMovieToLocalStore(updatedMovie);
   }
 
-  // Deleta um filme
-  deleteMovie(movieId: string): void {
-    localMovies = localMovies.filter(movie => movie.id !== movieId);
-    // TODO: Remover de playlists e avaliações associadas
-  }
-
-  // Filtra e retorna filmes baseados no tipo e status de avaliação
-  getFilteredAndRatedMovies(filterType: 'all' | 'external' | 'app_db' = 'all'): Movie[] {
-    let filteredBySource: Movie[] = [];
-
+  getFilteredAndRatedMovies(
+    filterType: 'all' | 'external' | 'app_db' = 'all',
+    statusFilter: MovieStatus | 'all' = 'all'
+  ): Movie[] {
+    const ratedMovies = localMovies.filter(movie => movie.status !== null);
+    
+    let filteredBySource: Movie[];
     switch (filterType) {
-      case 'all':
-        filteredBySource = localMovies;
-        break;
       case 'external':
-        filteredBySource = localMovies.filter(movie => movie.isExternal === true);
+        filteredBySource = ratedMovies.filter(movie => movie.isExternal);
         break;
       case 'app_db':
-        filteredBySource = localMovies.filter(movie => movie.isTmdb === true);
+        filteredBySource = ratedMovies.filter(movie => movie.isTmdb);
         break;
       default:
-        filteredBySource = localMovies;
+        filteredBySource = ratedMovies;
         break;
     }
-    return filteredBySource.filter(movie => movie.status !== undefined && movie.status !== null);
+
+    if (statusFilter !== 'all') {
+      return filteredBySource.filter(movie => movie.status === statusFilter);
+    }
+    
+    return filteredBySource;
   }
 
   getAllMovies(): Movie[] {

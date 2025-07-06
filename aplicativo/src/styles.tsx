@@ -4,49 +4,56 @@ import { StyleSheet } from 'react-native';
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#2E3D50',
+    backgroundColor: '#0D1F2D',
+    padding: 20,
+  },
+  // --- ESTILOS ADICIONADOS PARA CONSISTÊNCIA ---
+  title: {
+    color: '#eaeaea',
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  subtitle: {
+    color: '#b0b0b0',
+    fontSize: 16,
+    textAlign: 'left',
+    width: '100%',
+    marginBottom: 10,
   },
   textInput: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#1A2B3E',
     borderRadius: 25,
     paddingHorizontal: 15,
     marginVertical: 10,
     height: 50,
+    borderWidth: 1,
+    borderColor: '#4A6B8A',
   },
   input: {
     flex: 1,
-    height: '100%',
-    color: 'black',
+    marginLeft: 10,
     fontSize: 16,
+    color: '#eaeaea',
   },
   button: {
-    backgroundColor: '#3E9C9C', // Cor principal do tema
+    backgroundColor: '#3E9C9C',
     padding: 15,
     borderRadius: 25,
     alignItems: 'center',
     marginVertical: 10,
   },
   buttonText: {
-    color: '#eaeaea', // Cor do texto dos botões
+    color: 'black',
     fontSize: 18,
     fontWeight: 'bold',
   },
-  link: {
-    color: '#3E9C9C',
+  textoBotao: {
+    color: 'black',
     fontSize: 16,
-    textDecorationLine: 'underline',
-  },
-  errorText: {
-    color: 'red',
-    textAlign: 'center',
-    marginTop: 5,
-    marginBottom: 10,
-  },
-  textoBotao: { // Estilo para textos dentro de botões personalizados
-    color: '#eaeaea',
-    fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
   },

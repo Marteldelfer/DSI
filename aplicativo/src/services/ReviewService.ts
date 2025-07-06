@@ -2,15 +2,18 @@
 import { Review, ReviewType } from '../models/Review';
 import { MovieService } from './MovieService';
 import { MovieStatus } from '../models/Movie'; 
+import { CommentService } from './CommentService';
 
 let localReviews: Review[] = [];
 
 export class ReviewService {
   private static instance: ReviewService;
   private movieService: MovieService;
+  private commentService: CommentService;
 
   private constructor() {
     this.movieService = MovieService.getInstance();
+    this.commentService = CommentService.getInstance();
   }
 
   public static getInstance(): ReviewService {
@@ -20,29 +23,19 @@ export class ReviewService {
     return ReviewService.instance;
   }
 
-  // MODIFICADO: createReview agora faz um "upsert" (atualiza ou cria)
   createReview(reviewData: { movieId: string; content?: string; reviewType: ReviewType }): Review {
-    // Tenta encontrar uma avaliação existente para o filme
     const existingReviewIndex = localReviews.findIndex(r => r.movieId === reviewData.movieId);
-
     let reviewToSave: Review;
 
-    if (existingReviewIndex !== -1) {
-      // Se a avaliação existir, atualiza ela com os novos dados
+    if (existingReviewIndex > -1) {
       reviewToSave = localReviews[existingReviewIndex];
       reviewToSave.content = reviewData.content;
       reviewToSave.reviewType = reviewData.reviewType;
-      // Não mudamos o ID aqui, pois é uma atualização
     } else {
-      // Se não existir, cria uma nova avaliação
-      reviewToSave = new Review(reviewData);
-      if (!reviewToSave.id) {
-          reviewToSave.id = `rev-${Date.now()}`; // Garante que tenha um ID
-      }
-      localReviews.push(reviewToSave); // Adiciona a nova avaliação à lista
+      reviewToSave = new Review({ ...reviewData, id: `rev-${Date.now()}` });
+      localReviews.push(reviewToSave);
     }
 
-    // Atualiza o status do filme correspondente no MovieService
     const movie = this.movieService.getAllMovies().find(m => m.id === reviewToSave.movieId);
     if (movie) {
       let status: MovieStatus = null;
@@ -53,20 +46,28 @@ export class ReviewService {
       movie.status = status;
       this.movieService.updateMovie(movie); 
     }
-    return reviewToSave; // Retorna a avaliação (nova ou atualizada)
+    return reviewToSave;
+  }
+
+  deleteReview(reviewId: string): void {
+    const reviewIndex = localReviews.findIndex(r => r.id === reviewId);
+    if (reviewIndex > -1) {
+      const reviewToDelete = localReviews[reviewIndex];
+      const movie = this.movieService.getAllMovies().find(m => m.id === reviewToDelete.movieId);
+      if (movie) {
+        movie.status = null;
+        this.movieService.updateMovie(movie);
+      }
+      this.commentService.deleteCommentsByReviewId(reviewToDelete.id);
+      localReviews.splice(reviewIndex, 1);
+    }
   }
 
   getReviewById(id: string): Review | undefined {
     return localReviews.find(r => r.id === id);
   }
 
-  // Retorna as avaliações para um dado filme.
-  // Como createReview agora faz upsert, deveria haver no máximo uma por filme por "usuário" (assumindo single-user ou ID de avaliação baseado em filmeId+userId)
   getReviewsByMovieId(movieId: string): Review[] {
     return localReviews.filter(review => review.movieId === movieId);
-  }
-
-  getAllReviews(): Review[] {
-    return [...localReviews];
   }
 }
