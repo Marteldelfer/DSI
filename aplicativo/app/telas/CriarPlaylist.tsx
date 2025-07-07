@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, FlatList, Pressable, Image, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { styles } from '../../src/styles';
+import { styles } from '../styles'; 
 import { Movie } from '../../src/models/Movie';
 import { MovieService } from '../../src/services/MovieService';
 import { PlaylistService } from '../../src/services/PlaylistService';
@@ -13,7 +13,6 @@ export default function CriarPlaylist() {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [selectedMovieIds, setSelectedMovieIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  // NOVO: Estado para controlar o texto da busca
   const [searchTerm, setSearchTerm] = useState('');
   
   const router = useRouter();
@@ -54,7 +53,6 @@ export default function CriarPlaylist() {
     ]);
   };
 
-  // NOVO: Filtra os filmes com base no termo de busca
   const filteredMovies = movies.filter(movie =>
     movie.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -92,41 +90,51 @@ export default function CriarPlaylist() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Criar Nova Playlist</Text>
-      <View style={styles.textInput}>
+      <Text style={{color: '#eaeaea', fontSize: 24, fontWeight: 'bold', textAlign: 'center', margin: 20}}>Criar Nova Playlist</Text>
+      <View style={[styles.textInput, {marginHorizontal: 20}]}>
         <TextInput
           style={styles.input}
           placeholder="Nome da Playlist"
-          placeholderTextColor="#b0b0b0"
+          placeholderTextColor="grey" 
           value={playlistName}
           onChangeText={setPlaylistName}
         />
       </View>
 
-      {/* NOVO: Barra de pesquisa de filmes */}
-      <View style={styles.textInput}>
-        <AntDesign name="search1" size={20} color="#b0b0b0" />
+      <View style={[styles.textInput, {marginHorizontal: 20}]}>
+        <AntDesign name="search1" size={20} color="grey" />
         <TextInput
           style={styles.input}
           placeholder="Buscar filmes avaliados..."
-          placeholderTextColor="#b0b0b0"
+          placeholderTextColor="grey" 
           value={searchTerm}
           onChangeText={setSearchTerm}
         />
       </View>
 
-      <Text style={styles.subtitle}>Selecione os filmes:</Text>
+      <Text style={{color: '#b0b0b0', fontSize: 16, width: '100%', marginBottom: 10, paddingHorizontal: 20}}>Selecione os filmes:</Text>
       <FlatList
-        // MODIFICADO: Usa a lista de filmes filtrada
         data={filteredMovies}
         renderItem={renderMovieItem}
         keyExtractor={item => item.id}
         numColumns={3}
-        contentContainerStyle={{ paddingBottom: 150 }}
+        contentContainerStyle={{ paddingHorizontal: 15, paddingBottom: 150 }}
         ListEmptyComponent={<Text style={{color: '#b0b0b0', textAlign: 'center', marginTop: 20}}>Nenhum filme encontrado.</Text>}
       />
-      <Pressable style={[styles.button, { position: 'absolute', bottom: 40, left: 20, right: 20 }]} onPress={handleCreatePlaylist}>
-        <Text style={styles.buttonText}>Criar Playlist</Text>
+      {/* <<<< CORREÇÃO AQUI NO BOTÃO >>>> */}
+      <Pressable 
+        style={[
+            styles.Botao, 
+            { 
+                position: 'absolute', 
+                bottom: 40, 
+                alignSelf: 'center', // Centraliza o botão
+                width: '90%' // Define uma largura
+            }
+        ]} 
+        onPress={handleCreatePlaylist}
+      >
+        <Text style={styles.textoBotao}>Criar Playlist</Text>
       </Pressable>
     </View>
   );

@@ -2,7 +2,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, Pressable, Image, StyleSheet, Modal, Alert, TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import { styles } from '../../src/styles';
+import { styles } from '../styles';
 import { Playlist } from '../../src/models/Playlist';
 import { Movie } from '../../src/models/Movie';
 import { PlaylistService } from '../../src/services/PlaylistService';
@@ -32,7 +32,7 @@ export default function DetalhesPlaylist() {
         setMovies(playlistService.getMoviesInPlaylist(playlistId));
       }
     }
-  }, [playlistId]);
+  }, [playlistId, playlistService]);
 
   useFocusEffect(loadPlaylistDetails);
 
@@ -71,17 +71,12 @@ export default function DetalhesPlaylist() {
     setEditNameModalVisible(true);
   };
 
-  // --- CORREÇÃO OO APLICADA AQUI ---
   const handleUpdatePlaylistName = () => {
     if (playlist && newPlaylistName.trim()) {
-      // 1. Modifica a propriedade diretamente na instância da classe
       playlist.name = newPlaylistName.trim();
-      
-      // 2. Passa a mesma instância modificada para o serviço
       playlistService.updatePlaylist(playlist);
-      
       setEditNameModalVisible(false);
-      loadPlaylistDetails(); // Recarrega para mostrar o novo nome
+      loadPlaylistDetails();
     } else {
       Alert.alert("Erro", "O nome da playlist não pode ser vazio.");
     }
@@ -90,7 +85,7 @@ export default function DetalhesPlaylist() {
   if (!playlist) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Playlist não encontrada.</Text>
+        <Text style={detalhesStyles.title}>Playlist não encontrada.</Text>
       </View>
     );
   }
@@ -122,7 +117,7 @@ export default function DetalhesPlaylist() {
   return (
     <View style={styles.container}>
       <View style={detalhesStyles.titleContainer}>
-          <Text style={styles.title}>{playlist.name}</Text>
+          <Text style={detalhesStyles.title}>{playlist.name}</Text>
           <Pressable onPress={handleOpenEditNameModal} style={detalhesStyles.editIcon}>
               <AntDesign name="edit" size={24} color="#b0b0b0" />
           </Pressable>
@@ -135,8 +130,8 @@ export default function DetalhesPlaylist() {
         numColumns={2}
         ListEmptyComponent={<Text style={detalhesStyles.emptyText}>Esta playlist está vazia. Adicione filmes!</Text>}
       />
-      <Pressable style={styles.button} onPress={openAddMovieModal}>
-        <Text style={styles.buttonText}>Adicionar Filmes à Playlist</Text>
+      <Pressable style={[styles.Botao, { alignSelf: 'center', width: '90%', marginBottom: 20 }]} onPress={openAddMovieModal}>
+        <Text style={styles.textoBotao}>Adicionar Filmes</Text>
       </Pressable>
 
       <Modal
@@ -148,19 +143,21 @@ export default function DetalhesPlaylist() {
         <View style={detalhesStyles.modalBackdrop}>
             <View style={detalhesStyles.modalView}>
                 <Text style={detalhesStyles.modalTitle}>Editar Nome da Playlist</Text>
-                <TextInput
-                    style={detalhesStyles.modalInput}
-                    value={newPlaylistName}
-                    onChangeText={setNewPlaylistName}
-                    placeholder="Novo nome da playlist"
-                    placeholderTextColor="#b0b0b0"
-                />
+                <View style={[styles.textInput, {width: '100%'}]}>
+                    <TextInput
+                        style={styles.input}
+                        value={newPlaylistName}
+                        onChangeText={setNewPlaylistName}
+                        placeholder="Novo nome da playlist"
+                        placeholderTextColor="grey"
+                    />
+                </View>
                 <View style={detalhesStyles.modalButtonContainer}>
-                    <Pressable style={[detalhesStyles.modalButton, detalhesStyles.cancelButton]} onPress={() => setEditNameModalVisible(false)}>
-                        <Text style={styles.buttonText}>Cancelar</Text>
+                    <Pressable style={[styles.Botao, detalhesStyles.cancelButton]} onPress={() => setEditNameModalVisible(false)}>
+                        <Text style={styles.textoBotao}>Cancelar</Text>
                     </Pressable>
-                    <Pressable style={[detalhesStyles.modalButton, detalhesStyles.saveButton]} onPress={handleUpdatePlaylistName}>
-                        <Text style={styles.buttonText}>Salvar</Text>
+                    <Pressable style={[styles.Botao, detalhesStyles.saveButton]} onPress={handleUpdatePlaylistName}>
+                        <Text style={styles.textoBotao}>Salvar</Text>
                     </Pressable>
                 </View>
             </View>
@@ -173,24 +170,34 @@ export default function DetalhesPlaylist() {
         onRequestClose={() => setAddMovieModalVisible(false)}
       >
         <View style={styles.container}>
-          <Text style={styles.title}>Adicionar Filmes</Text>
-          <View style={[styles.textInput, { marginHorizontal: 0, marginBottom: 10 }]}>
-            <AntDesign name="search1" size={20} color="#b0b0b0" />
-            <TextInput style={styles.input} placeholder="Buscar filmes..." placeholderTextColor="#b0b0b0" value={addMovieSearchTerm} onChangeText={setAddMovieSearchTerm} />
+          {/* <<<< AJUSTE DE LAYOUT MODAL >>>> */}
+          {/* View para o Cabeçalho */}
+          <View>
+            <Text style={[detalhesStyles.title, { paddingTop: 60, paddingBottom: 20 }]}>Adicionar Filmes</Text>
+            <View style={[styles.textInput, { marginHorizontal: 20, marginBottom: 10 }]}>
+              <AntDesign name="search1" size={20} color="black" />
+              <TextInput style={styles.input} placeholder="Buscar filmes..." placeholderTextColor="grey" value={addMovieSearchTerm} onChangeText={setAddMovieSearchTerm} />
+            </View>
           </View>
-          <FlatList
-            data={filteredAvailableMovies}
-            renderItem={renderSelectableMovieItem}
-            keyExtractor={item => item.id}
-            numColumns={3}
-            ListEmptyComponent={<Text style={detalhesStyles.emptyText}>Nenhum outro filme avaliado para adicionar.</Text>}
-          />
+
+          {/* View para a Lista (flex: 1 para ocupar o espaço) */}
+          <View style={{ flex: 1 }}>
+            <FlatList
+              data={filteredAvailableMovies}
+              renderItem={renderSelectableMovieItem}
+              keyExtractor={item => item.id}
+              numColumns={3}
+              ListEmptyComponent={<Text style={detalhesStyles.emptyText}>Nenhum outro filme avaliado para adicionar.</Text>}
+            />
+          </View>
+          
+          {/* View para os Botões do Rodapé */}
           <View style={{padding: 20}}>
-            <Pressable style={styles.button} onPress={handleAddMoviesToPlaylist}>
-              <Text style={styles.buttonText}>Adicionar Selecionados</Text>
+            <Pressable style={styles.Botao} onPress={handleAddMoviesToPlaylist}>
+              <Text style={styles.textoBotao}>Adicionar Selecionados</Text>
             </Pressable>
-            <Pressable style={[styles.button, {backgroundColor: '#aa0000', marginTop: 10}]} onPress={() => setAddMovieModalVisible(false)}>
-              <Text style={styles.buttonText}>Cancelar</Text>
+            <Pressable style={[styles.Botao, {backgroundColor: '#aa0000', marginTop: 10}]} onPress={() => setAddMovieModalVisible(false)}>
+              <Text style={styles.textoBotao}>Cancelar</Text>
             </Pressable>
           </View>
         </View>
@@ -200,26 +207,37 @@ export default function DetalhesPlaylist() {
 }
 
 const detalhesStyles = StyleSheet.create({
+    title: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: '#eaeaea',
+      textAlign: 'center',
+      flex: 1,
+    },
     movieItem: { flex: 1, margin: 10, alignItems: 'center', position: 'relative' },
     poster: { width: 150, height: 220, borderRadius: 8 },
-    placeholderPoster: { width: 150, height: 220, borderRadius: 8, backgroundColor: '#1A2B3E', justifyContent: 'center', alignItems: 'center' },
+    placeholderPoster: { width: 150, height: 220, borderRadius: 8, backgroundColor: '#4A6B8A', justifyContent: 'center', alignItems: 'center' },
     posterSelectable: { width: '100%', height: 150, borderRadius: 8 },
-    placeholderPosterSelectable: { width: '100%', height: 150, borderRadius: 8, backgroundColor: '#1A2B3E', justifyContent: 'center', alignItems: 'center', padding: 5 },
+    placeholderPosterSelectable: { width: '100%', height: 150, borderRadius: 8, backgroundColor: '#4A6B8A', justifyContent: 'center', alignItems: 'center', padding: 5 },
     placeholderText: { color: 'white', textAlign: 'center' },
     movieTitle: { color: 'white', marginTop: 5, textAlign: 'center', width: 150 },
     removeButton: { position: 'absolute', top: -5, right: -5, backgroundColor: 'white', borderRadius: 12 },
     emptyText: { color: '#b0b0b0', textAlign: 'center', marginTop: 20 },
     selectableMovieItem: { flex: 1, margin: 5, maxWidth: '31%', position: 'relative', aspectRatio: 2/3 },
     overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(62, 156, 156, 0.7)', borderRadius: 8, borderWidth: 2, borderColor: '#3E9C9C', justifyContent: 'center', alignItems: 'center' },
-    titleContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-    editIcon: { marginLeft: 10, padding: 5 },
+    titleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 60,
+        paddingBottom: 20,
+        paddingHorizontal: 20
+    },
+    editIcon: { position: 'absolute', right: 20, top: 60, padding: 5 },
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
     modalView: { width: '85%', backgroundColor: '#2E3D50', borderRadius: 15, padding: 20, alignItems: 'center' },
     modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#eaeaea', marginBottom: 15 },
-    modalInput: { width: '100%', backgroundColor: '#1A2B3E', color: '#eaeaea', borderRadius: 8, padding: 10, marginBottom: 20, textAlign: 'center', fontSize: 16 },
-    modalButtonContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%' },
-    modalButton: { flex: 1, padding: 12, borderRadius: 8, alignItems: 'center' },
-    cancelButton: { backgroundColor: '#4A6B8A', marginRight: 10 },
-    saveButton: { backgroundColor: '#3E9C9C' },
-    // buttonText já existe em styles.ts, não precisa ser duplicado aqui
+    modalButtonContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: 10 },
+    cancelButton: { backgroundColor: '#4A6B8A', marginRight: 5, flex: 1 },
+    saveButton: { backgroundColor: '#3E9C9C', marginLeft: 5, flex: 1 },
 });

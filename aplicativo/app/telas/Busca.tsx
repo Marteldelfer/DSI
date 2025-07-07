@@ -16,6 +16,7 @@ export default function TelaBusca() {
   const [searchTerm, setSearchTerm] = useState(params.query || '');
   const [results, setResults] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialSearchDone, setInitialSearchDone] = useState(false);
 
   const movieService = MovieService.getInstance();
 
@@ -27,7 +28,6 @@ export default function TelaBusca() {
     setLoading(true);
     try {
       const apiResults = await searchMovies(query);
-      // Adiciona os resultados ao serviço local para que fiquem cacheados
       apiResults.forEach((movie: Movie) => movieService.addMovieToLocalStore(movie));
       setResults(apiResults);
     } catch (error) {
@@ -39,10 +39,25 @@ export default function TelaBusca() {
   }, [movieService]);
 
   useEffect(() => {
-    if (params.query) {
+    if (params.query && !initialSearchDone) {
       handleSearch(params.query);
+      setInitialSearchDone(true);
     }
-  }, [params.query, handleSearch]);
+  }, [params.query, handleSearch, initialSearchDone]);
+
+  // Efeito para buscar enquanto o usuário digita (com debounce)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (initialSearchDone) { // Só busca automaticamente após a busca inicial
+        handleSearch(searchTerm);
+      }
+    }, 300); // Aguarda 300ms após o usuário parar de digitar
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm, handleSearch, initialSearchDone]);
+
 
   const navigateToMovieDetails = (movie: Movie) => {
     movieService.addMovieToLocalStore(movie);
@@ -84,6 +99,7 @@ export default function TelaBusca() {
             onChangeText={setSearchTerm}
             onSubmitEditing={() => handleSearch(searchTerm)}
             returnKeyType="search"
+            autoFocus={true} // Foca no input ao abrir a tela
           />
         </View>
       </View>
