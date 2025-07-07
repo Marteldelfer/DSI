@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
-import { styles } from '../styles';
+import { styles } from '../styles'; // Importa estilos globais
 import { Movie, MovieStatus } from '../../src/models/Movie'; 
 import { MovieService } from '../../src/services/MovieService';
 
@@ -135,7 +135,7 @@ function MeusFilmes() {
                 <Text style={meusFilmesStyles.filterSectionTitle}>Filtrar por Avaliação</Text>
                 <View style={meusFilmesStyles.filterButtonsContainer}>
                     <Pressable
-                        style={[meusFilmesStyles.filterButton, statusFilter === 'all' && meusFilmesStyles.filterButtonSelected]}
+                        style={[meusFilmesStyles.filterButton, { paddingHorizontal: 20 }, statusFilter === 'all' && meusFilmesStyles.filterButtonSelected]}
                         onPress={() => setStatusFilter('all')}
                     >
                         <Text style={statusFilter === 'all' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Todos</Text>
@@ -205,11 +205,12 @@ function MeusFilmes() {
                 </View>
             </ScrollView>
             
+            {/* ALTERADO: Botão "Adicionar Filme Externo +" menor e posicionado à direita */}
             <Pressable 
-                style={meusFilmesStyles.addExternalMovieFloatingButton} 
+                style={meusFilmesStyles.addExternalMovieButton} 
                 onPress={handleAddMovie}
             >
-                <AntDesign name="plus" size={20} color="black" />
+                <Text style={meusFilmesStyles.addExternalMovieButtonText}>Adicionar Filme Externo +</Text>
             </Pressable>
         </View>
     );
@@ -296,18 +297,25 @@ const meusFilmesStyles = StyleSheet.create({
         alignItems: 'center', 
         justifyContent: 'center'
     },
-    addExternalMovieFloatingButton: {
+    // ALTERADO: Estilo para o botão "Adicionar Filme Externo +" menor e à direita
+    addExternalMovieButton: {
         position: 'absolute',
-        bottom: 90,
-        right: 20,
+        bottom: 20, // Posição mais abaixo, ajuste conforme a altura da sua barra de navegação
+        right: 20, // Ancorado à direita
+        width: 220, // Largura fixa para o botão (ajuste conforme necessário)
         backgroundColor: '#3E9C9C',
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+        paddingVertical: 12, // Ajusta a altura do botão
+        paddingHorizontal: 15, // Ajusta o padding horizontal
+        borderRadius: 26,
         alignItems: 'center',
         justifyContent: 'center',
         elevation: 5,
         zIndex: 10,
+    },
+    addExternalMovieButtonText: {
+        color: 'black', 
+        fontSize: 16,
+        fontWeight: 'bold',
     },
     movieListContainer: {
         flex: 1,

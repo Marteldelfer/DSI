@@ -6,7 +6,7 @@ import { AntDesign, FontAwesome } from '@expo/vector-icons';
 import { getPopularMovies, searchMovies } from '../../src/api/tmdb';
 import { Movie } from '../../src/models/Movie';
 import { MovieService } from '../../src/services/MovieService';
-import { styles } from '../styles';
+import { styles } from '../styles'; // Importa estilos globais se necessário
 
 export default function Home() {
     const router = useRouter();
@@ -25,7 +25,7 @@ export default function Home() {
             setPopularMovies(movies);
         } catch (error) {
             console.error(error);
-            Alert.alert('Erro', 'Não foi possível carregar os filmes populares.');
+            Alert.alert('Erro', 'Não foi possível carregar as recomendações.');
         } finally {
             setLoading(false);
         }
@@ -39,7 +39,7 @@ export default function Home() {
         setIsSearching(true);
         try {
             const apiResults = await searchMovies(query);
-            apiResults.forEach((movie: Movie) => movieService.addMovieToLocalStore(movie));
+            apiResults.forEach(movie => movieService.addMovieToLocalStore(movie));
             setSearchResults(apiResults);
         } catch (error) {
             console.error('Erro na busca:', error);
@@ -79,6 +79,7 @@ export default function Home() {
                     <Text style={homeStyles.posterText} numberOfLines={3}>{item.title}</Text>
                 </View>
             )}
+            <Text style={homeStyles.movieTitle} numberOfLines={3}>{item.title}</Text>
         </Pressable>
     );
 
@@ -136,7 +137,7 @@ export default function Home() {
             ) : (
                 <ScrollView>
                     <View style={homeStyles.section}>
-                        <Text style={homeStyles.sectionTitle}>Filmes Populares</Text>
+                        <Text style={homeStyles.sectionTitle}>Recomendações</Text>
                         <FlatList
                             data={popularMovies}
                             renderItem={renderMovieItem}
@@ -144,6 +145,19 @@ export default function Home() {
                             horizontal
                             showsHorizontalScrollIndicator={false}
                         />
+                    </View>
+
+                    {/* NOVO: Seção de Perfil Cinematográfico */}
+                    <View style={homeStyles.section}>
+                        <Text style={homeStyles.sectionTitle}>Seu Perfil Cinematográfico</Text>
+                        <View style={homeStyles.cinematicProfileContainer}>
+                            {/* ALTERADO: Apenas um gráfico, com estilo ajustado */}
+                            <Image 
+                                source={require('../../assets/images/stats.png')} 
+                                style={homeStyles.singleGraphSketchImage} // Usando novo estilo
+                                resizeMode="contain" 
+                            />
+                        </View>
                     </View>
                 </ScrollView>
             )}
@@ -156,11 +170,11 @@ const homeStyles = StyleSheet.create({
         paddingTop: 50,
         paddingBottom: 10,
         paddingHorizontal: 20,
-        alignItems: 'center', // Centraliza a logo
+        alignItems: 'center', 
     },
     logo: {
-        width: 150, // Ajuste a largura conforme necessário
-        height: 40,  // Ajuste a altura conforme necessário
+        width: 150, 
+        height: 40,  
         resizeMode: 'contain',
     },
     searchSection: {
@@ -168,7 +182,7 @@ const homeStyles = StyleSheet.create({
         paddingBottom: 10,
     },
     section: {
-        marginBottom: 20,
+        marginBottom: 40, // ALTERADO: Aumento do espaço entre as seções para 40
     },
     sectionTitle: {
         fontSize: 20,
@@ -180,12 +194,15 @@ const homeStyles = StyleSheet.create({
     card: {
         marginLeft: 15,
         width: 150,
-        height: 225,
+        height: 270, 
+        justifyContent: 'flex-start', 
+        alignItems: 'center', 
     },
     poster: {
         width: '100%',
-        height: '100%',
+        height: 225, 
         borderRadius: 10,
+        resizeMode: 'cover', 
     },
     posterPlaceholder: {
         flex: 1,
@@ -199,6 +216,14 @@ const homeStyles = StyleSheet.create({
         color: '#eaeaea',
         textAlign: 'center',
         fontSize: 12,
+    },
+    movieTitle: {
+        color: 'white',
+        fontSize: 14,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginTop: 5, 
+        width: '100%', 
     },
     searchItem: {
         flexDirection: 'row',
@@ -231,5 +256,30 @@ const homeStyles = StyleSheet.create({
         textAlign: 'center',
         marginTop: 50,
         fontSize: 16,
+    },
+    // Estilos para o Perfil Cinematográfico
+    cinematicProfileContainer: {
+        // Removi 'justifyContent: 'space-around',' já que agora é um único item centralizado
+        alignItems: 'center', // Centraliza o item horizontalmente
+        backgroundColor: '#1A2B3E',
+        borderRadius: 12,
+        padding: 15, 
+        marginHorizontal: 20,
+        marginBottom: 10,
+        minHeight: 120, 
+    },
+    // NOVO ESTILO: Para uma única imagem de gráfico, mais larga
+    singleGraphSketchImage: {
+        width: '90%', // Ocupa mais largura
+        height: 100, // Altura ajustada, pode ser maior se o protótipo indicar
+        resizeMode: 'contain',
+    },
+    // Removido graphSketchImage (usávamos para 2 imagens)
+    disclaimerText: {
+        color: '#b0b0b0',
+        fontSize: 12,
+        textAlign: 'center',
+        marginTop: 5,
+        paddingHorizontal: 20,
     },
 });

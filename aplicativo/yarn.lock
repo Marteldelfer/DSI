@@ -885,10 +885,10 @@
   resolved "https://registry.npmjs.org/@expo-google-fonts/nunito/-/nunito-0.3.0.tgz"
   integrity sha512-7vfsuOqBm+MWjiNjWOX6t17nQbj1SN+oWwp8EGShexurF7dss2URRJG3hBlG7cxoGdZm+rw2iY+DSMZSUSlFZA==
 
-"@expo/cli@0.24.18":
-  version "0.24.18"
-  resolved "https://registry.npmjs.org/@expo/cli/-/cli-0.24.18.tgz#47f701235fe84ecfb46497a791e7a4becf3fc383"
-  integrity sha512-4cUVWa7bHS0oLn9hBCH5QKI47o+qm0JTUl8xINC0In0JIG9mlLugDSNY+t81powr28Htq9n5gOGkKPTGc1vKiw==
+"@expo/cli@0.24.19":
+  version "0.24.19"
+  resolved "https://registry.npmjs.org/@expo/cli/-/cli-0.24.19.tgz#10c5738b8be9290a6d5626ed50a686d16c1c99cb"
+  integrity sha512-t32X2x7BYbBs1z2fTlOSthmDM1jxW1xaee9//ZOS0g+E6u/WWmRvMtzahQLCXE6mcMIVoNpAWUA3umvpMRa0Mg==
   dependencies:
     "@0no-co/graphql.web" "^1.0.8"
     "@babel/runtime" "^7.20.0"
@@ -4060,10 +4060,10 @@ expo-location@^18.1.6:
   resolved "https://registry.npmjs.org/expo-location/-/expo-location-18.1.6.tgz#b855e14e8b4e29a1bde470fc4dc2a341abecf631"
   integrity sha512-l5dQQ2FYkrBgNzaZN1BvSmdhhcztFOUucu2kEfDBMV4wSIuTIt/CKsho+F3RnAiWgvui1wb1WTTf80E8zq48hA==
 
-expo-modules-autolinking@2.1.13:
-  version "2.1.13"
-  resolved "https://registry.npmjs.org/expo-modules-autolinking/-/expo-modules-autolinking-2.1.13.tgz"
-  integrity sha512-+SaiYkdP3LXOFm/26CHMHBof9Xq/0MHNDzL/K0OwPgHLhZ6wpDWIDYWRHNueWYtGpAeLw2XAhR0HX4FNtU09qw==
+expo-modules-autolinking@2.1.14:
+  version "2.1.14"
+  resolved "https://registry.npmjs.org/expo-modules-autolinking/-/expo-modules-autolinking-2.1.14.tgz#4b4afddefba1a8b6fec0bf795cf6fe52c81343d1"
+  integrity sha512-nT5ERXwc+0ZT/pozDoJjYZyUQu5RnXMk9jDGm5lg+PiKvsrCTSA/2/eftJGMxLkTjVI2MXp5WjSz3JRjbA7UXA==
   dependencies:
     "@expo/spawn-async" "^1.7.2"
     chalk "^4.1.0"
@@ -4135,13 +4135,13 @@ expo-web-browser@~14.1.6:
   resolved "https://registry.npmjs.org/expo-web-browser/-/expo-web-browser-14.1.6.tgz"
   integrity sha512-/4P8eWqRyfXIMZna3acg320LXNA+P2cwyEVbjDX8vHnWU+UnOtyRKWy3XaAIyMPQ9hVjBNUQTh4MPvtnPRzakw==
 
-expo@^53.0.17:
-  version "53.0.17"
-  resolved "https://registry.npmjs.org/expo/-/expo-53.0.17.tgz#785bf6a5fe2c14ef5f2b7fe17690308a78755b4f"
-  integrity sha512-I1z4X/BoirQeWH8VMcfW1N3OsKCY0LslGjhzDsBWomv4rzviLkcm7KNJBeYWddY7wGo0bljT8S57NGsIJS/f9g==
+expo@^53.0.18:
+  version "53.0.18"
+  resolved "https://registry.npmjs.org/expo/-/expo-53.0.18.tgz#2df6ea002d62254156b9eb1655d35dc08f921370"
+  integrity sha512-BKGp0clPli9P2y8fjAUD5arKjaIi5nRE1teuWevIPCAkdhXbY1FCLIqWMxr77T2HTiBdQJCIGwJ7zfGywaUMSg==
   dependencies:
     "@babel/runtime" "^7.20.0"
-    "@expo/cli" "0.24.18"
+    "@expo/cli" "0.24.19"
     "@expo/config" "~11.0.12"
     "@expo/config-plugins" "~10.1.1"
     "@expo/fingerprint" "0.13.4"
@@ -4153,7 +4153,7 @@ expo@^53.0.17:
     expo-file-system "~18.1.11"
     expo-font "~13.3.2"
     expo-keep-awake "~14.1.4"
-    expo-modules-autolinking "2.1.13"
+    expo-modules-autolinking "2.1.14"
     expo-modules-core "2.4.2"
     react-native-edge-to-edge "1.6.0"
     whatwg-url-without-unicode "8.0.0-3"
