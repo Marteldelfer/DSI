@@ -3,10 +3,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, ScrollView, FlatList, Pressable, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AntDesign, FontAwesome } from '@expo/vector-icons';
-import { getPopularMovies, searchMovies } from '../../src/api/tmdb';
 import { Movie } from '../../src/models/Movie';
 import { MovieService } from '../../src/services/MovieService';
-import { styles } from '../styles'; // Importa estilos globais se necessário
+import { styles } from '../styles';
 
 export default function Home() {
     const router = useRouter();
@@ -18,10 +17,10 @@ export default function Home() {
     const [searchResults, setSearchResults] = useState<Movie[]>([]);
     const [isSearching, setIsSearching] = useState(false);
 
-    const loadPopularMovies = useCallback(async () => {
+    const loadPopularMovies = useCallback(async () => { // TORNADO ASYNC
         try {
-            const movies = await getPopularMovies();
-            movies.forEach(movie => movieService.addMovieToLocalStore(movie));
+            // USANDO AWAIT para chamar o MovieService, que agora busca status do ReviewService
+            const movies = await movieService.getPopularMovies(); 
             setPopularMovies(movies);
         } catch (error) {
             console.error(error);
@@ -31,15 +30,15 @@ export default function Home() {
         }
     }, [movieService]);
 
-    const handleSearch = useCallback(async (query: string) => {
+    const handleSearch = useCallback(async (query: string) => { // TORNADO ASYNC
         if (!query.trim()) {
             setSearchResults([]);
             return;
         }
         setIsSearching(true);
         try {
-            const apiResults = await searchMovies(query);
-            apiResults.forEach(movie => movieService.addMovieToLocalStore(movie));
+            // USANDO AWAIT para chamar o MovieService, que agora busca status do ReviewService
+            const apiResults = await movieService.searchMovies(query); 
             setSearchResults(apiResults);
         } catch (error) {
             console.error('Erro na busca:', error);
@@ -80,6 +79,12 @@ export default function Home() {
                 </View>
             )}
             <Text style={homeStyles.movieTitle} numberOfLines={3}>{item.title}</Text>
+             {/* NOVO: Exibir o status da avaliação no card */}
+             {item.status && (
+                <View style={homeStyles.movieStatusOverlay}>
+                    <AntDesign name={item.status} size={20} color="#FFD700" />
+                </View>
+            )}
         </Pressable>
     );
 
@@ -96,12 +101,15 @@ export default function Home() {
                 <Text style={homeStyles.searchTitle} numberOfLines={2}>{item.title}</Text>
                 <Text style={homeStyles.searchYear}>{item.releaseYear || 'Sem data'}</Text>
             </View>
+            {/* NOVO: Exibir o status da avaliação no item de busca */}
+            {item.status && (
+                <AntDesign name={item.status} size={18} color="#FFD700" style={homeStyles.searchStatusIcon} />
+            )}
         </Pressable>
     );
 
     return (
         <View style={styles.container}>
-            {/* <<<< CORREÇÃO AQUI: Header com a Logo >>>> */}
             <View style={homeStyles.header}>
                 <Image source={require('../../assets/images/filmeia-logo2.png')} style={homeStyles.logo} />
             </View>
@@ -147,17 +155,19 @@ export default function Home() {
                         />
                     </View>
 
-                    {/* NOVO: Seção de Perfil Cinematográfico */}
+                    {/* Seção de Perfil Cinematográfico */}
                     <View style={homeStyles.section}>
                         <Text style={homeStyles.sectionTitle}>Seu Perfil Cinematográfico</Text>
                         <View style={homeStyles.cinematicProfileContainer}>
-                            {/* ALTERADO: Apenas um gráfico, com estilo ajustado */}
                             <Image 
                                 source={require('../../assets/images/stats.png')} 
-                                style={homeStyles.singleGraphSketchImage} // Usando novo estilo
+                                style={homeStyles.singleGraphSketchImage} 
                                 resizeMode="contain" 
                             />
                         </View>
+                        <Text style={homeStyles.disclaimerText}>
+                            (Funcionalidade em desenvolvimento)
+                        </Text>
                     </View>
                 </ScrollView>
             )}
@@ -182,7 +192,7 @@ const homeStyles = StyleSheet.create({
         paddingBottom: 10,
     },
     section: {
-        marginBottom: 40, // ALTERADO: Aumento do espaço entre as seções para 40
+        marginBottom: 40, 
     },
     sectionTitle: {
         fontSize: 20,
@@ -197,6 +207,7 @@ const homeStyles = StyleSheet.create({
         height: 270, 
         justifyContent: 'flex-start', 
         alignItems: 'center', 
+        position: 'relative', // Para o ícone de status
     },
     poster: {
         width: '100%',
@@ -225,6 +236,15 @@ const homeStyles = StyleSheet.create({
         marginTop: 5, 
         width: '100%', 
     },
+    movieStatusOverlay: { // NOVO: Estilo para o status no card de filme
+        position: 'absolute',
+        top: 5,
+        right: 5,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        padding: 4,
+        borderRadius: 15,
+        zIndex: 1,
+    },
     searchItem: {
         flexDirection: 'row',
         padding: 10,
@@ -251,16 +271,17 @@ const homeStyles = StyleSheet.create({
         fontSize: 14,
         marginTop: 4,
     },
+    searchStatusIcon: { // NOVO: Estilo para o status no item de busca
+        marginLeft: 10,
+    },
     emptyText: {
         color: '#b0b0b0',
         textAlign: 'center',
         marginTop: 50,
         fontSize: 16,
     },
-    // Estilos para o Perfil Cinematográfico
     cinematicProfileContainer: {
-        // Removi 'justifyContent: 'space-around',' já que agora é um único item centralizado
-        alignItems: 'center', // Centraliza o item horizontalmente
+        alignItems: 'center', 
         backgroundColor: '#1A2B3E',
         borderRadius: 12,
         padding: 15, 
@@ -268,13 +289,11 @@ const homeStyles = StyleSheet.create({
         marginBottom: 10,
         minHeight: 120, 
     },
-    // NOVO ESTILO: Para uma única imagem de gráfico, mais larga
     singleGraphSketchImage: {
-        width: '90%', // Ocupa mais largura
-        height: 100, // Altura ajustada, pode ser maior se o protótipo indicar
+        width: '90%', 
+        height: 100, 
         resizeMode: 'contain',
     },
-    // Removido graphSketchImage (usávamos para 2 imagens)
     disclaimerText: {
         color: '#b0b0b0',
         fontSize: 12,

@@ -9,35 +9,45 @@ import {
     TextInput, 
     StyleSheet, 
     Image, 
-    Alert 
+    Alert,
+    ActivityIndicator 
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
-import { styles } from '../styles'; // Importa estilos globais
+import { styles } from '../styles';
 import { Movie, MovieStatus } from '../../src/models/Movie'; 
 import { MovieService } from '../../src/services/MovieService';
 
 type MovieSourceFilter = 'all' | 'external' | 'app_db';
 type ReviewStatusFilter = MovieStatus | 'all';
 
-function MeusFilmes() {
+function MeusFilmes() { // Este é o componente principal
     const router = useRouter();
     const [refreshing, setRefreshing] = useState(false);
     const [movies, setMovies] = useState<Movie[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [sourceFilter, setSourceFilter] = useState<MovieSourceFilter>('all');
     const [statusFilter, setStatusFilter] = useState<ReviewStatusFilter>('all');
+    const [loadingInitial, setLoadingInitial] = useState(true);
 
     const movieService = MovieService.getInstance();
 
-    const fetchMovies = useCallback(() => {
+    const fetchMovies = useCallback(async () => {
         setRefreshing(true);
-        const fetchedMovies = movieService.getFilteredAndRatedMovies(sourceFilter, statusFilter);
-        const filteredBySearch = fetchedMovies.filter(movie =>
-            movie.title.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-        setMovies(filteredBySearch);
-        setRefreshing(false);
+        try {
+            const fetchedMovies = await movieService.getFilteredAndRatedMovies(sourceFilter, statusFilter);
+            const filteredBySearch = fetchedMovies.filter(movie =>
+                movie.title?.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            setMovies(filteredBySearch);
+        } catch (error) {
+            console.error("Erro ao buscar filmes em MeusFilmes:", error);
+            Alert.alert("Erro", "Não foi possível carregar seus filmes.");
+            setMovies([]);
+        } finally {
+            setRefreshing(false);
+            setLoadingInitial(false);
+        }
     }, [searchTerm, sourceFilter, statusFilter, movieService]);
 
     useFocusEffect(
@@ -54,16 +64,22 @@ function MeusFilmes() {
         router.push("/telas/AdicionarFilmeExterno");
     };
 
-    const navigateToMovieDetails = (movie: Movie) => {
-        if (movie.isTmdb) {
+    const navigateToMovieDetails = async (movie: Movie) => {
+        const detailedMovie = await movieService.getMovieById(movie.id);
+        if (!detailedMovie) {
+            Alert.alert("Erro", "Detalhes do filme não disponíveis.");
+            return;
+        }
+
+        if (detailedMovie.isTmdb) {
             router.push({
                 pathname: `/telas/DetalhesFilmeTMDB`,
-                params: { movieId: movie.id },
+                params: { movieId: detailedMovie.id },
             });
-        } else if (movie.isExternal) {
+        } else if (detailedMovie.isExternal) {
             router.push({
                 pathname: `/telas/DetalhesFilmeExterno`,
-                params: { movieId: movie.id },
+                params: { movieId: detailedMovie.id },
             });
         } else {
             Alert.alert("Erro", "Tipo de filme desconhecido para detalhes.");
@@ -91,6 +107,40 @@ function MeusFilmes() {
             );
         }
     };
+
+    const handleRemoveMovie = async (movieId: string, movieTitle: string, isExternal: boolean | undefined) => {
+        if (!isExternal) {
+            Alert.alert("Erro", "Você só pode excluir filmes que adicionou.");
+            return;
+        }
+
+        Alert.alert(
+            "Excluir Filme",
+            `Tem certeza que deseja excluir o filme "${movieTitle}"?`,
+            [
+                { text: "Cancelar", style: "cancel" },
+                {
+                    text: "Excluir",
+                    onPress: async () => { 
+                        try {
+                            const deleted = await movieService.deleteMovie(movieId);
+                            if (deleted) {
+                                Alert.alert("Sucesso", "Filme excluído com sucesso!");
+                                fetchMovies(); 
+                            } else {
+                                Alert.alert("Erro", "Não foi possível excluir o filme.");
+                            }
+                        } catch (error) {
+                            console.error("Erro ao excluir filme:", error);
+                            Alert.alert("Erro", "Erro ao excluir filme.");
+                        }
+                    },
+                    style: "destructive"
+                }
+            ]
+        );
+    };
+
 
     return (
         <View style={styles.container}>
@@ -135,7 +185,7 @@ function MeusFilmes() {
                 <Text style={meusFilmesStyles.filterSectionTitle}>Filtrar por Avaliação</Text>
                 <View style={meusFilmesStyles.filterButtonsContainer}>
                     <Pressable
-                        style={[meusFilmesStyles.filterButton, { paddingHorizontal: 20 }, statusFilter === 'all' && meusFilmesStyles.filterButtonSelected]}
+                        style={[meusFilmesStyles.filterButton, statusFilter === 'all' && meusFilmesStyles.filterButtonSelected]}
                         onPress={() => setStatusFilter('all')}
                     >
                         <Text style={statusFilter === 'all' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Todos</Text>
@@ -160,7 +210,7 @@ function MeusFilmes() {
                     </Pressable>
                 </View>
 
-                {/* BOTÃO DE PLAYLISTS REINSERIDO AQUI */}
+                {/* BOTÃO DE PLAYLISTS */}
                 <Pressable style={{ width: '100%', marginBottom: 12}} onPress={() => router.push('/telas/ListaPlaylists')}>
                     <View style={meusFilmesStyles.playlistButton}>
                         <AntDesign name="videocamera" size={24} color="black" style={{marginRight: 10}}/>
@@ -178,7 +228,9 @@ function MeusFilmes() {
                 }
             >
                 <View style={meusFilmesStyles.moviesGrid}>
-                    {movies.length > 0 ? (
+                    {loadingInitial || refreshing ? ( 
+                        <ActivityIndicator size="large" color="#3E9C9C" style={{ marginTop: 50, width: '100%' }} />
+                    ) : movies.length > 0 ? (
                         movies.map(movie => (
                             <View key={movie.id} style={meusFilmesStyles.movieItem}>
                                 <Pressable onPress={() => navigateToMovieDetails(movie)}>
@@ -194,6 +246,13 @@ function MeusFilmes() {
                                             <AntDesign name="tags" size={20} color="black"/>
                                         </View>
                                     </Pressable>
+                                    {movie.isExternal && ( 
+                                        <Pressable onPress={() => handleRemoveMovie(movie.id, movie.title, movie.isExternal)}>
+                                            <View style={meusFilmesStyles.iconWrapper}>
+                                                <AntDesign name="delete" size={20} color="#FF6347"/>
+                                            </View>
+                                        </Pressable>
+                                    )}
                                 </View>
                             </View>
                         ))
@@ -205,7 +264,6 @@ function MeusFilmes() {
                 </View>
             </ScrollView>
             
-            {/* ALTERADO: Botão "Adicionar Filme Externo +" menor e posicionado à direita */}
             <Pressable 
                 style={meusFilmesStyles.addExternalMovieButton} 
                 onPress={handleAddMovie}
@@ -297,15 +355,14 @@ const meusFilmesStyles = StyleSheet.create({
         alignItems: 'center', 
         justifyContent: 'center'
     },
-    // ALTERADO: Estilo para o botão "Adicionar Filme Externo +" menor e à direita
     addExternalMovieButton: {
         position: 'absolute',
-        bottom: 20, // Posição mais abaixo, ajuste conforme a altura da sua barra de navegação
-        right: 20, // Ancorado à direita
-        width: 220, // Largura fixa para o botão (ajuste conforme necessário)
+        bottom: 20, 
+        right: 20, 
+        width: 220, 
         backgroundColor: '#3E9C9C',
-        paddingVertical: 12, // Ajusta a altura do botão
-        paddingHorizontal: 15, // Ajusta o padding horizontal
+        paddingVertical: 12,
+        paddingHorizontal: 15, 
         borderRadius: 26,
         alignItems: 'center',
         justifyContent: 'center',
@@ -373,6 +430,7 @@ const meusFilmesStyles = StyleSheet.create({
         backgroundColor: 'rgba(0,0,0,0.6)',
         padding: 4,
         borderRadius: 15,
+        zIndex: 1, 
     },
     interactionIconsContainer: {
         flexDirection: "row",
@@ -404,4 +462,4 @@ const meusFilmesStyles = StyleSheet.create({
     },
 });
 
-export default MeusFilmes;
+export default MeusFilmes; // Linha importante de exportação

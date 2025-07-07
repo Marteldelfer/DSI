@@ -1,29 +1,16 @@
 // aplicativo/src/models/Tag.ts
-export type WatchedStatus = "assistido" | "assistido_old" | "drop" | "nao_assistido";
-export type InterestStatus = "sim" | "nao";
-export type RewatchStatus = "sim" | "nao";
-
 export class Tag {
   id: string;
-  userId: string; // email_usuario renomeado para userId
-  movieId: string; // id_filme renomeado para movieId
-  watched?: WatchedStatus;
-  interest?: InterestStatus;
-  rewatch?: RewatchStatus;
+  movieId: string;
+  type: string; // Ex: 'watched_on', 'interest', 're_watch'
+  value: string; // Ex: '2023-10-26', 'high', 'yes'
+  timestamp?: string; // NOVO: Adicionado campo timestamp
 
-  constructor(data: {
-    id?: string;
-    userId: string;
-    movieId: string;
-    watched?: WatchedStatus;
-    interest?: InterestStatus;
-    rewatch?: RewatchStatus;
-  }) {
-    this.id = data.id || `${data.movieId}-${data.userId}`;
-    this.userId = data.userId;
+  constructor(data: { id?: string; movieId: string; type: string; value: string; timestamp?: string }) {
+    this.id = data.id || `tag-${Date.now()}`; // Garante um ID único localmente se não for fornecido
     this.movieId = data.movieId;
-    this.watched = data.watched;
-    this.interest = data.interest;
-    this.rewatch = data.rewatch;
+    this.type = data.type;
+    this.value = data.value;
+    this.timestamp = data.timestamp; // Inicializa o timestamp
   }
 }

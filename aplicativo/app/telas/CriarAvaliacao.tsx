@@ -44,20 +44,42 @@ export default function CriarAvaliacao() {
     }, [movieId, movieService])
   );
 
-	function handleCriarAvaliacao() {
+	// ALTERADO: Tornando a função assíncrona e usando await
+	async function handleCriarAvaliacao() {
 		if (reviewType === null) {
 			Alert.alert("Erro", "Uma avaliação (gostei, não gostei ou favorito) é necessária.");
 			return;
 		}
 		
-    const createdReview = reviewService.createReview({
-			movieId: movieId as string,
-			content: content, 
-			reviewType: reviewType
-		});
+        try {
+            await reviewService.createReview({ // USANDO AWAIT
+                movieId: movieId as string,
+                content: content, 
+                reviewType: reviewType
+            });
 
-    Alert.alert("Sucesso", "Sua avaliação foi publicada!");
-		router.back();
+            // ATUALIZA O STATUS DO FILME NO MovieService LOCALMENTE APÓS SALVAR NO FIRESTORE
+            const movieToUpdate = movieService.getMovieById(movieId as string); // Obtém o filme do cache local
+            if (movieToUpdate) {
+                let status: MovieStatus = null;
+                if (reviewType === 'like') status = 'like2';
+                if (reviewType === 'dislike') status = 'dislike2';
+                if (reviewType === 'favorite') status = 'staro';
+                
+                movieToUpdate.then(m => { // Como getMovieById é async, precisa de .then
+                    if (m) {
+                        m.status = status;
+                        movieService.updateMovie(m); // Atualiza o status no cache local
+                    }
+                });
+            }
+
+            Alert.alert("Sucesso", "Sua avaliação foi publicada!");
+            router.back();
+        } catch (error) {
+            console.error("Erro ao criar avaliação:", error);
+            Alert.alert("Erro", "Não foi possível publicar sua avaliação.");
+        }
 	}
 
   if (loading || !movie) {

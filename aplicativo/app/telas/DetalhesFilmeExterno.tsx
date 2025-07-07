@@ -24,20 +24,16 @@ function DetalhesFilmeExterno() {
 
   useFocusEffect(
     useCallback(() => {
-      const loadMovieDetailsAndReview = async () => {
+      const loadMovieDetailsAndReview = async () => { // TORNADO ASYNC
         setLoading(true);
         if (movieId) {
           try {
-            const foundMovie = await movieService.getMovieById(movieId as string);
+            const foundMovie = await movieService.getMovieById(movieId as string); // USANDO AWAIT
 
             if (foundMovie && foundMovie.isExternal) {
               setMovie(foundMovie);
-              const movieReviews = reviewService.getReviewsByMovieId(foundMovie.id);
-              if (movieReviews.length > 0) {
-                  setReview(movieReviews[0]);
-              } else {
-                  setReview(null);
-              }
+              const movieReviews = await reviewService.getReviewsByMovieId(foundMovie.id); // USANDO AWAIT
+              setReview(movieReviews.length > 0 ? movieReviews[0] : null);
             } else {
               Alert.alert('Erro', 'Filme não encontrado ou não é um filme externo.');
               router.back();
@@ -51,7 +47,7 @@ function DetalhesFilmeExterno() {
         setLoading(false);
       };
       loadMovieDetailsAndReview(); 
-    }, [movieId, movieService, reviewService])
+    }, [movieId, movieService, reviewService]) // Adicionado reviewService como dependência
   );
 
   const handleEditMovie = () => {
@@ -70,6 +66,41 @@ function DetalhesFilmeExterno() {
         params: { movieId: movie.id },
       });
     }
+  };
+
+  // NOVO: Função para deletar a avaliação em filmes externos
+  const handleDeleteReview = async () => {
+    if (!review) return;
+
+    Alert.alert(
+      "Excluir Avaliação",
+      "Tem certeza que deseja excluir esta avaliação?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Excluir", 
+          onPress: async () => { // Usando async aqui também
+            try {
+              await reviewService.deleteReview(review.id); // USANDO AWAIT
+              setReview(null); 
+              Alert.alert("Sucesso", "Sua avaliação foi removida.");
+
+              // ATUALIZA O STATUS DO FILME NO MovieService LOCALMENTE
+              const movieToUpdate = await movieService.getMovieById(movie?.id as string); // Precisa de await
+              if (movieToUpdate) {
+                  movieToUpdate.status = null;
+                  movieService.updateMovie(movieToUpdate);
+              }
+
+            } catch (error) {
+                console.error("Erro ao deletar avaliação:", error);
+                Alert.alert("Erro", "Não foi possível remover sua avaliação.");
+            }
+          },
+          style: "destructive"
+        }
+      ]
+    );
   };
 
   if (loading || !movie) {
@@ -109,15 +140,7 @@ function DetalhesFilmeExterno() {
         </Text>
 
         <Text style={detalhesExternoStyles.sectionTitle}>Sinopse:</Text>
-        <Text style={detalhesExternoStyles.sinopseText}>{movie.overview || 'Sinopse não disponível.'}</Text> {/* CORREÇÃO: Usar sinopseText */}
-
-        {/* REMOVIDO: Campo Diretor */}
-        {/* {movie.director && (
-          <>
-            <Text style={detalhesExternoStyles.sectionTitle}>Diretor:</Text>
-            <Text style={detalhesExternoStyles.text}>{movie.director}</Text>
-          </>
-        )} */}
+        <Text style={detalhesExternoStyles.sinopseText}>{movie.overview || 'Sinopse não disponível.'}</Text> 
         
         <Text style={detalhesExternoStyles.sectionTitle}>Sua Avaliação:</Text>
         {review ? (
@@ -128,6 +151,9 @@ function DetalhesFilmeExterno() {
                     color="#3E9C9C" 
                 />
                 <Text style={detalhesExternoStyles.reviewContent}>{review.content || 'Sem comentário adicional.'}</Text>
+                <Pressable onPress={handleDeleteReview} style={detalhesExternoStyles.deleteButton}> {/* Botão de delete */}
+                    <AntDesign name="delete" size={20} color="#FF6347" />
+                </Pressable>
             </View>
         ) : (
             <Text style={detalhesExternoStyles.noReviewText}>Você ainda não avaliou este filme.</Text>
@@ -137,7 +163,7 @@ function DetalhesFilmeExterno() {
         
         <Pressable style={detalhesExternoStyles.evaluateButton} onPress={handleAvaliacao}>
           <AntDesign name="staro" size={20} color="#eaeaea" />
-          <Text style={detalhesExternoStyles.evaluateButtonText}>Avaliar Filme</Text>
+          <Text style={detalhesExternoStyles.evaluateButtonText}>{review ? 'Editar Avaliação' : 'Avaliar Filme'}</Text>
         </Pressable>
 
       </ScrollView>
@@ -213,13 +239,12 @@ const detalhesExternoStyles = StyleSheet.create({
     marginBottom: 5,
     alignSelf: 'flex-start', 
   },
-  // CORREÇÃO: Novo estilo para a sinopse alinhada à esquerda
   sinopseText: { 
     color: '#ccc',
     fontSize: 14,
-    textAlign: 'left', // Alinhado à esquerda
+    textAlign: 'left', 
     marginBottom: 10,
-    width: '100%', // Ocupa toda a largura para o alinhamento funcionar
+    width: '100%', 
   },
   reviewContainer: { 
       flexDirection: 'row',
@@ -236,6 +261,10 @@ const detalhesExternoStyles = StyleSheet.create({
       fontSize: 14,
       marginLeft: 10,
       flexShrink: 1, 
+  },
+  // NOVO: Estilo para o botão de deletar na review
+  deleteButton: {
+      padding: 8, // Aumenta a área clicável
   },
   noReviewText: {
       color: '#b0b0b0',

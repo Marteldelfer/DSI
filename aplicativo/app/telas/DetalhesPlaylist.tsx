@@ -1,243 +1,526 @@
 // aplicativo/app/telas/DetalhesPlaylist.tsx
-import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, Pressable, Image, StyleSheet, Modal, Alert, TextInput } from 'react-native';
-import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, Alert, ActivityIndicator, Image, Modal, TextInput } from 'react-native';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { AntDesign, Feather, MaterialIcons } from '@expo/vector-icons';
+
 import { styles } from '../styles';
 import { Playlist } from '../../src/models/Playlist';
 import { Movie } from '../../src/models/Movie';
 import { PlaylistService } from '../../src/services/PlaylistService';
-import { MovieService } from '../../src/services/MovieService';
-import { AntDesign } from '@expo/vector-icons';
+import { MovieService } from '../../src/services/MovieService'; 
 
-export default function DetalhesPlaylist() {
-  const { playlistId } = useLocalSearchParams<{ playlistId: string }>();
-  const [playlist, setPlaylist] = useState<Playlist | null>(null);
-  const [movies, setMovies] = useState<Movie[]>([]);
-  const [isAddMovieModalVisible, setAddMovieModalVisible] = useState(false);
-  const [availableMovies, setAvailableMovies] = useState<Movie[]>([]);
-  const [selectedMovieIds, setSelectedMovieIds] = useState<string[]>([]);
-  const [addMovieSearchTerm, setAddMovieSearchTerm] = useState('');
-  const [isEditNameModalVisible, setEditNameModalVisible] = useState(false);
-  const [newPlaylistName, setNewPlaylistName] = useState('');
-  
-  const router = useRouter();
-  const playlistService = PlaylistService.getInstance();
-  const movieService = MovieService.getInstance();
+function DetalhesPlaylistScreen() {
+    const router = useRouter();
+    const { playlistId } = useLocalSearchParams();
 
-  const loadPlaylistDetails = useCallback(() => {
-    if (playlistId) {
-      const foundPlaylist = playlistService.getPlaylistById(playlistId);
-      setPlaylist(foundPlaylist || null);
-      if (foundPlaylist) {
-        setMovies(playlistService.getMoviesInPlaylist(playlistId));
-      }
-    }
-  }, [playlistId, playlistService]);
+    const [playlist, setPlaylist] = useState<Playlist | null>(null);
+    const [moviesInPlaylist, setMoviesInPlaylist] = useState<Movie[]>([]);
+    const [allMovies, setAllMovies] = useState<Movie[]>([]); 
+    const [loading, setLoading] = useState(true);
+    const [isEditing, setIsEditing] = useState(false); 
+    const [editedName, setEditedName] = useState('');
+    const [editedDescription, setEditedDescription] = useState('');
+    const [showAddMovieModal, setShowAddMovieModal] = useState(false);
+    const [searchMovieTerm, setSearchMovieTerm] = useState('');
+    const [filteredMovies, setFilteredMovies] = useState<Movie[]>([]);
 
-  useFocusEffect(loadPlaylistDetails);
+    const playlistService = PlaylistService.getInstance();
+    const movieService = MovieService.getInstance();
 
-  const openAddMovieModal = () => {
-    const allRatedMovies = movieService.getFilteredAndRatedMovies('all');
-    const moviesNotInPlaylist = allRatedMovies.filter(m => !playlist?.movieIds.includes(m.id));
-    setAvailableMovies(moviesNotInPlaylist);
-    setSelectedMovieIds([]);
-    setAddMovieSearchTerm('');
-    setAddMovieModalVisible(true);
-  };
+    const fetchPlaylistDetails = useCallback(async () => {
+        setLoading(true);
+        if (playlistId && typeof playlistId === 'string') {
+            try {
+                const fetchedPlaylist = await playlistService.getPlaylistById(playlistId);
+                setPlaylist(fetchedPlaylist || null);
+                setEditedName(fetchedPlaylist?.name || '');
+                setEditedDescription(fetchedPlaylist?.description || '');
 
-  const handleAddMoviesToPlaylist = () => {
-    if (playlistId && selectedMovieIds.length > 0) {
-      playlistService.addMoviesToPlaylist(playlistId, selectedMovieIds);
-      setAddMovieModalVisible(false);
-      loadPlaylistDetails();
-    }
-  };
+                if (fetchedPlaylist && fetchedPlaylist.movieIds.length > 0) {
+                    const moviesPromises = fetchedPlaylist.movieIds.map(id => movieService.getMovieById(id));
+                    const resolvedMovies = (await Promise.all(moviesPromises)).filter(Boolean) as Movie[];
+                    setMoviesInPlaylist(resolvedMovies);
+                } else {
+                    setMoviesInPlaylist([]);
+                }
 
-  const handleRemoveMovie = (movieId: string) => {
-    if (playlistId) {
-        const wasDeleted = playlistService.removeMovieFromPlaylist(playlistId, movieId);
-        if (wasDeleted) {
-            Alert.alert("Playlist Excluída", "A playlist foi excluída por não ter mais filmes.", [
-                { text: "OK", onPress: () => router.back() }
-            ]);
+                // Busca TODOS os filmes para o modal de adição
+                const fetchedAllMovies = await movieService.getAllMovies(); // CORRIGIDO: movieService.getAllMovies()
+                setAllMovies(fetchedAllMovies);
+                setFilteredMovies(fetchedAllMovies.filter(movie => !fetchedPlaylist?.movieIds.includes(movie.id)));
+            } catch (error) {
+                console.error("Erro ao carregar detalhes da playlist:", error);
+                Alert.alert("Erro", "Não foi possível carregar os detalhes da playlist.");
+                router.back();
+            } finally {
+                setLoading(false);
+            }
         } else {
-            loadPlaylistDetails();
+            Alert.alert("Erro", "ID da playlist não fornecido.");
+            router.back();
+            setLoading(false);
         }
-    }
-  };
+    }, [playlistId, playlistService, movieService, router]);
 
-  const handleOpenEditNameModal = () => {
-    setNewPlaylistName(playlist?.name || '');
-    setEditNameModalVisible(true);
-  };
-
-  const handleUpdatePlaylistName = () => {
-    if (playlist && newPlaylistName.trim()) {
-      playlist.name = newPlaylistName.trim();
-      playlistService.updatePlaylist(playlist);
-      setEditNameModalVisible(false);
-      loadPlaylistDetails();
-    } else {
-      Alert.alert("Erro", "O nome da playlist não pode ser vazio.");
-    }
-  };
-
-  if (!playlist) {
-    return (
-      <View style={styles.container}>
-        <Text style={detalhesStyles.title}>Playlist não encontrada.</Text>
-      </View>
+    useFocusEffect(
+        useCallback(() => {
+            fetchPlaylistDetails();
+        }, [fetchPlaylistDetails])
     );
-  }
 
-  const filteredAvailableMovies = availableMovies.filter(movie => 
-    movie.title.toLowerCase().includes(addMovieSearchTerm.toLowerCase())
-  );
+    useEffect(() => {
+        // Filtra filmes para o modal de adição
+        if (searchMovieTerm.trim() === '') {
+            setFilteredMovies(allMovies.filter(movie => !moviesInPlaylist.some(m => m.id === movie.id)));
+        } else {
+            setFilteredMovies(
+                allMovies.filter(movie =>
+                    movie.title.toLowerCase().includes(searchMovieTerm.toLowerCase()) &&
+                    !moviesInPlaylist.some(m => m.id === movie.id)
+                )
+            );
+        }
+    }, [searchMovieTerm, allMovies, moviesInPlaylist]);
 
-  const renderMovieItem = ({ item }: { item: Movie }) => (
-    <View style={detalhesStyles.movieItem}>
-      {item.posterUrl ? <Image source={{ uri: item.posterUrl }} style={detalhesStyles.poster} /> : <View style={detalhesStyles.placeholderPoster}><Text style={detalhesStyles.placeholderText}>{item.title}</Text></View>}
-      <Text style={detalhesStyles.movieTitle} numberOfLines={1}>{item.title}</Text>
-      <Pressable style={detalhesStyles.removeButton} onPress={() => handleRemoveMovie(item.id)}>
-        <AntDesign name="closecircle" size={24} color="#FF6347" />
-      </Pressable>
-    </View>
-  );
+    const handleUpdatePlaylist = async () => {
+        if (!playlist || !editedName.trim()) {
+            Alert.alert("Erro", "O nome da playlist não pode ser vazio.");
+            return;
+        }
 
-  const renderSelectableMovieItem = ({ item }: { item: Movie }) => {
-    const isSelected = selectedMovieIds.includes(item.id);
-    return (
-      <Pressable style={detalhesStyles.selectableMovieItem} onPress={() => setSelectedMovieIds(prev => prev.includes(item.id) ? prev.filter(id => id !== item.id) : [...prev, item.id])}>
-        {item.posterUrl ? <Image source={{ uri: item.posterUrl }} style={detalhesStyles.posterSelectable} /> : <View style={detalhesStyles.placeholderPosterSelectable}><Text style={detalhesStyles.placeholderText}>{item.title}</Text></View>}
-        {isSelected && <View style={detalhesStyles.overlay}><AntDesign name="checkcircle" size={24} color="white" /></View>}
-      </Pressable>
-    );
-  };
+        try {
+            await playlistService.updatePlaylist(playlist.id, {
+                name: editedName.trim(),
+                description: editedDescription.trim() || null, // Garante que empty string vira null no Firestore
+            });
+            Alert.alert("Sucesso", "Playlist atualizada com sucesso!");
+            setIsEditing(false);
+            fetchPlaylistDetails(); // Recarrega os dados
+        } catch (error) {
+            console.error("Erro ao atualizar playlist:", error);
+            Alert.alert("Erro", "Não foi possível atualizar a playlist.");
+        }
+    };
 
-  return (
-    <View style={styles.container}>
-      <View style={detalhesStyles.titleContainer}>
-          <Text style={detalhesStyles.title}>{playlist.name}</Text>
-          <Pressable onPress={handleOpenEditNameModal} style={detalhesStyles.editIcon}>
-              <AntDesign name="edit" size={24} color="#b0b0b0" />
-          </Pressable>
-      </View>
+    const handleAddMovieToPlaylist = async (movieId: string) => {
+        if (!playlist) return;
 
-      <FlatList
-        data={movies}
-        renderItem={renderMovieItem}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        ListEmptyComponent={<Text style={detalhesStyles.emptyText}>Esta playlist está vazia. Adicione filmes!</Text>}
-      />
-      <Pressable style={[styles.Botao, { alignSelf: 'center', width: '90%', marginBottom: 20 }]} onPress={openAddMovieModal}>
-        <Text style={styles.textoBotao}>Adicionar Filmes</Text>
-      </Pressable>
+        try {
+            await playlistService.addMovieToPlaylist(playlist.id, movieId);
+            Alert.alert("Sucesso", "Filme adicionado à playlist!");
+            setShowAddMovieModal(false);
+            setSearchMovieTerm('');
+            fetchPlaylistDetails(); // Recarrega os dados
+        } catch (error) {
+            console.error("Erro ao adicionar filme:", error);
+            Alert.alert("Erro", "Não foi possível adicionar o filme à playlist.");
+        }
+    };
 
-      <Modal
-        visible={isEditNameModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setEditNameModalVisible(false)}
-      >
-        <View style={detalhesStyles.modalBackdrop}>
-            <View style={detalhesStyles.modalView}>
-                <Text style={detalhesStyles.modalTitle}>Editar Nome da Playlist</Text>
-                <View style={[styles.textInput, {width: '100%'}]}>
-                    <TextInput
-                        style={styles.input}
-                        value={newPlaylistName}
-                        onChangeText={setNewPlaylistName}
-                        placeholder="Novo nome da playlist"
-                        placeholderTextColor="grey"
-                    />
-                </View>
-                <View style={detalhesStyles.modalButtonContainer}>
-                    <Pressable style={[styles.Botao, detalhesStyles.cancelButton]} onPress={() => setEditNameModalVisible(false)}>
-                        <Text style={styles.textoBotao}>Cancelar</Text>
-                    </Pressable>
-                    <Pressable style={[styles.Botao, detalhesStyles.saveButton]} onPress={handleUpdatePlaylistName}>
-                        <Text style={styles.textoBotao}>Salvar</Text>
-                    </Pressable>
-                </View>
+    const handleRemoveMovieFromPlaylist = async (movieId: string) => {
+        if (!playlist) return;
+
+        Alert.alert("Remover Filme", "Tem certeza que deseja remover este filme da playlist?", [
+            { text: "Cancelar", style: "cancel" },
+            {
+                text: "Remover",
+                onPress: async () => {
+                    try {
+                        const playlistWasDeleted = await playlistService.removeMovieFromPlaylist(playlist.id, movieId); // USANDO AWAIT e esperando o retorno boolean
+                        if (playlistWasDeleted) { // AGORA PODE TESTAR POR TRUTHINESS
+                            Alert.alert("Sucesso", "Playlist excluída por ficar vazia.");
+                            router.back(); // Volta para a lista de playlists
+                        } else {
+                            Alert.alert("Sucesso", "Filme removido da playlist!");
+                            fetchPlaylistDetails(); // Recarrega os dados
+                        }
+                    } catch (error) {
+                        console.error("Erro ao remover filme:", error);
+                        Alert.alert("Erro", "Não foi possível remover o filme da playlist.");
+                    }
+                },
+                style: "destructive",
+            },
+        ]);
+    };
+
+    const handleDeletePlaylist = async () => {
+        if (!playlist) return;
+
+        Alert.alert(
+            "Excluir Playlist",
+            `Tem certeza que deseja excluir a playlist "${playlist.name}"?`,
+            [
+                { text: "Cancelar", style: "cancel" },
+                {
+                    text: "Excluir",
+                    onPress: async () => {
+                        try {
+                            await playlistService.deletePlaylist(playlist.id);
+                            Alert.alert("Sucesso", "Playlist excluída com sucesso!");
+                            router.back(); // Volta para a lista de playlists
+                        } catch (error) {
+                            console.error("Erro ao excluir playlist:", error);
+                            Alert.alert("Erro", "Não foi possível excluir a playlist.");
+                        }
+                    },
+                    style: "destructive",
+                },
+            ]
+        );
+    };
+
+    if (loading || !playlist) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center' }]}>
+                <ActivityIndicator size="large" color="#3E9C9C" />
+                <Text style={{ color: '#eaeaea', marginTop: 10 }}>Carregando detalhes da playlist...</Text>
             </View>
-        </View>
-      </Modal>
+        );
+    }
 
-      <Modal
-        visible={isAddMovieModalVisible}
-        animationType="slide"
-        onRequestClose={() => setAddMovieModalVisible(false)}
-      >
+    return (
         <View style={styles.container}>
-          {/* <<<< AJUSTE DE LAYOUT MODAL >>>> */}
-          {/* View para o Cabeçalho */}
-          <View>
-            <Text style={[detalhesStyles.title, { paddingTop: 60, paddingBottom: 20 }]}>Adicionar Filmes</Text>
-            <View style={[styles.textInput, { marginHorizontal: 20, marginBottom: 10 }]}>
-              <AntDesign name="search1" size={20} color="black" />
-              <TextInput style={styles.input} placeholder="Buscar filmes..." placeholderTextColor="grey" value={addMovieSearchTerm} onChangeText={setAddMovieSearchTerm} />
+            <View style={detailsStyles.header}>
+                <Pressable onPress={() => router.back()} style={{ marginRight: 20 }}>
+                    <AntDesign name="arrowleft" size={24} color="#eaeaea" />
+                </Pressable>
+                <Text style={detailsStyles.headerTitle} numberOfLines={1}>
+                    {playlist.name}
+                </Text>
+                <Pressable onPress={() => setIsEditing(!isEditing)} style={detailsStyles.editButton}>
+                    <Feather name="edit" size={22} color="#3E9C9C" />
+                </Pressable>
+                <Pressable onPress={handleDeletePlaylist} style={detailsStyles.deleteButton}>
+                    <Feather name="trash-2" size={22} color="#FF6347" />
+                </Pressable>
             </View>
-          </View>
 
-          {/* View para a Lista (flex: 1 para ocupar o espaço) */}
-          <View style={{ flex: 1 }}>
-            <FlatList
-              data={filteredAvailableMovies}
-              renderItem={renderSelectableMovieItem}
-              keyExtractor={item => item.id}
-              numColumns={3}
-              ListEmptyComponent={<Text style={detalhesStyles.emptyText}>Nenhum outro filme avaliado para adicionar.</Text>}
-            />
-          </View>
-          
-          {/* View para os Botões do Rodapé */}
-          <View style={{padding: 20}}>
-            <Pressable style={styles.Botao} onPress={handleAddMoviesToPlaylist}>
-              <Text style={styles.textoBotao}>Adicionar Selecionados</Text>
-            </Pressable>
-            <Pressable style={[styles.Botao, {backgroundColor: '#aa0000', marginTop: 10}]} onPress={() => setAddMovieModalVisible(false)}>
-              <Text style={styles.textoBotao}>Cancelar</Text>
-            </Pressable>
-          </View>
+            <ScrollView contentContainerStyle={detailsStyles.scrollViewContent}>
+                {isEditing ? (
+                    <View style={detailsStyles.editContainer}>
+                        <Text style={detailsStyles.label}>Nome da Playlist:</Text>
+                        <TextInput
+                            style={[styles.input, detailsStyles.inputField]}
+                            value={editedName}
+                            onChangeText={setEditedName}
+                        />
+                        <Text style={detailsStyles.label}>Descrição:</Text>
+                        <TextInput
+                            style={[styles.input, detailsStyles.inputField, detailsStyles.textArea]}
+                            value={editedDescription}
+                            onChangeText={setEditedDescription}
+                            multiline
+                            numberOfLines={4}
+                        />
+                        <Pressable style={detailsStyles.saveButton} onPress={handleUpdatePlaylist}>
+                            <Text style={detailsStyles.saveButtonText}>Salvar Alterações</Text>
+                        </Pressable>
+                    </View>
+                ) : (
+                    <>
+                        {playlist.description && (
+                            <Text style={detailsStyles.description}>{playlist.description}</Text>
+                        )}
+
+                        <Text style={detailsStyles.sectionTitle}>Filmes na Playlist ({moviesInPlaylist.length}):</Text>
+                        
+                        <Pressable style={detailsStyles.addMovieButton} onPress={() => setShowAddMovieModal(true)}>
+                            <AntDesign name="pluscircleo" size={20} color="#3E9C9C" />
+                            <Text style={detailsStyles.addMovieButtonText}>Adicionar Filme</Text>
+                        </Pressable>
+
+                        {moviesInPlaylist.length > 0 ? (
+                            moviesInPlaylist.map(movie => (
+                                <View key={movie.id} style={detailsStyles.movieItem}>
+                                    <Image
+                                        source={{ uri: movie.posterUrl || 'https://via.placeholder.com/150' }}
+                                        style={detailsStyles.moviePoster}
+                                    />
+                                    <View style={detailsStyles.movieInfo}>
+                                        <Text style={detailsStyles.movieTitle}>{movie.title}</Text>
+                                        <Text style={detailsStyles.movieYear}>{movie.releaseYear}</Text>
+                                    </View>
+                                    <Pressable onPress={() => handleRemoveMovieFromPlaylist(movie.id)} style={detailsStyles.removeMovieButton}>
+                                        <Feather name="minus-circle" size={22} color="#FF6347" />
+                                    </Pressable>
+                                </View>
+                            ))
+                        ) : (
+                            <Text style={detailsStyles.noMoviesText}>Nenhum filme nesta playlist ainda.</Text>
+                        )}
+                    </>
+                )}
+            </ScrollView>
+
+            {/* Modal para Adicionar Filme */}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={showAddMovieModal}
+                onRequestClose={() => setShowAddMovieModal(false)}
+            >
+                <View style={detailsStyles.modalBackground}>
+                    <View style={detailsStyles.modalContainer}>
+                        <View style={detailsStyles.modalHeader}>
+                            <Text style={detailsStyles.modalTitle}>Adicionar Filme à Playlist</Text>
+                            <Pressable onPress={() => setShowAddMovieModal(false)}>
+                                <AntDesign name="closecircleo" size={24} color="#eaeaea" />
+                            </Pressable>
+                        </View>
+                        <TextInput
+                            style={[styles.input, detailsStyles.modalSearchInput]}
+                            placeholder="Buscar filme..."
+                            placeholderTextColor={"grey"}
+                            value={searchMovieTerm}
+                            onChangeText={setSearchMovieTerm}
+                        />
+                        <ScrollView style={detailsStyles.modalMovieList}>
+                            {filteredMovies.length > 0 ? (
+                                filteredMovies.map(movie => (
+                                    <Pressable
+                                        key={movie.id}
+                                        style={detailsStyles.modalMovieItem}
+                                        onPress={() => handleAddMovieToPlaylist(movie.id)}
+                                    >
+                                        <Image
+                                            source={{ uri: movie.posterUrl || 'https://via.placeholder.com/100' }}
+                                            style={detailsStyles.modalMoviePoster}
+                                        />
+                                        <View style={detailsStyles.modalMovieInfo}>
+                                            <Text style={detailsStyles.modalMovieTitle}>{movie.title}</Text>
+                                            <Text style={detailsStyles.modalMovieYear}>{movie.releaseYear}</Text>
+                                        </View>
+                                        <MaterialIcons name="add-circle-outline" size={24} color="#3E9C9C" />
+                                    </Pressable>
+                                ))
+                            ) : (
+                                <Text style={detailsStyles.noMoviesFoundText}>Nenhum filme encontrado ou todos já estão na playlist.</Text>
+                            )}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </View>
-      </Modal>
-    </View>
-  );
+    );
 }
 
-const detalhesStyles = StyleSheet.create({
-    title: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      color: '#eaeaea',
-      textAlign: 'center',
-      flex: 1,
-    },
-    movieItem: { flex: 1, margin: 10, alignItems: 'center', position: 'relative' },
-    poster: { width: 150, height: 220, borderRadius: 8 },
-    placeholderPoster: { width: 150, height: 220, borderRadius: 8, backgroundColor: '#4A6B8A', justifyContent: 'center', alignItems: 'center' },
-    posterSelectable: { width: '100%', height: 150, borderRadius: 8 },
-    placeholderPosterSelectable: { width: '100%', height: 150, borderRadius: 8, backgroundColor: '#4A6B8A', justifyContent: 'center', alignItems: 'center', padding: 5 },
-    placeholderText: { color: 'white', textAlign: 'center' },
-    movieTitle: { color: 'white', marginTop: 5, textAlign: 'center', width: 150 },
-    removeButton: { position: 'absolute', top: -5, right: -5, backgroundColor: 'white', borderRadius: 12 },
-    emptyText: { color: '#b0b0b0', textAlign: 'center', marginTop: 20 },
-    selectableMovieItem: { flex: 1, margin: 5, maxWidth: '31%', position: 'relative', aspectRatio: 2/3 },
-    overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(62, 156, 156, 0.7)', borderRadius: 8, borderWidth: 2, borderColor: '#3E9C9C', justifyContent: 'center', alignItems: 'center' },
-    titleContainer: {
+export default DetalhesPlaylistScreen;
+
+const detailsStyles = StyleSheet.create({
+    header: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        paddingTop: 60,
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingTop: 40,
         paddingBottom: 20,
-        paddingHorizontal: 20
+        backgroundColor: "#2E3D50",
     },
-    editIcon: { position: 'absolute', right: 20, top: 60, padding: 5 },
-    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-    modalView: { width: '85%', backgroundColor: '#2E3D50', borderRadius: 15, padding: 20, alignItems: 'center' },
-    modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#eaeaea', marginBottom: 15 },
-    modalButtonContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: 10 },
-    cancelButton: { backgroundColor: '#4A6B8A', marginRight: 5, flex: 1 },
-    saveButton: { backgroundColor: '#3E9C9C', marginLeft: 5, flex: 1 },
+    headerTitle: {
+        color: "#eaeaea",
+        fontSize: 20,
+        fontWeight: "bold",
+        flex: 1,
+        marginLeft: 15,
+    },
+    editButton: {
+        padding: 5,
+        marginLeft: 10,
+    },
+    deleteButton: {
+        padding: 5,
+        marginLeft: 10,
+    },
+    scrollViewContent: {
+        padding: 20,
+        paddingBottom: 100,
+    },
+    description: {
+        color: '#b0b0b0',
+        fontSize: 15,
+        marginBottom: 20,
+        lineHeight: 22,
+    },
+    sectionTitle: {
+        color: '#eaeaea',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginTop: 10,
+        marginBottom: 15,
+    },
+    addMovieButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#1A2B3E',
+        borderColor: '#3E9C9C',
+        borderWidth: 1,
+        borderRadius: 8,
+        padding: 12,
+        justifyContent: 'center',
+        marginBottom: 20,
+    },
+    addMovieButtonText: {
+        color: '#3E9C9C',
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginLeft: 10,
+    },
+    movieItem: {
+        flexDirection: 'row',
+        backgroundColor: '#1A2B3E',
+        borderRadius: 10,
+        marginBottom: 15,
+        padding: 10,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#4A6B8A',
+    },
+    moviePoster: {
+        width: 60,
+        height: 90,
+        borderRadius: 5,
+        marginRight: 10,
+    },
+    movieInfo: {
+        flex: 1,
+    },
+    movieTitle: {
+        color: '#eaeaea',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    movieYear: {
+        color: '#b0b0b0',
+        fontSize: 13,
+        marginTop: 3,
+    },
+    removeMovieButton: {
+        padding: 5,
+    },
+    noMoviesText: {
+        color: '#b0b0b0',
+        fontSize: 15,
+        textAlign: 'center',
+        marginTop: 20,
+    },
+    editContainer: {
+        backgroundColor: '#1A2B3E',
+        borderRadius: 10,
+        padding: 20,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#4A6B8A',
+    },
+    label: {
+        color: '#eaeaea',
+        fontSize: 16,
+        marginBottom: 8,
+        fontWeight: 'bold',
+    },
+    inputField: {
+        marginBottom: 15,
+        backgroundColor: 'transparent',
+        borderColor: '#4A6B8A',
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 15,
+        height: 50,
+        color: '#eaeaea',
+    },
+    textArea: {
+        height: 100,
+        textAlignVertical: 'top',
+        paddingVertical: 10,
+    },
+    saveButton: {
+        backgroundColor: '#3E9C9C',
+        padding: 15,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginTop: 10,
+    },
+    saveButtonText: {
+        color: 'black',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    // Modal Styles
+    modalBackground: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    },
+    modalContainer: {
+        width: '90%',
+        height: '80%',
+        backgroundColor: '#2E3D50',
+        borderRadius: 15,
+        padding: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    modalTitle: {
+        color: '#eaeaea',
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    modalSearchInput: {
+        marginBottom: 15,
+        backgroundColor: '#1A2B3E',
+        borderColor: '#4A6B8A',
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 15,
+        height: 45,
+        color: '#eaeaea',
+    },
+    modalMovieList: {
+        flex: 1,
+    },
+    modalMovieItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#1A2B3E',
+        borderRadius: 8,
+        padding: 10,
+        marginBottom: 10,
+        borderWidth: 1,
+        borderColor: '#4A6B8A',
+    },
+    modalMoviePoster: {
+        width: 40,
+        height: 60,
+        borderRadius: 3,
+        marginRight: 10,
+    },
+    modalMovieInfo: {
+        flex: 1,
+    },
+    modalMovieTitle: {
+        color: '#eaeaea',
+        fontSize: 15,
+        fontWeight: 'bold',
+    },
+    modalMovieYear: {
+        color: '#b0b0b0',
+        fontSize: 12,
+    },
+    noMoviesFoundText: {
+        color: '#b0b0b0',
+        fontSize: 14,
+        textAlign: 'center',
+        marginTop: 20,
+    },
 });

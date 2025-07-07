@@ -1,25 +1,20 @@
 // aplicativo/src/models/Playlist.ts
+import { Movie } from './Movie';
+
 export class Playlist {
-  id: string;
-  name: string;
-  movieIds: string[];
-  coverImageUrl?: string | null;
-  // userId: string; // Adicionar se necessário
+    id: string; 
+    userId: string;
+    name: string;
+    description: string | null; // ALTERADO: Agora aceita string ou null
+    movieIds: string[];
+    timestamp?: string; 
 
-  constructor(data: { id?: string; name: string; movieIds?: string[]; coverImageUrl?: string | null }) {
-    this.id = data.id || `pl-${Date.now()}`;
-    this.name = data.name;
-    this.movieIds = data.movieIds || [];
-    this.coverImageUrl = data.coverImageUrl;
-  }
-
-  addMovie(movieId: string): void {
-    if (!this.movieIds.includes(movieId)) {
-      this.movieIds.push(movieId);
+    constructor(data: { id?: string; userId: string; name: string; description?: string | null; movieIds?: string[]; timestamp?: string }) { // ALTERADO: description pode ser string | null
+        this.id = data.id || ''; 
+        this.userId = data.userId;
+        this.name = data.name;
+        this.description = data.description ?? null; // Usar ?? null para garantir que undefined vire null
+        this.movieIds = data.movieIds || [];
+        this.timestamp = data.timestamp;
     }
-  }
-
-  removeMovie(movieId: string): void {
-    this.movieIds = this.movieIds.filter(id => id !== movieId);
-  }
 }

@@ -17,7 +17,7 @@ import {
 import { useRouter } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
 import { styles } from '../styles';
-import { Movie, MovieStatus } from '../../src/models/Movie';
+import { Movie, MovieStatus } from '../../src/models/Movie'; // Importe MovieStatus
 import { MovieService } from '../../src/services/MovieService';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -29,7 +29,6 @@ function AdicionarFilmeExterno() {
     const [genero, setGenero] = useState('');
     const [sinopse, setSinopse] = useState('');
     const [posterUri, setPosterUri] = useState<string | null>(null);
-    // REMOVIDO: [statusAvaliacao, setStatusAvaliacao] = useState<MovieStatus | null>(null); // Não define mais o status aqui
 
     const [modalFotoVisivel, setModalFotoVisivel] = useState(false);
     const [novaFotoTemp, setNovaFotoTemp] = useState<string | undefined>(undefined);
@@ -108,59 +107,34 @@ function AdicionarFilmeExterno() {
         setNovaFotoTemp(undefined);
     };
 
-    const handleSaveMovie = () => {
-        // REMOVIDO: !statusAvaliacao da validação, pois a avaliação será feita em outra tela
-        if (!titulo || !anoLancamento || !duracao || !genero || !sinopse) {
-            Alert.alert('Erro', 'Por favor, preencha todos os campos obrigatórios.');
-            return;
-        }
-
-        const newMovie = {
-            title: titulo,
-            releaseYear: anoLancamento,
-            director: "Não informado",
-            duration: duracao,
-            genre: genero,
-            overview: sinopse,
-            posterUrl: posterUri,
-            status: null, // O status inicial é null, será definido na tela de avaliação
-        };
-
-        movieService.addExternalMovie(newMovie);
-        Alert.alert('Sucesso', 'Filme adicionado com sucesso!');
-        router.back();
-    };
-
-    // NOVO: Função para navegar para a tela de avaliação após salvar
+    // ALTERADO: Função assíncrona para salvar no Firestore
     const handleSaveAndEvaluate = async () => {
         if (!titulo || !anoLancamento || !duracao || !genero || !sinopse) {
             Alert.alert('Erro', 'Por favor, preencha todos os campos obrigatórios antes de avaliar.');
             return;
         }
 
-        const newId = `external-${Date.now()}`; // Gerar um ID aqui para passar para a avaliação
-        const newMovieData = {
-            id: newId, // Passa o ID para a avaliação
-            title: titulo,
-            releaseYear: anoLancamento,
-            director: "Não informado",
-            duration: duracao,
-            genre: genero,
-            overview: sinopse,
-            posterUrl: posterUri,
-            status: null, // Começa como null
-            isExternal: true,
-            isTmdb: false,
-        };
+        try {
+            // Cria o filme externo no Firestore e obtém o objeto Movie com o ID real do Firestore
+            const newExternalMovie = await movieService.createExternalMovie({ // USANDO AWAIT
+                title: titulo,
+                releaseYear: anoLancamento,
+                director: "Não informado", 
+                duration: parseInt(duracao, 10), // Converte para número
+                genre: genero,
+                overview: sinopse,
+                posterUrl: posterUri,
+            });
 
-        // Adiciona o filme ao MovieService antes de navegar para a avaliação
-        movieService.addMovieToLocalStore(new Movie(newMovieData)); // Adiciona como uma instância de Movie
-
-        Alert.alert('Sucesso', 'Filme adicionado! Agora avalie-o.');
-        router.replace({
-            pathname: "/telas/CriarAvaliacao",
-            params: { movieId: newId }, // Passa o ID do novo filme para a tela de avaliação
-        });
+            Alert.alert('Sucesso', 'Filme adicionado! Agora avalie-o.');
+            router.replace({
+                pathname: "/telas/CriarAvaliacao",
+                params: { movieId: newExternalMovie.id }, // Passa o ID real do Firestore
+            });
+        } catch (error) {
+            console.error("Erro ao salvar filme externo:", error);
+            Alert.alert('Erro', 'Não foi possível adicionar o filme externo.');
+        }
     };
 
 
@@ -390,7 +364,6 @@ const addExternalMovieStyles = StyleSheet.create({
     modalCancelButton: {
         backgroundColor: '#FF6347',
     },
-    // NOVO: Estilos para o botão "Salvar e Avaliar Filme"
     evaluateButton: {
         flexDirection: "row",
         alignItems: "center",
@@ -398,7 +371,7 @@ const addExternalMovieStyles = StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 20,
         borderRadius: 25,
-        marginTop: 30, // Margem para separar dos campos
+        marginTop: 30,
         width: '80%',
         justifyContent: 'center',
     },
@@ -408,7 +381,7 @@ const addExternalMovieStyles = StyleSheet.create({
         fontWeight: "bold",
         fontSize: 16,
     },
-    saveButton: { // Este agora é o botão "Salvar" simples (não usado no fluxo atual)
+    saveButton: {
         backgroundColor: '#3E9C9C',
         paddingVertical: 15,
         paddingHorizontal: 30,

@@ -31,7 +31,6 @@ function EditarFilmeExterno() {
     const [genero, setGenero] = useState('');
     const [sinopse, setSinopse] = useState(''); 
     const [posterUri, setPosterUri] = useState<string | null>(null);
-    // REMOVIDO: [statusAvaliacao, setStatusAvaliacao] = useState<MovieStatus | null>(null); // Estado da avaliação removido
 
     const [modalFotoVisivel, setModalFotoVisivel] = useState(false);
     const [novaFotoTemp, setNovaFotoTemp] = useState<string | undefined>(undefined);
@@ -40,18 +39,17 @@ function EditarFilmeExterno() {
 
     useFocusEffect(
         useCallback(() => {
-            const loadMovieData = async () => {
+            const loadMovieData = async () => { // TORNADO ASYNC
                 if (paramMovieId) {
-                    const foundMovie = await movieService.getMovieById(paramMovieId as string);
+                    const foundMovie = await movieService.getMovieById(paramMovieId as string); // USANDO AWAIT
                     if (foundMovie && foundMovie.isExternal) {
                         setMovie(foundMovie); 
                         setTitulo(foundMovie.title);
                         setAnoLancamento(foundMovie.releaseYear || '');
-                        setDuracao(foundMovie.duration || '');
+                        setDuracao(foundMovie.duration?.toString() || ''); // Convertendo number para string
                         setGenero(foundMovie.genre || '');
                         setSinopse(foundMovie.overview || '');
                         setPosterUri(foundMovie.posterUrl || null);
-                        // REMOVIDO: setStatusAvaliacao(foundMovie.status || null); // Não define mais o status da UI
                     } else {
                         Alert.alert('Erro', 'Filme não encontrado ou não é um filme externo para edição.');
                         router.back();
@@ -106,37 +104,40 @@ function EditarFilmeExterno() {
         );
     };
 
-    const handleSaveMovie = () => {
+    const handleSaveMovie = async () => { // TORNADO ASYNC
         if (!movie) { 
             Alert.alert('Erro', 'Filme não carregado para edição.');
             return;
         }
-        // REMOVIDO: !statusAvaliacao da validação
         if (!titulo || !anoLancamento || !duracao || !genero || !sinopse) {
             Alert.alert('Erro', 'Por favor, preencha todos os campos obrigatórios.');
             return;
         }
 
-        const updatedMovie = new Movie({ 
-            ...movie, // MANTÉM O STATUS ORIGINAL AQUI
+        const updatedMovieData = new Movie({ // Criar um objeto Movie completo para a atualização
+            ...movie, 
+            id: movie.id, 
             title: titulo,
             releaseYear: anoLancamento,
-            director: "Não informado", 
-            duration: duracao,
+            director: movie.director, // Mantendo o diretor existente ou null
+            duration: parseInt(duracao, 10), // Convertendo para number
             genre: genero,
             overview: sinopse,
             posterUrl: posterUri,
-            // REMOVIDO: status: statusAvaliacao, // Não atualiza o status por esta tela
-            isExternal: true, 
-            isTmdb: false, 
+            // isExternal e isTmdb são mantidos do objeto original 'movie'
         });
 
-        movieService.updateMovie(updatedMovie); 
-        Alert.alert('Sucesso', 'Filme atualizado com sucesso!');
-        router.back(); 
+        try {
+            await movieService.updateMovie(updatedMovieData); // USANDO AWAIT
+            Alert.alert('Sucesso', 'Filme atualizado com sucesso!');
+            router.back();
+        } catch (error) {
+            console.error("Erro ao salvar alterações do filme:", error);
+            Alert.alert('Erro', 'Não foi possível salvar as alterações do filme.');
+        }
     };
 
-    const handleDeleteMovie = () => {
+    const handleDeleteMovie = async () => { // TORNADO ASYNC
         if (!movie) return;
 
         Alert.alert(
@@ -146,10 +147,15 @@ function EditarFilmeExterno() {
                 { text: 'Cancelar', style: 'cancel' },
                 {
                     text: 'Excluir',
-                    onPress: () => {
-                        movieService.deleteMovie(movie.id);
-                        Alert.alert('Sucesso', 'Filme excluído com sucesso!');
-                        router.back(); 
+                    onPress: async () => { // Usando async aqui também
+                        try {
+                            await movieService.deleteMovie(movie.id); // USANDO AWAIT
+                            Alert.alert('Sucesso', 'Filme excluído com sucesso!');
+                            router.back();
+                        } catch (error) {
+                            console.error("Erro ao deletar filme:", error);
+                            Alert.alert('Erro', 'Não foi possível excluir o filme.');
+                        }
                     },
                     style: 'destructive',
                 },
@@ -222,7 +228,7 @@ function EditarFilmeExterno() {
                                 <Text style={editarFilmeStyles.modalButtonText}>Aplicar URL</Text>
                             </Pressable>
 
-                            {posterUri && ( // Botão "Remover Foto" visível apenas se houver pôster
+                            {posterUri && ( 
                                 <Pressable style={[editarFilmeStyles.modalButton, editarFilmeStyles.modalDeleteButton]} onPress={handleRemoverFoto}>
                                     <Text style={editarFilmeStyles.modalButtonText}>Remover Foto</Text>
                                 </Pressable>
@@ -283,38 +289,6 @@ function EditarFilmeExterno() {
                         value={sinopse}
                     />
                 </View>
-
-                {/* REMOVIDO: Seção de Avaliação */}
-                {/* <Text style={editarFilmeStyles.avaliacaoTitle}>Avaliar Filme:</Text>
-                <View style={editarFilmeStyles.avaliacaoContainer}>
-                    <Pressable
-                        style={[
-                            editarFilmeStyles.avaliacaoButton,
-                            statusAvaliacao === 'like2' && editarFilmeStyles.avaliacaoButtonSelected,
-                        ]}
-                        onPress={() => setStatusAvaliacao('like2')}
-                    >
-                        <AntDesign name="like2" size={30} color={statusAvaliacao === 'like2' ? 'black' : '#eaeaea'} />
-                    </Pressable>
-                    <Pressable
-                        style={[
-                            editarFilmeStyles.avaliacaoButton,
-                            statusAvaliacao === 'dislike2' && editarFilmeStyles.avaliacaoButtonSelected,
-                        ]}
-                        onPress={() => setStatusAvaliacao('dislike2')}
-                    >
-                        <AntDesign name="dislike2" size={30} color={statusAvaliacao === 'dislike2' ? 'black' : '#eaeaea'} />
-                    </Pressable>
-                    <Pressable
-                        style={[
-                            editarFilmeStyles.avaliacaoButton,
-                            statusAvaliacao === 'staro' && editarFilmeStyles.avaliacaoButtonSelected,
-                        ]}
-                        onPress={() => setStatusAvaliacao('staro')}
-                    >
-                        <AntDesign name="staro" size={30} color={statusAvaliacao === 'staro' ? 'black' : '#eaeaea'} />
-                    </Pressable>
-                </View> */}
 
                 <Pressable style={editarFilmeStyles.saveButton} onPress={handleSaveMovie}>
                     <Text style={styles.textoBotao}>Salvar Alterações</Text>
@@ -434,34 +408,6 @@ const editarFilmeStyles = StyleSheet.create({
     modalDeleteButton: { 
         backgroundColor: '#D9534F', 
     },
-    // REMOVIDO: Estilos de avaliação
-    /*
-    avaliacaoTitle: {
-        color: "#eaeaea",
-        fontSize: 16,
-        fontWeight: "bold",
-        marginTop: 20,
-        marginBottom: 10,
-        alignSelf: 'center',
-    },
-    avaliacaoContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        width: '80%',
-        marginBottom: 20,
-    },
-    avaliacaoButton: {
-        backgroundColor: '#1A2B3E',
-        padding: 15,
-        borderRadius: 50,
-        borderWidth: 2,
-        borderColor: '#4A6B8A',
-    },
-    avaliacaoButtonSelected: {
-        backgroundColor: '#3E9C9C',
-        borderColor: '#3E9C9C',
-    },
-    */
     saveButton: {
         backgroundColor: '#3E9C9C',
         paddingVertical: 15,

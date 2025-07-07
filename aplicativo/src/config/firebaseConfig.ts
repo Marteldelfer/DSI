@@ -23,4 +23,4 @@ const auth = initializeAuth(app, {
 });
 const db = getFirestore(app); // Initialize Firestore here
 
-export { auth, db }; // Export db as well
+export { app, auth, db }; // Corrigido: exportando 'app' também
