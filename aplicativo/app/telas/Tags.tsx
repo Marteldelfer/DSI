@@ -40,7 +40,6 @@ export default function TelaTags() {
   useEffect(() => {
 
       if (update && edit === 0) {atualizarTags(); setUpdate(false)}
-      console.log(getAllTags())
       if (!user) {
             Alert.alert("Erro", "Falha ao reconhecer o login.");
             router.back();
@@ -69,7 +68,6 @@ export default function TelaTags() {
   );
   
   function atualizarTags(){
-    console.log('atualizar')
     if (user?.email && movie) {
     let novas_tags: Tags = {
     id : String(movieId) + String(user.email),
@@ -82,7 +80,6 @@ export default function TelaTags() {
     if (tags) {updateTags(novas_tags)}
     else {addTags(novas_tags)}
     setTags(getTagsbyMovieandUsuario(movie, user));
-    console.log(String(getAllTags()[0]['interesse']))
     } return }
 
   if (loading || !movie) {
@@ -104,10 +101,6 @@ export default function TelaTags() {
     );
   }
   if (edit === 0) {
-    console.log(assistido)
-    console.log(interesse)
-    console.log(reassistir)
-
   return (
     <View style={styles.container}>
       <View style={styleTags.header}>
@@ -121,7 +114,7 @@ export default function TelaTags() {
 
       <ScrollView contentContainerStyle={styleTags.scrollViewContent}>
         <Pressable style={styleTags.edittag} onPress={() => {if (movieId && user?.email) {setEdit(1)}}}>
-            <Text style={styleTags.tagTitle}>{tags ? "Editar" : "Adicionar"} Tags</Text>
+            <Text style={styleTags.tagEditTitle}>{tags ? "Editar" : "Adicionar"} Tags</Text>
         </Pressable>
         
         {tags?.assistido ? <View style={styleTags.tag}>
@@ -161,8 +154,8 @@ if (edit === 1) {
         <Pressable style={styleTags.tag} onPress={() => {setAssistido("nao_assistido"); setEdit(2)}}>
             <Text style={styleTags.tagTitle}>Não assisti</Text>
         </Pressable>
-        <Pressable style={styleTags.tag} onPress={() => {setEdit(2)}}>
-            <Text style={styleTags.tagTitle}>Pular</Text>
+        <Pressable style={styleTags.edittag} onPress={() => {setEdit(2)}}>
+            <Text style={styleTags.tagEditTitle}>Pular essa pergunta</Text>
         </Pressable>
 
       </ScrollView>
@@ -182,8 +175,8 @@ if (edit === 2) {
         <Pressable style={styleTags.tag} onPress={() => {setInteresse("nao"); setEdit(3)}}>
             <Text style={styleTags.tagTitle}>Não tenho interesse</Text>
         </Pressable>
-        <Pressable style={styleTags.tag} onPress={() => {setEdit(3)}}>
-            <Text style={styleTags.tagTitle}>Pular</Text>
+        <Pressable style={styleTags.edittag} onPress={() => {setEdit(3)}}>
+            <Text style={styleTags.tagEditTitle}>Pular essa pergunta</Text>
         </Pressable>
 
       </ScrollView>
@@ -203,8 +196,8 @@ if (edit === 3) {
         <Pressable style={styleTags.tag} onPress={() => {setReassistir("nao"); setUpdate(true); setEdit(0)}}>
             <Text style={styleTags.tagTitle}>Não Voltaria</Text>
         </Pressable>
-        <Pressable style={styleTags.tag} onPress={() => {setUpdate(true); setEdit(0)}}>
-            <Text style={styleTags.tagTitle}>Pular</Text>
+        <Pressable style={styleTags.edittag} onPress={() => {setUpdate(true); setEdit(0)}}>
+            <Text style={styleTags.tagEditTitle}>Pular essa pergunta</Text>
         </Pressable>
 
       </ScrollView>
@@ -245,11 +238,13 @@ const styleTags = StyleSheet.create({
     width: "100%",
   },
   tag: {
-    backgroundColor: "#1a2b3e",
+    backgroundColor: "#D6AA60",
     margin: 20,
     alignItems:"center",
     justifyContent:"center",
-    borderRadius: 10,
+    borderBottomLeftRadius: 50,
+    borderTopLeftRadius:50,
+    borderStyle: 'solid',
     height: 70,
     width: "100%",
   },
@@ -263,6 +258,11 @@ const styleTags = StyleSheet.create({
     width: "100%",
   },
   tagTitle: {
+    color: "black",
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  tagEditTitle: {
     color: "#eaeaea",
     fontSize: 20,
     fontWeight: "bold",
