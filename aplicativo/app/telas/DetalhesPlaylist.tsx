@@ -124,27 +124,32 @@ function DetalhesPlaylistScreen() {
 
     const handleRemoveMovieFromPlaylist = (movieId: string, movieTitle: string) => {
         if (!playlistId) return;
-        Alert.alert("Remover Filme", `Remover "${movieTitle}" da playlist?`, [
-            { text: "Cancelar", style: "cancel" },
-            {
-                text: "Remover",
-                onPress: async () => {
-                    try {
-                        const playlistWasDeleted = await playlistService.removeMovieFromPlaylist(playlistId, movieId);
-                        if (playlistWasDeleted) {
-                            Alert.alert("Playlist Excluída", "A playlist foi removida por não ter mais filmes.");
-                            router.back();
-                        } else {
-                            fetchPlaylistDetails();
+
+        Alert.alert(
+            "Remover Filme",
+            `Remover "${movieTitle}" da playlist?`,
+            [
+                { text: "Cancelar", style: "cancel" },
+                {
+                    text: "Remover",
+                    onPress: async () => {
+                        try {
+                            const playlistWasDeleted = await playlistService.removeMovieFromPlaylist(playlistId, movieId);
+                            if (playlistWasDeleted) {
+                                Alert.alert("Playlist Excluída", "A playlist foi removida por não ter mais filmes.");
+                                router.back();
+                            } else {
+                                fetchPlaylistDetails();
+                            }
+                        } catch (error) {
+                            console.error("Erro ao remover filme:", error);
+                            Alert.alert("Erro", "Não foi possível remover o filme.");
                         }
-                    } catch (error) {
-                        console.error("Erro ao remover filme:", error);
-                        Alert.alert("Erro", "Não foi possível remover o filme.");
-                    }
+                    },
+                    style: "destructive",
                 },
-                style: "destructive",
-            },
-        ]);
+            ]
+        );
     };
     
     const handleDeletePlaylist = () => {
@@ -219,7 +224,6 @@ function DetalhesPlaylistScreen() {
                         {playlist.description ? (
                             <Text style={detailsStyles.description}>{playlist.description}</Text>
                         ) : (
-                            // **CORREÇÃO APLICADA AQUI**: Espaço reservado quando não há descrição
                             <View style={{ marginTop: 20 }} />
                         )}
 
@@ -288,7 +292,14 @@ function DetalhesPlaylistScreen() {
 export default DetalhesPlaylistScreen;
 
 const detailsStyles = StyleSheet.create({
-    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 15, backgroundColor: "#1A2B3E" },
+    header: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        paddingHorizontal: 20, 
+        paddingTop: 50, 
+        paddingBottom: 15, 
+        backgroundColor: 'transparent', // REMOVIDO o background escuro
+    },
     headerTitle: { color: "#eaeaea", fontSize: 20, fontWeight: "bold", textAlign: 'center' },
     headerButton: { padding: 5, marginLeft: 10 },
     scrollViewContent: { paddingHorizontal: 20, paddingBottom: 100 },

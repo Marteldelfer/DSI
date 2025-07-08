@@ -93,7 +93,8 @@ export default function Home() {
             {item.posterUrl ? (
                 <Image source={{ uri: item.posterUrl }} style={homeStyles.searchPoster} />
             ) : (
-                <View style={[homeStyles.searchPoster, homeStyles.posterPlaceholder]}>
+                // Alterado: removido homeStyles.posterPlaceholder daqui para evitar conflito de tamanho
+                <View style={homeStyles.searchPosterPlaceholder}> {/* Usando um novo estilo para o placeholder de busca */}
                     <FontAwesome name="image" size={24} color="#eaeaea" />
                 </View>
             )}
@@ -172,9 +173,6 @@ export default function Home() {
                                 resizeMode="contain" 
                             />
                         </View>
-                        <Text style={homeStyles.disclaimerText}>
-                            (Funcionalidade em desenvolvimento)
-                        </Text>
                     </View>
                 </ScrollView>
             )}
@@ -226,7 +224,7 @@ const homeStyles = StyleSheet.create({
         height: '100%',
         resizeMode: 'cover',
     },
-    posterPlaceholder: {
+    posterPlaceholder: { // Placeholder para pôsteres grandes (recomendações)
         width: '100%',
         height: '100%',
         justifyContent: 'center',
@@ -256,11 +254,19 @@ const homeStyles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#4A6B8A',
     },
-    searchPoster: {
+    searchPoster: { // Estilo para pôsteres na busca (com imagem)
         width: 50,
         height: 75,
         borderRadius: 5,
-        backgroundColor: '#4A6B8A',
+        backgroundColor: '#4A6B8A', // Cor de fundo para o pôster da busca, se não tiver imagem
+        justifyContent: 'center', // Para centralizar o ícone se não houver imagem
+        alignItems: 'center', // Para centralizar o ícone se não houver imagem
+    },
+    searchPosterPlaceholder: { // NOVO ESTILO: Placeholder específico para pôsteres na busca (sem imagem)
+        width: 50,
+        height: 75,
+        borderRadius: 5,
+        backgroundColor: '#4A6B8A', // Mesmo background do searchPoster
         justifyContent: 'center',
         alignItems: 'center',
     },

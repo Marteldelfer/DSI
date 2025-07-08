@@ -1,6 +1,6 @@
 // aplicativo/app/telas/ListaPlaylists.tsx
 import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, Pressable, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, Pressable, StyleSheet, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { AntDesign, Feather } from '@expo/vector-icons';
 
@@ -12,12 +12,14 @@ function ListaPlaylistsScreen() {
     const router = useRouter();
     const [playlists, setPlaylists] = useState<Playlist[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     const playlistService = PlaylistService.getInstance();
 
     const fetchPlaylists = useCallback(async () => {
-        setLoading(true);
+        setRefreshing(true);
         try {
+            // CORREÇÃO: Usando getAllUserPlaylists
             const fetchedPlaylists = await playlistService.getAllUserPlaylists();
             setPlaylists(fetchedPlaylists);
         } catch (error) {
@@ -25,6 +27,7 @@ function ListaPlaylistsScreen() {
             Alert.alert("Erro", "Não foi possível carregar suas playlists.");
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     }, [playlistService]);
 
@@ -34,14 +37,26 @@ function ListaPlaylistsScreen() {
         }, [fetchPlaylists])
     );
 
-    const handleDeletePlaylist = (playlistId: string, playlistName: string) => {
+    const onRefresh = useCallback(() => {
+        fetchPlaylists();
+    }, [fetchPlaylists]);
+
+    const handleCreatePlaylist = () => {
+        router.push('/telas/CriarPlaylist');
+    };
+
+    const navigateToPlaylistDetails = (playlistId: string) => {
+        router.push({ pathname: '/telas/DetalhesPlaylist', params: { playlistId } });
+    };
+
+    const handleDeletePlaylist = async (playlistId: string, playlistName: string) => {
         Alert.alert(
             "Excluir Playlist",
             `Tem certeza que deseja excluir a playlist "${playlistName}"?`,
             [
                 { text: "Cancelar", style: "cancel" },
-                {
-                    text: "Excluir",
+                { 
+                    text: "Excluir", 
                     onPress: async () => {
                         try {
                             await playlistService.deletePlaylist(playlistId);
@@ -52,19 +67,18 @@ function ListaPlaylistsScreen() {
                             Alert.alert("Erro", "Não foi possível excluir a playlist.");
                         }
                     },
-                    style: "destructive",
-                },
+                    style: "destructive"
+                }
             ]
         );
     };
     
     const renderPlaylistItem = ({ item }: { item: Playlist }) => (
-        // Cada item agora é um "card" com sombra e borda
         <View style={listStyles.playlistCard}>
             <Pressable
                 style={listStyles.playlistItem}
                 onPress={() => router.push({ pathname: '/telas/DetalhesPlaylist', params: { playlistId: item.id } })}
-                android_ripple={{ color: '#4A6B8A' }} // Efeito de clique para Android
+                android_ripple={{ color: '#4A6B8A' }} 
             >
                 <View style={listStyles.playlistInfo}>
                     <Text style={listStyles.playlistName}>{item.name}</Text>
@@ -143,7 +157,7 @@ const listStyles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingTop: 50,
         paddingBottom: 20,
-        backgroundColor: "#1A2B3E",
+        backgroundColor: 'transparent', // REMOVIDO o background escuro
     },
     headerTitle: {
         color: "#eaeaea",
@@ -156,7 +170,7 @@ const listStyles = StyleSheet.create({
         paddingTop: 15,
         paddingBottom: 120,
     },
-    playlistCard: { // NOVO ESTILO: O contêiner do card
+    playlistCard: { 
         backgroundColor: '#2E3D50',
         borderRadius: 12,
         marginBottom: 15,
@@ -168,7 +182,7 @@ const listStyles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#4A6B8A',
     },
-    playlistItem: { // Conteúdo clicável dentro do card
+    playlistItem: { 
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -189,7 +203,7 @@ const listStyles = StyleSheet.create({
         fontSize: 14,
         marginBottom: 10,
     },
-    playlistDescriptionItalic: { // Estilo para "Sem descrição"
+    playlistDescriptionItalic: { 
         color: '#888',
         fontSize: 14,
         fontStyle: 'italic',

@@ -1,4 +1,3 @@
-// aplicativo/app/telas/DetalhesFilmeTMDB.tsx
 import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, Image, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -10,8 +9,10 @@ import { MovieService } from '../../src/services/MovieService';
 import { Review } from '../../src/models/Review';
 import { ReviewService } from '../../src/services/ReviewService';
 import ComentariosColapsaveis from '../../src/componentes/ComentariosColapsaveis'; 
+// A importação de fetchTmdbMovieDetails não é mais necessária aqui, pois MovieService.getMovieById já a utiliza internamente.
+// import { getMovieDetails as fetchTmdbMovieDetails } from '../../src/api/tmdb'; 
 
-function DetalhesFilmeTMDB() { // Este é o componente principal
+function DetalhesFilmeTMDB() { 
   const router = useRouter();
   const { movieId } = useLocalSearchParams();
   
@@ -41,7 +42,7 @@ function DetalhesFilmeTMDB() { // Este é o componente principal
               const movieToUpdate = await movieService.getMovieById(movie?.id as string);
               if (movieToUpdate) {
                   movieToUpdate.status = null;
-                  await movieService.updateMovie(movieToUpdate); // Usar await
+                  await movieService.updateMovie(movieToUpdate); 
               }
 
             } catch (error) {
@@ -61,13 +62,16 @@ function DetalhesFilmeTMDB() { // Este é o componente principal
         setLoading(true);
         if (typeof movieId === 'string') {
           try {
+            // Agora, dependemos apenas de movieService.getMovieById para buscar o filme,
+            // que internamente cuidará de buscar no Firestore, cache local ou TMDB.
             const foundMovie = await movieService.getMovieById(movieId); 
+            
             if (foundMovie) {
               setMovie(foundMovie);
               const movieReviews = await reviewService.getReviewsByMovieId(foundMovie.id); 
               setReview(movieReviews.length > 0 ? movieReviews[0] : null);
             } else {
-              Alert.alert('Erro', 'Filme não encontrado.');
+              Alert.alert('Erro', 'Filme não encontrado ou detalhes não disponíveis.');
               router.back();
             }
           } catch (error) {
@@ -156,7 +160,7 @@ function DetalhesFilmeTMDB() { // Este é o componente principal
   );
 }
 
-export default DetalhesFilmeTMDB; // Linha importante de exportação
+export default DetalhesFilmeTMDB; 
 
 const detalhesTmdbStyles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 40, paddingBottom: 20, backgroundColor: "#2E3D50" },

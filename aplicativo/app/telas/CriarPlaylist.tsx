@@ -23,7 +23,8 @@ function CriarPlaylistScreen() {
 
         setLoading(true);
         try {
-            await playlistService.createPlaylist(playlistName.trim(), playlistDescription.trim());
+            // CORREÇÃO: Passando um array vazio para movieIds
+            await playlistService.createPlaylist(playlistName.trim(), playlistDescription.trim(), []);
             Alert.alert("Sucesso", "Playlist criada com sucesso!");
             router.back();
         } catch (error) {
@@ -89,7 +90,7 @@ const playlistStyles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingTop: 50,
         paddingBottom: 20,
-        backgroundColor: "#1A2B3E",
+        backgroundColor: 'transparent', // REMOVIDO o background escuro
     },
     headerTitle: {
         color: "#eaeaea",

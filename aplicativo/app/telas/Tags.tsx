@@ -39,6 +39,7 @@ function TagsScreen() {
             }
             setMovie(fetchedMovie);
             
+            // CORREÇÃO: Usando getTagForMovie
             const fetchedTag = await tagService.getTagForMovie(movieId);
             setCurrentTag(fetchedTag);
 
@@ -67,6 +68,7 @@ function TagsScreen() {
             if (currentTag) {
                 await tagService.updateTag(currentTag.id, tagData);
             } else {
+                // CORREÇÃO: Usando createTag com o objeto de dados correto
                 await tagService.createTag(tagData);
             }
             Alert.alert("Sucesso", "Tags salvas!");
@@ -110,7 +112,6 @@ function TagsScreen() {
     
     const renderTagButton = (label: string, value: any, state: any, setState: Function) => (
         <Pressable
-            // CORREÇÃO DA KEY APLICADA AQUI
             key={value}
             style={[tagsStyles.tagButton, state === value && tagsStyles.tagButtonSelected]}
             onPress={() => setState(state === value ? null : value)}
@@ -196,7 +197,17 @@ function TagsScreen() {
 export default TagsScreen;
 
 const tagsStyles = StyleSheet.create({
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 20, backgroundColor: "#1A2B3E", borderBottomWidth: 1, borderBottomColor: '#2E3D50' },
+    header: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'space-between', 
+        paddingHorizontal: 20, 
+        paddingTop: 50, 
+        paddingBottom: 20, 
+        backgroundColor: 'transparent', // REMOVIDO o background escuro
+        borderBottomWidth: 0, // Removido o borderBottomWidth se desejar um visual mais limpo
+        // borderBottomColor: '#2E3D50' // Comente ou remova esta linha se borderBottomWidth for 0
+    },
     headerTitle: { color: "#eaeaea", fontSize: 20, fontWeight: "bold" },
     scrollViewContent: { padding: 20, alignItems: 'center', paddingBottom: 50 },
     movieTitle: { color: '#3E9C9C', fontSize: 22, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' },
