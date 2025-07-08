@@ -1,186 +1,191 @@
 // aplicativo/app/telas/Tags.tsx
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, TextInput, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
 
 import { styles } from '../styles';
-import { Tag } from '../../src/models/Tag'; // Importa o modelo Tag
-import { TagService } from '../../src/services/TagService'; // Importa o TagService
-import { Movie } from '../../src/models/Movie'; // Importa o modelo Movie
-import { MovieService } from '../../src/services/MovieService'; // Importa o MovieService
-
-// Tipos de tags pré-definidos com seus rótulos para exibição
-const predefinedTagTypes = [
-    { type: 'watched_on', label: 'Assisti em' },
-    { type: 'interest_level', label: 'Nível de Interesse' },
-    { type: 're_watch', label: 'Reassistiria?' },
-    { type: 'genre_mood', label: 'Gênero/Humor' },
-];
+import { Movie } from '../../src/models/Movie';
+import { Tag, WatchedStatus, InterestStatus, RewatchStatus } from '../../src/models/Tag';
+import { MovieService } from '../../src/services/MovieService';
+import { TagService } from '../../src/services/TagService';
 
 function TagsScreen() {
     const router = useRouter();
-    const { movieId } = useLocalSearchParams(); // ID do filme para o qual as tags serão gerenciadas
+    const { movieId } = useLocalSearchParams<{ movieId: string }>();
+    
+    const [movie, setMovie] = useState<Movie | null>(null);
+    const [currentTag, setCurrentTag] = useState<Tag | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [isEditMode, setIsEditMode] = useState(false);
 
-    const [movie, setMovie] = useState<Movie | null>(null); // Estado para o filme
-    const [tags, setTags] = useState<Tag[]>([]); // Estado para as tags do filme
-    const [loading, setLoading] = useState(true); // Estado de carregamento
-    const [selectedTagType, setSelectedTagType] = useState<string | null>(null); // Tipo de tag selecionado para adicionar/editar
-    const [tagInputValue, setTagInputValue] = useState(''); // Valor do input da tag
+    // Estados temporários para a edição
+    const [watched, setWatched] = useState<WatchedStatus | null>(null);
+    const [interest, setInterest] = useState<InterestStatus | null>(null);
+    const [rewatch, setRewatch] = useState<RewatchStatus | null>(null);
 
-    const tagService = TagService.getInstance();
     const movieService = MovieService.getInstance();
+    const tagService = TagService.getInstance();
 
-    const fetchMovieAndTags = useCallback(async () => {
+    const loadMovieAndTags = useCallback(async () => {
+        if (!movieId) return;
         setLoading(true);
-        if (movieId && typeof movieId === 'string') {
-            try {
-                // Busca os detalhes do filme
-                const fetchedMovie = await movieService.getMovieById(movieId); // USANDO AWAIT
-                setMovie(fetchedMovie || null);
-
-                // Busca as tags para este filme
-                const fetchedTags = await tagService.getTagsByMovieId(movieId); // USANDO AWAIT
-                setTags(fetchedTags);
-
-            } catch (error) {
-                console.error("Erro ao carregar filme e tags:", error);
-                Alert.alert("Erro", "Não foi possível carregar as informações do filme e suas tags.");
+        try {
+            const fetchedMovie = await movieService.getMovieById(movieId);
+            if (!fetchedMovie) {
+                Alert.alert("Erro", "Filme não encontrado.");
                 router.back();
-            } finally {
-                setLoading(false);
+                return;
             }
-        } else {
-            Alert.alert("Erro", "ID do filme não fornecido.");
-            router.back();
+            setMovie(fetchedMovie);
+            
+            const fetchedTag = await tagService.getTagForMovie(movieId);
+            setCurrentTag(fetchedTag);
+
+            // Prepara o formulário de edição com os dados atuais
+            setWatched(fetchedTag?.watched || null);
+            setInterest(fetchedTag?.interest || null);
+            setRewatch(fetchedTag?.rewatch || null);
+        } catch (error) {
+            console.error("Erro ao carregar dados na tela de Tags:", error);
+            Alert.alert("Erro", "Não foi possível carregar os dados das tags.");
+        } finally {
             setLoading(false);
         }
-    }, [movieId, movieService, tagService]);
+    }, [movieId]);
 
-    useFocusEffect(
-        useCallback(() => {
-            fetchMovieAndTags();
-            // Resetar o estado da seleção de tag e input ao focar na tela
-            setSelectedTagType(null);
-            setTagInputValue('');
-        }, [fetchMovieAndTags])
-    );
+    useFocusEffect(useCallback(() => {
+        loadMovieAndTags();
+    }, [loadMovieAndTags]));
 
-    const handleSelectTagType = (type: string) => {
-        setSelectedTagType(type);
-        // Preenche o input se já existir uma tag desse tipo para o filme
-        const existingTag = tags.find(tag => tag.type === type);
-        setTagInputValue(existingTag ? existingTag.value : '');
-    };
-
-    const handleSaveTag = async () => {
-        if (!selectedTagType || !tagInputValue.trim() || !movieId) {
-            Alert.alert("Erro", "Por favor, selecione um tipo de tag e insira um valor.");
-            return;
-        }
+    const handleSave = async () => {
+        if (!movie) return;
+        setLoading(true);
+        const tagData = { movieId: movie.id, watched, interest, rewatch };
 
         try {
-            // createTag já lida com a lógica de upsert (cria ou atualiza)
-            await tagService.createTag(movieId as string, selectedTagType, tagInputValue.trim()); // USANDO AWAIT
-            Alert.alert("Sucesso", "Tag salva com sucesso!");
-            setTagInputValue(''); // Limpa o input
-            setSelectedTagType(null); // Reseta a seleção
-            fetchMovieAndTags(); // Recarrega as tags para atualizar a lista
+            if (currentTag) {
+                await tagService.updateTag(currentTag.id, tagData);
+            } else {
+                await tagService.createTag(tagData);
+            }
+            Alert.alert("Sucesso", "Tags salvas!");
+            setIsEditMode(false);
+            await loadMovieAndTags();
         } catch (error) {
-            console.error("Erro ao salvar tag:", error);
-            Alert.alert("Erro", "Não foi possível salvar a tag.");
+            console.error("Erro ao salvar tags:", error);
+            Alert.alert("Erro", "Não foi possível salvar as tags.");
+            setLoading(false);
         }
     };
 
-    const handleDeleteTag = async (tagDocId: string) => {
-        Alert.alert("Excluir Tag", "Tem certeza que deseja excluir esta tag?", [
+    const handleDelete = () => {
+        if (!currentTag || !movie) return;
+        Alert.alert("Excluir Tags", `Tem certeza que deseja remover as tags de "${movie.title}"?`, [
             { text: "Cancelar", style: "cancel" },
-            { 
-                text: "Excluir", 
-                onPress: async () => { // USANDO ASYNC
+            {
+                text: "Excluir",
+                onPress: async () => {
+                    setLoading(true);
                     try {
-                        await tagService.deleteTag(tagDocId); // USANDO AWAIT
-                        Alert.alert("Sucesso", "Tag excluída com sucesso!");
-                        fetchMovieAndTags(); // Recarrega as tags
+                        await tagService.deleteTag(currentTag.id);
+                        Alert.alert("Sucesso", "Tags removidas.");
+                        setCurrentTag(null);
+                        setWatched(null); setInterest(null); setRewatch(null);
+                        setIsEditMode(false);
                     } catch (error) {
-                        console.error("Erro ao excluir tag:", error);
-                        Alert.alert("Erro", "Não foi possível excluir a tag.");
+                        Alert.alert("Erro", "Não foi possível remover as tags.");
+                    } finally {
+                        setLoading(false);
                     }
-                }, 
-                style: "destructive" 
-            }
+                },
+                style: "destructive",
+            },
         ]);
     };
-
+    
     if (loading || !movie) {
-        return (
-            <View style={[styles.container, { justifyContent: 'center' }]}>
-                <ActivityIndicator size="large" color="#3E9C9C" />
-                <Text style={{ color: '#eaeaea', marginTop: 10 }}>Carregando tags...</Text>
-            </View>
-        );
+        return <View style={[styles.container, {justifyContent: 'center'}]}><ActivityIndicator size="large" color="#3E9C9C" /></View>;
     }
+    
+    const renderTagButton = (label: string, value: any, state: any, setState: Function) => (
+        <Pressable
+            // CORREÇÃO DA KEY APLICADA AQUI
+            key={value}
+            style={[tagsStyles.tagButton, state === value && tagsStyles.tagButtonSelected]}
+            onPress={() => setState(state === value ? null : value)}
+        >
+            <Text style={tagsStyles.tagButtonText}>{label}</Text>
+        </Pressable>
+    );
 
+    const renderTagSection = (title: string, options: { label: string, value: any }[], state: any, setState: Function) => (
+        <View style={{width: '100%', alignItems: 'center'}}>
+            <Text style={tagsStyles.subSectionTitle}>{title}</Text>
+            <View style={tagsStyles.tagOptionsContainer}>
+                {options.map(opt => renderTagButton(opt.label, opt.value, state, setState))}
+            </View>
+        </View>
+    );
+    
     return (
         <View style={styles.container}>
             <View style={tagsStyles.header}>
-                <Pressable onPress={() => router.back()} style={{ marginRight: 20 }}>
-                    <AntDesign name="arrowleft" size={24} color="#eaeaea" />
-                </Pressable>
-                <Text style={tagsStyles.headerTitle} numberOfLines={1}>Tags para "{movie.title}"</Text>
+                <Pressable onPress={() => router.back()}><AntDesign name="arrowleft" size={24} color="#eaeaea" /></Pressable>
+                <Text style={tagsStyles.headerTitle}>Gerenciar Tags</Text>
+                <View style={{width: 24}} />
             </View>
 
             <ScrollView contentContainerStyle={tagsStyles.scrollViewContent}>
-                {/* Seção de Tags Existentes */}
-                <Text style={tagsStyles.sectionTitle}>Tags Atuais:</Text>
-                {tags.length > 0 ? (
-                    <View style={tagsStyles.tagsContainer}>
-                        {tags.map(tag => (
-                            <View key={tag.id} style={tagsStyles.tagItem}>
-                                <Text style={tagsStyles.tagText}>
-                                    {predefinedTagTypes.find(t => t.type === tag.type)?.label || tag.type}: {tag.value}
-                                </Text>
-                                <Pressable onPress={() => handleDeleteTag(tag.id)} style={tagsStyles.deleteButton}>
-                                    <AntDesign name="closecircle" size={16} color="#FF6347" />
-                                </Pressable>
-                            </View>
-                        ))}
+                <Text style={tagsStyles.movieTitle}>{movie.title}</Text>
+
+                {isEditMode ? (
+                    <View style={tagsStyles.formContainer}>
+                        {renderTagSection("Você assistiu o filme?", [
+                            { label: "Assisti", value: "assistido" },
+                            { label: "Assisti há tempos", value: "assistido_old" },
+                            { label: "Saí no meio", value: "drop" },
+                            { label: "Não assisti", value: "nao_assistido" },
+                        ], watched, setWatched)}
+                        
+                        {renderTagSection("Tem interesse em filmes assim?", [
+                            { label: "Tenho interesse", value: "sim" },
+                            { label: "Não tenho interesse", value: "nao" },
+                        ], interest, setInterest)}
+
+                        {renderTagSection("Você voltaria a assistir?", [
+                            { label: "Sim", value: "sim" },
+                            { label: "Não", value: "nao" },
+                        ], rewatch, setRewatch)}
+
+                        <Pressable style={tagsStyles.saveButton} onPress={handleSave} disabled={loading}>
+                            {loading ? <ActivityIndicator color="black" /> : <Text style={styles.textoBotao}>Salvar Tags</Text>}
+                        </Pressable>
+                        <Pressable style={tagsStyles.cancelButton} onPress={() => setIsEditMode(false)}>
+                            <Text style={tagsStyles.cancelButtonText}>Cancelar</Text>
+                        </Pressable>
                     </View>
                 ) : (
-                    <Text style={tagsStyles.noTagsText}>Nenhuma tag adicionada para este filme ainda.</Text>
-                )}
-
-                {/* Seção Adicionar/Editar Tag */}
-                <Text style={tagsStyles.sectionTitle}>Adicionar/Editar Tag:</Text>
-                <View style={tagsStyles.tagTypeSelector}>
-                    {predefinedTagTypes.map(tagType => (
-                        <Pressable
-                            key={tagType.type}
-                            style={[
-                                tagsStyles.tagTypeButton,
-                                selectedTagType === tagType.type && tagsStyles.tagTypeButtonSelected,
-                            ]}
-                            onPress={() => handleSelectTagType(tagType.type)}
-                        >
-                            <Text style={tagsStyles.tagTypeButtonText}>
-                                {tagType.label}
-                            </Text>
+                    <View style={tagsStyles.viewContainer}>
+                        <Text style={tagsStyles.sectionTitle}>Suas Tags Atuais:</Text>
+                        {currentTag ? (
+                            <View style={tagsStyles.tagsDisplay}>
+                                <Text style={tagsStyles.tagText}>Visualização: <Text style={tagsStyles.tagValue}>{currentTag.watched || "Não definido"}</Text></Text>
+                                <Text style={tagsStyles.tagText}>Interesse: <Text style={tagsStyles.tagValue}>{currentTag.interest || "Não definido"}</Text></Text>
+                                <Text style={tagsStyles.tagText}>Reassistir: <Text style={tagsStyles.tagValue}>{currentTag.rewatch || "Não definido"}</Text></Text>
+                            </View>
+                        ) : (
+                            <Text style={tagsStyles.tagValue}>Nenhuma tag definida para este filme.</Text>
+                        )}
+                        <Pressable style={tagsStyles.editButton} onPress={() => setIsEditMode(true)}>
+                            <Text style={styles.textoBotao}>{currentTag ? 'Editar Tags' : 'Adicionar Tags'}</Text>
                         </Pressable>
-                    ))}
-                </View>
-
-                {selectedTagType && (
-                    <View style={tagsStyles.tagInputContainer}>
-                        <TextInput
-                            style={[styles.input, tagsStyles.tagInputField]}
-                            placeholder={`Valor para '${predefinedTagTypes.find(t => t.type === selectedTagType)?.label || selectedTagType}'...`}
-                            placeholderTextColor={"grey"}
-                            onChangeText={setTagInputValue}
-                            value={tagInputValue}
-                        />
-                        <Pressable style={tagsStyles.saveTagButton} onPress={handleSaveTag}>
-                            <Text style={tagsStyles.saveTagButtonText}>Salvar</Text>
-                        </Pressable>
+                        {currentTag && (
+                             <Pressable style={tagsStyles.deleteButton} onPress={handleDelete}>
+                                <AntDesign name="delete" size={16} color="#FF6347" />
+                                <Text style={tagsStyles.deleteButtonText}>Remover Tags</Text>
+                            </Pressable>
+                        )}
                     </View>
                 )}
             </ScrollView>
@@ -191,112 +196,25 @@ function TagsScreen() {
 export default TagsScreen;
 
 const tagsStyles = StyleSheet.create({
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingTop: 40,
-        paddingBottom: 20,
-        backgroundColor: "#2E3D50",
-    },
-    headerTitle: {
-        color: "#eaeaea",
-        fontSize: 20,
-        fontWeight: "bold",
-        flex: 1,
-        marginLeft: 15,
-    },
-    scrollViewContent: {
-        padding: 20,
-        paddingBottom: 100,
-    },
-    sectionTitle: {
-        color: '#eaeaea',
-        fontSize: 16,
-        fontWeight: 'bold',
-        marginTop: 20,
-        marginBottom: 10,
-    },
-    tagsContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 10,
-        marginBottom: 20,
-    },
-    tagItem: {
-        backgroundColor: '#4A6B8A',
-        borderRadius: 20,
-        paddingVertical: 8,
-        paddingHorizontal: 15,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    tagText: {
-        color: '#eaeaea',
-        fontSize: 14,
-        fontWeight: 'bold',
-    },
-    deleteButton: {
-        padding: 4,
-    },
-    noTagsText: {
-        color: '#b0b0b0',
-        fontSize: 14,
-        marginBottom: 20,
-    },
-    tagTypeSelector: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 10,
-        marginBottom: 15,
-    },
-    tagTypeButton: {
-        backgroundColor: '#1A2B3E',
-        paddingVertical: 10,
-        paddingHorizontal: 15,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#4A6B8A',
-    },
-    tagTypeButtonSelected: {
-        backgroundColor: '#3E9C9C',
-        borderColor: '#3E9C9C',
-    },
-    tagTypeButtonText: {
-        color: '#eaeaea',
-        fontWeight: 'bold',
-        fontSize: 12,
-    },
-    tagInputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 10,
-        backgroundColor: '#1A2B3E',
-        borderRadius: 25,
-        paddingRight: 5,
-        borderWidth: 1,
-        borderColor: '#4A6B8A',
-    },
-    tagInputField: {
-        flex: 1,
-        height: 50,
-        paddingLeft: 15,
-        color: '#eaeaea',
-        fontSize: 16,
-        backgroundColor: 'transparent',
-        borderRadius: 25,
-    },
-    saveTagButton: {
-        backgroundColor: '#3E9C9C',
-        paddingVertical: 8,
-        paddingHorizontal: 15,
-        borderRadius: 20,
-        marginLeft: 10,
-    },
-    saveTagButtonText: {
-        color: 'black',
-        fontWeight: 'bold',
-        fontSize: 14,
-    },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 20, backgroundColor: "#1A2B3E", borderBottomWidth: 1, borderBottomColor: '#2E3D50' },
+    headerTitle: { color: "#eaeaea", fontSize: 20, fontWeight: "bold" },
+    scrollViewContent: { padding: 20, alignItems: 'center', paddingBottom: 50 },
+    movieTitle: { color: '#3E9C9C', fontSize: 22, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' },
+    sectionTitle: { color: '#eaeaea', fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
+    subSectionTitle: { color: '#b0b0b0', fontSize: 16, fontWeight: 'bold', marginTop: 20, marginBottom: 10 },
+    viewContainer: { width: '100%', alignItems: 'center' },
+    tagsDisplay: { backgroundColor: '#2E3D50', borderRadius: 8, padding: 20, width: '100%', marginBottom: 30 },
+    tagText: { color: '#b0b0b0', fontSize: 16, marginBottom: 10 },
+    tagValue: { color: '#eaeaea', fontWeight: 'bold' },
+    editButton: { backgroundColor: '#3E9C9C', paddingVertical: 12, paddingHorizontal: 25, borderRadius: 25, alignItems: 'center' },
+    deleteButton: { flexDirection: 'row', alignItems: 'center', marginTop: 20 },
+    deleteButtonText: { color: '#FF6347', marginLeft: 8, fontSize: 14, fontWeight: '600' },
+    formContainer: { width: '100%', alignItems: 'center' },
+    tagOptionsContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginBottom: 10 },
+    tagButton: { backgroundColor: '#4A6B8A', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20, margin: 5, borderWidth: 2, borderColor: 'transparent' },
+    tagButtonSelected: { borderColor: '#3E9C9C' },
+    tagButtonText: { color: '#eaeaea', fontWeight: 'bold', fontSize: 14 },
+    saveButton: { backgroundColor: '#3E9C9C', paddingVertical: 15, borderRadius: 30, marginTop: 30, width: '80%', alignItems: 'center' },
+    cancelButton: { marginTop: 15, padding: 10 },
+    cancelButtonText: { color: '#888', fontSize: 14 },
 });

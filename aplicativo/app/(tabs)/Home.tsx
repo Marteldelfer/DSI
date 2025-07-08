@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { AntDesign, FontAwesome } from '@expo/vector-icons';
 import { Movie } from '../../src/models/Movie';
 import { MovieService } from '../../src/services/MovieService';
-import { styles } from '../styles';
+import { styles } from '../../app/styles'; // Corrigindo o caminho se necessário
 
 export default function Home() {
     const router = useRouter();
@@ -17,9 +17,9 @@ export default function Home() {
     const [searchResults, setSearchResults] = useState<Movie[]>([]);
     const [isSearching, setIsSearching] = useState(false);
 
-    const loadPopularMovies = useCallback(async () => { // TORNADO ASYNC
+    const loadPopularMovies = useCallback(async () => {
+        setLoading(true);
         try {
-            // USANDO AWAIT para chamar o MovieService, que agora busca status do ReviewService
             const movies = await movieService.getPopularMovies(); 
             setPopularMovies(movies);
         } catch (error) {
@@ -30,14 +30,13 @@ export default function Home() {
         }
     }, [movieService]);
 
-    const handleSearch = useCallback(async (query: string) => { // TORNADO ASYNC
+    const handleSearch = useCallback(async (query: string) => {
         if (!query.trim()) {
             setSearchResults([]);
             return;
         }
         setIsSearching(true);
         try {
-            // USANDO AWAIT para chamar o MovieService, que agora busca status do ReviewService
             const apiResults = await movieService.searchMovies(query); 
             setSearchResults(apiResults);
         } catch (error) {
@@ -71,20 +70,21 @@ export default function Home() {
 
     const renderMovieItem = ({ item }: { item: Movie }) => (
         <Pressable style={homeStyles.card} onPress={() => navigateToMovieDetails(item.id)}>
-            {item.posterUrl ? (
-                <Image source={{ uri: item.posterUrl }} style={homeStyles.poster} />
-            ) : (
-                <View style={homeStyles.posterPlaceholder}>
-                    <Text style={homeStyles.posterText} numberOfLines={3}>{item.title}</Text>
-                </View>
-            )}
-            <Text style={homeStyles.movieTitle} numberOfLines={3}>{item.title}</Text>
-             {/* NOVO: Exibir o status da avaliação no card */}
-             {item.status && (
-                <View style={homeStyles.movieStatusOverlay}>
-                    <AntDesign name={item.status} size={20} color="#FFD700" />
-                </View>
-            )}
+            <View style={homeStyles.posterContainer}>
+                {item.posterUrl ? (
+                    <Image source={{ uri: item.posterUrl }} style={homeStyles.poster} />
+                ) : (
+                    <View style={homeStyles.posterPlaceholder}>
+                        <AntDesign name="videocamera" size={40} color="#eaeaea" />
+                    </View>
+                )}
+                 {item.status && (
+                    <View style={homeStyles.movieStatusOverlay}>
+                        <AntDesign name={item.status} size={20} color="#FFD700" />
+                    </View>
+                )}
+            </View>
+            <Text style={homeStyles.movieTitle} numberOfLines={2}>{item.title}</Text>
         </Pressable>
     );
 
@@ -101,8 +101,7 @@ export default function Home() {
                 <Text style={homeStyles.searchTitle} numberOfLines={2}>{item.title}</Text>
                 <Text style={homeStyles.searchYear}>{item.releaseYear || 'Sem data'}</Text>
             </View>
-            {/* NOVO: Exibir o status da avaliação no item de busca */}
-            {item.status && (
+             {item.status && (
                 <AntDesign name={item.status} size={18} color="#FFD700" style={homeStyles.searchStatusIcon} />
             )}
         </Pressable>
@@ -146,16 +145,24 @@ export default function Home() {
                 <ScrollView>
                     <View style={homeStyles.section}>
                         <Text style={homeStyles.sectionTitle}>Recomendações</Text>
-                        <FlatList
-                            data={popularMovies}
-                            renderItem={renderMovieItem}
-                            keyExtractor={item => item.id}
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                        />
+                        {/* A View com altura fixa abaixo é a chave para a correção */}
+                        <View style={{ height: 280 }}>
+                            <FlatList
+                                data={popularMovies}
+                                renderItem={renderMovieItem}
+                                keyExtractor={item => item.id}
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={{ paddingLeft: 5, paddingRight: 20 }}
+                                ListEmptyComponent={
+                                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', width: 300 }}>
+                                        <Text style={homeStyles.emptyText}>Não foi possível carregar as recomendações.</Text>
+                                    </View>
+                                }
+                            />
+                        </View>
                     </View>
 
-                    {/* Seção de Perfil Cinematográfico */}
                     <View style={homeStyles.section}>
                         <Text style={homeStyles.sectionTitle}>Seu Perfil Cinematográfico</Text>
                         <View style={homeStyles.cinematicProfileContainer}>
@@ -192,7 +199,7 @@ const homeStyles = StyleSheet.create({
         paddingBottom: 10,
     },
     section: {
-        marginBottom: 40, 
+        marginBottom: 20,
     },
     sectionTitle: {
         fontSize: 20,
@@ -204,44 +211,41 @@ const homeStyles = StyleSheet.create({
     card: {
         marginLeft: 15,
         width: 150,
-        height: 270, 
-        justifyContent: 'flex-start', 
-        alignItems: 'center', 
-        position: 'relative', // Para o ícone de status
+    },
+    posterContainer: {
+        width: '100%',
+        height: 225,
+        borderRadius: 10,
+        backgroundColor: '#4A6B8A',
+        position: 'relative',
+        marginBottom: 8,
+        overflow: 'hidden',
     },
     poster: {
         width: '100%',
-        height: 225, 
-        borderRadius: 10,
-        resizeMode: 'cover', 
+        height: '100%',
+        resizeMode: 'cover',
     },
     posterPlaceholder: {
-        flex: 1,
-        backgroundColor: '#4A6B8A',
-        borderRadius: 10,
+        width: '100%',
+        height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 5,
-    },
-    posterText: {
-        color: '#eaeaea',
-        textAlign: 'center',
-        fontSize: 12,
     },
     movieTitle: {
         color: 'white',
         fontSize: 14,
         fontWeight: 'bold',
         textAlign: 'center',
-        marginTop: 5, 
-        width: '100%', 
+        width: '100%',
+        minHeight: 34, // Garante espaço para até 2 linhas
     },
-    movieStatusOverlay: { // NOVO: Estilo para o status no card de filme
+    movieStatusOverlay: {
         position: 'absolute',
-        top: 5,
-        right: 5,
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        padding: 4,
+        top: 8,
+        right: 8,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        padding: 5,
         borderRadius: 15,
         zIndex: 1,
     },
@@ -257,6 +261,8 @@ const homeStyles = StyleSheet.create({
         height: 75,
         borderRadius: 5,
         backgroundColor: '#4A6B8A',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     searchInfo: {
         marginLeft: 15,
@@ -271,7 +277,7 @@ const homeStyles = StyleSheet.create({
         fontSize: 14,
         marginTop: 4,
     },
-    searchStatusIcon: { // NOVO: Estilo para o status no item de busca
+    searchStatusIcon: {
         marginLeft: 10,
     },
     emptyText: {

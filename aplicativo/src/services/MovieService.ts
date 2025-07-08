@@ -252,46 +252,29 @@ export class MovieService { // Removido 'class' aqui pois já existe um 'export 
     }
 
     public async getPopularMovies(): Promise<Movie[]> {
-        const userId = this.getCurrentUserId();
-        if (!userId) return [];
-
+        // Passo 1: Tenta obter os filmes da API TMDB. Esta é a etapa crítica.
+        let tmdbPopularMovies: Movie[];
         try {
-            const tmdbPopularMovies = await getPopularMovies();
-            const moviesWithUserData: Movie[] = [];
-
-            const allUserReviewsMap = new Map<string, MovieStatus>();
-            // CHAMA O NOVO MÉTODO getAllUserReviews() do ReviewService
-            const reviews = await this.reviewService.getAllUserReviews(); 
-            reviews.forEach(r => {
-                if (r.reviewType === 'like') allUserReviewsMap.set(r.movieId, 'like2');
-                else if (r.reviewType === 'dislike') allUserReviewsMap.set(r.movieId, 'dislike2');
-                else if (r.reviewType === 'favorite') allUserReviewsMap.set(r.movieId, 'staro');
-            });
-
-            for (const movie of tmdbPopularMovies) {
-                this.addTmdbMovieToCache(movie);
-                const movieCopy = new Movie({ ...movie }); // Cria uma nova instância para modificação
-
-                movieCopy.status = allUserReviewsMap.get(movie.id) || null;
-                moviesWithUserData.push(movieCopy);
-            }
-            return moviesWithUserData;
+            tmdbPopularMovies = await getPopularMovies(); // Função do tmdb.ts
         } catch (error) {
-            console.error("Erro ao buscar filmes populares TMDB:", error);
-            return [];
+            console.error("ERRO CRÍTICO: Falha ao buscar filmes populares da API TMDB.", error);
+            return []; // Se a API principal falhar, retorna uma lista vazia.
         }
-    }
 
-    public async searchMovies(query: string): Promise<Movie[]> {
+        // Cacheia os filmes obtidos com sucesso.
+        for (const movie of tmdbPopularMovies) {
+            this.addTmdbMovieToCache(movie);
+        }
+
+        // Passo 2: Tenta, de forma segura, enriquecer os filmes com os dados do usuário.
         const userId = this.getCurrentUserId();
-        if (!userId) return [];
+        if (!userId) {
+            // Se o usuário não estiver logado, retorna os filmes sem status, o que é o esperado.
+            return tmdbPopularMovies;
+        }
 
         try {
-            const tmdbSearchResults = await searchTmdbMovies(query);
-            const moviesWithUserData: Movie[] = [];
-
             const allUserReviewsMap = new Map<string, MovieStatus>();
-            // CHAMA O NOVO MÉTODO getAllUserReviews() do ReviewService
             const reviews = await this.reviewService.getAllUserReviews();
             reviews.forEach(r => {
                 if (r.reviewType === 'like') allUserReviewsMap.set(r.movieId, 'like2');
@@ -299,17 +282,62 @@ export class MovieService { // Removido 'class' aqui pois já existe um 'export 
                 else if (r.reviewType === 'favorite') allUserReviewsMap.set(r.movieId, 'staro');
             });
 
-            for (const movie of tmdbSearchResults) {
-                this.addTmdbMovieToCache(movie);
+            // Retorna a lista de filmes com os status aplicados.
+            const moviesWithUserData = tmdbPopularMovies.map(movie => {
                 const movieCopy = new Movie({ ...movie });
-
                 movieCopy.status = allUserReviewsMap.get(movie.id) || null;
-                moviesWithUserData.push(movieCopy);
-            }
+                return movieCopy;
+            });
             return moviesWithUserData;
+
         } catch (error) {
-            console.error("Erro ao buscar filmes TMDB:", error);
+            console.warn("AVISO: Falha ao buscar avaliações do usuário. Exibindo filmes sem status.", error);
+            // Se a busca de avaliações falhar, AINDA RETORNA OS FILMES. Este é o ponto chave da correção.
+            return tmdbPopularMovies;
+        }
+    }
+
+   public async searchMovies(query: string): Promise<Movie[]> {
+        // Passo 1: Busca na API TMDB.
+        let tmdbSearchResults: Movie[];
+        try {
+            tmdbSearchResults = await searchTmdbMovies(query);
+        } catch (error) {
+            console.error(`ERRO CRÍTICO: Falha ao buscar por "${query}" na API TMDB.`, error);
             return [];
+        }
+
+        // Cacheia os resultados.
+        for (const movie of tmdbSearchResults) {
+            this.addTmdbMovieToCache(movie);
+        }
+
+        // Passo 2: Tenta enriquecer com dados do usuário.
+        const userId = this.getCurrentUserId();
+        if (!userId) {
+            return tmdbSearchResults;
+        }
+
+        try {
+            const allUserReviewsMap = new Map<string, MovieStatus>();
+            const reviews = await this.reviewService.getAllUserReviews();
+            reviews.forEach(r => {
+                if (r.reviewType === 'like') allUserReviewsMap.set(r.movieId, 'like2');
+                else if (r.reviewType === 'dislike') allUserReviewsMap.set(r.movieId, 'dislike2');
+                else if (r.reviewType === 'favorite') allUserReviewsMap.set(r.movieId, 'staro');
+            });
+
+            const moviesWithUserData = tmdbSearchResults.map(movie => {
+                const movieCopy = new Movie({ ...movie });
+                movieCopy.status = allUserReviewsMap.get(movie.id) || null;
+                return movieCopy;
+            });
+            return moviesWithUserData;
+
+        } catch (error) {
+            console.warn(`AVISO: Falha ao buscar avaliações para a busca "${query}".`, error);
+            // Se falhar, retorna os resultados da busca sem os status.
+            return tmdbSearchResults;
         }
     }
 
