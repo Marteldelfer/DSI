@@ -6,40 +6,10 @@ import { AntDesign, Ionicons } from '@expo/vector-icons';
 import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 
 import { styles } from '../styles';
-import { Movie, MovieStatus } from '../../src/models/Movie'; // Importa o modelo Movie original e MovieStatus
+import { Movie, MovieStatus } from '../../src/models/Movie'; 
 import { MovieService } from '../../src/services/MovieService';
-import { Tag, WatchedStatus, InterestStatus, RewatchStatus } from '../../src/models/Tag'; // Importe Tag e os enums
-import { TagService } from '../../src/services/TagService'; // Importe TagService
 
-// Estende o tipo Movie para incluir a propriedade 'tag'
-interface MovieWithTag extends Movie {
-    tag: Tag | null;
-}
 
-// Mapeamentos para os rótulos de exibição das tags (repetido de Tags.tsx para consistência)
-const watchedStatusLabels: Record<WatchedStatus, string> = {
-    'assistido': 'Assisti',
-    'assistido_old': 'Assisti faz tempo',
-    'drop': 'Saí no meio',
-    'nao_assistido': 'Não Assisti',
-};
-
-const interestStatusLabels: Record<InterestStatus, string> = {
-    'sim': 'Tenho interesse',
-    'nao': 'Não tenho interesse',
-};
-
-const rewatchStatusLabels: Record<RewatchStatus, string> = {
-    'sim': 'Voltaria',
-    'nao': 'Não voltaria',
-};
-
-// Adiciona uma opção "Todos" para os filtros de tags
-const allWatchedOptions = [{ value: null, label: 'Todos' }, ...Object.entries(watchedStatusLabels).map(([value, label]) => ({ value: value as WatchedStatus, label }))];
-const allInterestOptions = [{ value: null, label: 'Todos' }, ...Object.entries(interestStatusLabels).map(([value, label]) => ({ value: value as InterestStatus, label }))];
-const allRewatchOptions = [{ value: null, label: 'Todos' }, ...Object.entries(rewatchStatusLabels).map(([value, label]) => ({ value: value as RewatchStatus, label }))];
-
-// Tipos para os filtros antigos
 type MovieSourceFilter = 'all' | 'external' | 'app_db';
 type ReviewStatusFilter = MovieStatus | 'all';
 
@@ -47,27 +17,19 @@ type ReviewStatusFilter = MovieStatus | 'all';
 function MeusFilmesScreen() {
     const router = useRouter();
     const [currentUser, setCurrentUser] = useState<User | null>(null);
-    const [allMovies, setAllMovies] = useState<MovieWithTag[]>([]); // Todos os filmes do usuário com tags
-    const [filteredMovies, setFilteredMovies] = useState<MovieWithTag[]>([]); // Filmes após aplicar filtros
+    const [allMovies, setAllMovies] = useState<Movie[]>([]); 
+    const [filteredMovies, setFilteredMovies] = useState<Movie[]>([]); 
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [showFilters, setShowFilters] = useState(false); // Estado para controlar a visibilidade dos filtros
+    const [showFilters, setShowFilters] = useState(false); 
 
-    // Estados para os filtros de tags
-    const [watchedFilter, setWatchedFilter] = useState<WatchedStatus | null>(null);
-    const [interestFilter, setInterestFilter] = useState<InterestStatus | null>(null);
-    const [rewatchFilter, setRewatchFilter] = useState<RewatchStatus | null>(null);
-
-    // Estados para os filtros antigos
     const [sourceFilter, setSourceFilter] = useState<MovieSourceFilter>('all');
     const [statusFilter, setStatusFilter] = useState<ReviewStatusFilter>('all');
 
 
     const movieService = MovieService.getInstance();
-    const tagService = TagService.getInstance(); // Instância do TagService
     const auth = getAuth();
 
-    // Monitora o estado de autenticação do usuário
     useFocusEffect(
         useCallback(() => {
             const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -83,97 +45,50 @@ function MeusFilmesScreen() {
         }, [auth, router])
     );
 
-    // Função para carregar filmes e tags
     const loadMovies = useCallback(async () => {
-        console.log("MeusFilmesScreen: loadMovies - currentUser:", currentUser?.uid);
         if (!currentUser) {
             setLoading(false);
             return;
         }
         setLoading(true);
         try {
-            // Usando getFilteredAndRatedMovies com filtros 'all' para obter todos os filmes do usuário
             const userMovies = await movieService.getFilteredAndRatedMovies('all', 'all');
-            const userTags = await tagService.getAllUserTags(); // Busca todas as tags do usuário
-
-            // Mapeia tags por movieId para acesso rápido
-            const tagsByMovieId = new Map<string, Tag>();
-            userTags.forEach(tag => {
-                tagsByMovieId.set(tag.movieId, tag);
-            });
-
-            // Adiciona a tag correspondente a cada filme
-            const moviesWithTags: MovieWithTag[] = userMovies.map(movie => ({
-                ...movie,
-                tag: tagsByMovieId.get(movie.id) || null // Adiciona a tag ao objeto do filme
-            }));
-
-            setAllMovies(moviesWithTags);
+            
+            setAllMovies(userMovies); 
         } catch (error) {
             console.error("MeusFilmesScreen: Erro ao carregar filmes:", error);
             Alert.alert("Erro", "Não foi possível carregar seus filmes.");
         } finally {
             setLoading(false);
         }
-    }, [currentUser, movieService, tagService]);
+    }, [currentUser, movieService]); 
 
-    // Aplica os filtros (pesquisa e tags)
     useEffect(() => {
         let currentFiltered = allMovies;
 
-        // Filtro por pesquisa
         if (searchQuery) {
             const lowerCaseQuery = searchQuery.toLowerCase();
             currentFiltered = currentFiltered.filter(movie =>
-                // Usando movie.title e movie.genre (singular)
                 movie.title.toLowerCase().includes(lowerCaseQuery) ||
                 (movie.genre && movie.genre.toLowerCase().includes(lowerCaseQuery))
             );
         }
 
-        // Filtro por fonte do filme (antigo)
         if (sourceFilter !== 'all') {
             currentFiltered = currentFiltered.filter(movie => {
                 if (sourceFilter === 'external') return movie.isExternal;
                 if (sourceFilter === 'app_db') return movie.isTmdb;
-                return true; // Deveria ser 'all' se chegasse aqui, mas para segurança
+                return true; 
             });
         }
 
-        // Filtro por avaliação (antigo)
         if (statusFilter !== 'all') {
             currentFiltered = currentFiltered.filter(movie => movie.status === statusFilter);
         }
 
-
-        // Filtro por tags
-        currentFiltered = currentFiltered.filter(movie => {
-            const tag = movie.tag; // Acessa a tag diretamente do objeto movie
-            
-            // Se o filme não tem tag e algum filtro de tag está ativo (não nulo), ele não deve ser incluído
-            if (!tag && (watchedFilter !== null || interestFilter !== null || rewatchFilter !== null)) {
-                return false;
-            }
-
-            // Verifica o filtro de assistido
-            if (watchedFilter !== null && tag?.watched !== watchedFilter) {
-                return false;
-            }
-            // Verifica o filtro de interesse
-            if (interestFilter !== null && tag?.interest !== interestFilter) {
-                return false;
-            }
-            // Verifica o filtro de reassistir
-            if (rewatchFilter !== null && tag?.rewatch !== rewatchFilter) {
-                return false;
-            }
-            return true;
-        });
-
         setFilteredMovies(currentFiltered);
-    }, [allMovies, searchQuery, watchedFilter, interestFilter, rewatchFilter, sourceFilter, statusFilter]); // Adicionado sourceFilter e statusFilter
+    }, [allMovies, searchQuery, sourceFilter, statusFilter]); 
 
-    // Carrega filmes quando o usuário autentica ou a tela é focada
     useFocusEffect(
         useCallback(() => {
             if (currentUser) {
@@ -182,8 +97,7 @@ function MeusFilmesScreen() {
         }, [currentUser, loadMovies])
     );
 
-    const handleMoviePress = (movie: MovieWithTag) => {
-        // Navega para a tela de detalhes correta com base no tipo de filme
+    const handleMoviePress = (movie: Movie) => { 
         if (movie.isTmdb) {
             router.push({ pathname: `/telas/DetalhesFilmeTMDB`, params: { movieId: movie.id } });
         } else if (movie.isExternal) {
@@ -193,13 +107,14 @@ function MeusFilmesScreen() {
         }
     };
 
+    const navigateToTags = (movieId: string) => {
+        router.push({ pathname: '/telas/Tags', params: { movieId: movieId } });
+    };
+
     const clearFilters = () => {
         setSearchQuery('');
-        setWatchedFilter(null);
-        setInterestFilter(null);
-        setRewatchFilter(null);
-        setSourceFilter('all'); // Resetar filtro de fonte
-        setStatusFilter('all'); // Resetar filtro de avaliação
+        setSourceFilter('all'); 
+        setStatusFilter('all'); 
     };
 
     if (loading || !currentUser) {
@@ -235,11 +150,15 @@ function MeusFilmesScreen() {
                 </Pressable>
             </View>
 
-            {/* Botão MINHAS PLAYLISTS - Posicionado abaixo da barra de busca/filtros */}
-            <Pressable style={meusFilmesStyles.playlistButton} onPress={() => router.push('/telas/ListaPlaylists')}>
-                <AntDesign name="menufold" size={20} color="black" style={{marginRight: 10}}/>
-                <Text style={styles.textoBotao}>MINHAS PLAYLISTS</Text>
-            </Pressable>
+            {/* Botões de Ação */}
+            <View style={meusFilmesStyles.actionButtonsContainer}>
+                {/* Botão MINHAS PLAYLISTS */}
+                <Pressable style={meusFilmesStyles.actionButton} onPress={() => router.push('/telas/ListaPlaylists')}>
+                    <AntDesign name="menufold" size={20} color="black" style={{marginRight: 10}}/>
+                    <Text style={styles.textoBotao}>MINHAS PLAYLISTS</Text>
+                </Pressable>
+            </View>
+
 
             {showFilters && (
                 <ScrollView style={meusFilmesStyles.filtersContainer} contentContainerStyle={meusFilmesStyles.filtersContent}>
@@ -295,56 +214,7 @@ function MeusFilmesScreen() {
                         </Pressable>
                     </View>
 
-                    {/* Filtros de Tags */}
-                    <Text style={meusFilmesStyles.filterSectionTitle}>Status de Visualização (Tags):</Text>
-                    <View style={meusFilmesStyles.filterOptionsRow}>
-                        {allWatchedOptions.map(option => (
-                            <Pressable
-                                key={option.label}
-                                style={[
-                                    meusFilmesStyles.filterOptionButton,
-                                    watchedFilter === option.value && meusFilmesStyles.filterOptionButtonSelected
-                                ]}
-                                onPress={() => setWatchedFilter(option.value)}
-                            >
-                                <Text style={meusFilmesStyles.filterOptionText}>{option.label}</Text>
-                            </Pressable>
-                        ))}
-                    </View>
-
-                    <Text style={meusFilmesStyles.filterSectionTitle}>Interesse (Tags):</Text>
-                    <View style={meusFilmesStyles.filterOptionsRow}>
-                        {allInterestOptions.map(option => (
-                            <Pressable
-                                key={option.label}
-                                style={[
-                                    meusFilmesStyles.filterOptionButton,
-                                    interestFilter === option.value && meusFilmesStyles.filterOptionButtonSelected
-                                ]}
-                                onPress={() => setInterestFilter(option.value)}
-                            >
-                                <Text style={meusFilmesStyles.filterOptionText}>{option.label}</Text>
-                            </Pressable>
-                        ))}
-                    </View>
-
-                    <Text style={meusFilmesStyles.filterSectionTitle}>Reassistir (Tags):</Text>
-                    <View style={meusFilmesStyles.filterOptionsRow}>
-                        {allRewatchOptions.map(option => (
-                            <Pressable
-                                key={option.label}
-                                style={[
-                                    meusFilmesStyles.filterOptionButton,
-                                    rewatchFilter === option.value && meusFilmesStyles.filterOptionButtonSelected
-                                ]}
-                                onPress={() => setRewatchFilter(option.value)}
-                            >
-                                <Text style={meusFilmesStyles.filterOptionText}>{option.label}</Text>
-                            </Pressable>
-                        ))}
-                    </View>
-
-                    {(watchedFilter !== null || interestFilter !== null || rewatchFilter !== null || searchQuery !== '' || sourceFilter !== 'all' || statusFilter !== 'all') && (
+                    {(searchQuery !== '' || sourceFilter !== 'all' || statusFilter !== 'all') && ( 
                         <Pressable style={meusFilmesStyles.clearFiltersButton} onPress={clearFilters}>
                             <Text style={styles.textoBotao}>Limpar Filtros</Text>
                         </Pressable>
@@ -362,32 +232,36 @@ function MeusFilmesScreen() {
                         style={meusFilmesStyles.movieCard}
                         onPress={() => handleMoviePress(movie)}
                     >
-                        <Image
-                            source={{ uri: movie.posterUrl || 'https://placehold.co/90x135/2E3D50/eaeaea?text=Sem+Poster' }}
-                            style={meusFilmesStyles.moviePoster}
-                        />
+                        {movie.posterUrl ? (
+                            <Image
+                                source={{ uri: movie.posterUrl }}
+                                style={meusFilmesStyles.moviePoster}
+                            />
+                        ) : (
+                            <View style={meusFilmesStyles.genericPosterPlaceholder}>
+                                <Text style={meusFilmesStyles.genericPosterText} numberOfLines={3}>
+                                    {movie.title}
+                                    {movie.releaseYear && ` (${movie.releaseYear})`}
+                                </Text>
+                            </View>
+                        )}
                         <View style={meusFilmesStyles.movieInfo}>
                             <Text style={meusFilmesStyles.movieTitle}>{movie.title}</Text>
                             <Text style={meusFilmesStyles.movieYear}>{movie.releaseYear || 'Ano Desconhecido'}</Text>
-                            {movie.tag && ( // Exibe as tags se existirem
-                                <View style={meusFilmesStyles.movieTagsContainer}>
-                                    {movie.tag.watched && (
-                                        <Text style={meusFilmesStyles.movieTag}>
-                                            {watchedStatusLabels[movie.tag.watched]}
-                                        </Text>
-                                    )}
-                                    {movie.tag.interest && (
-                                        <Text style={meusFilmesStyles.movieTag}>
-                                            {interestStatusLabels[movie.tag.interest]}
-                                        </Text>
-                                    )}
-                                    {movie.tag.rewatch && (
-                                        <Text style={meusFilmesStyles.movieTag}>
-                                            {rewatchStatusLabels[movie.tag.rewatch]}
-                                        </Text>
-                                    )}
-                                </View>
+                            {/* Exibição do status do filme (like, dislike, favorite) */}
+                            {movie.status && (
+                                <AntDesign 
+                                    name={movie.status} 
+                                    size={20} 
+                                    color="#FFD700" 
+                                    style={meusFilmesStyles.movieStatusIcon} 
+                                />
                             )}
+                            {/* Botão de Tags por filme */}
+                            <Pressable style={meusFilmesStyles.tagButtonPerMovie} onPress={() => navigateToTags(movie.id)}>
+                                <AntDesign name="tags" size={18} color="#eaeaea" />
+                                <Text style={meusFilmesStyles.tagButtonPerMovieText}>Tags</Text>
+                            </Pressable>
                         </View>
                     </Pressable>
                 ))}
@@ -453,22 +327,29 @@ const meusFilmesStyles = StyleSheet.create({
         height: 45,
         width: 45,
     },
-    playlistButton: { // Estilo para o botão Minhas Playlists
+    actionButtonsContainer: { 
+        flexDirection: 'row',
+        justifyContent: 'space-around', 
+        paddingHorizontal: 20,
+        marginBottom: 15,
+        width: '100%',
+    },
+    actionButton: { 
         backgroundColor: "#3E9C9C", 
-        padding: 12, 
+        paddingVertical: 12, 
+        paddingHorizontal: 15, 
         borderRadius: 26, 
         flexDirection: 'row', 
         alignItems: 'center', 
         justifyContent: 'center',
-        marginTop: 5,
-        marginBottom: 15, // Espaçamento após o botão
-        marginHorizontal: 20,
+        flex: 1, 
+        marginHorizontal: 5, 
     },
     filtersContainer: {
         width: '100%',
         paddingHorizontal: 20,
         marginBottom: 15,
-        maxHeight: 300, // Limita a altura para que a tela não fique muito longa
+        maxHeight: 300, 
     },
     filtersContent: {
         paddingBottom: 10,
@@ -515,7 +396,7 @@ const meusFilmesStyles = StyleSheet.create({
     },
     scrollViewContent: {
         paddingHorizontal: 20,
-        paddingBottom: 100, // Garante espaço para o conteúdo rolante
+        paddingBottom: 100, 
     },
     movieCard: {
         flexDirection: 'row',
@@ -530,6 +411,23 @@ const meusFilmesStyles = StyleSheet.create({
         height: 135,
         borderRadius: 8,
         margin: 10,
+        resizeMode: 'cover', 
+    },
+    genericPosterPlaceholder: { 
+        width: 90,
+        height: 135,
+        borderRadius: 8,
+        margin: 10,
+        backgroundColor: '#1A2B3E', 
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 5, 
+    },
+    genericPosterText: { 
+        color: '#eaeaea',
+        fontSize: 12, 
+        fontWeight: 'bold',
+        textAlign: 'center',
     },
     movieInfo: {
         flex: 1,
@@ -546,20 +444,30 @@ const meusFilmesStyles = StyleSheet.create({
         color: '#b0b0b0',
         fontSize: 14,
     },
-    movieTagsContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        marginTop: 5,
+    movieStatusIcon: { 
+        position: 'absolute', 
+        top: 10, 
+        right: 10, 
+        backgroundColor: 'rgba(0,0,0,0.5)', 
+        borderRadius: 15,
+        padding: 5,
+        zIndex: 1,
     },
-    movieTag: {
-        backgroundColor: '#3E9C9C',
-        color: '#fff',
+    tagButtonPerMovie: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#4A6B8A',
+        borderRadius: 15,
+        paddingVertical: 5,
+        paddingHorizontal: 10,
+        marginTop: 5,
+        alignSelf: 'flex-start',
+    },
+    tagButtonPerMovieText: {
+        color: '#eaeaea',
         fontSize: 12,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 10,
-        marginRight: 5,
-        marginBottom: 5,
+        marginLeft: 5,
+        fontWeight: 'bold',
     },
     noMoviesText: {
         color: '#b0b0b0',
@@ -567,7 +475,7 @@ const meusFilmesStyles = StyleSheet.create({
         textAlign: 'center',
         marginTop: 50,
     },
-    addExternalMovieButton: { // Estilo para o botão flutuante de adicionar filme
+    addExternalMovieButton: {
         position: 'absolute',
         bottom: 30,
         right: 20,
@@ -577,7 +485,7 @@ const meusFilmesStyles = StyleSheet.create({
         elevation: 8,
         zIndex: 10,
     },
-    addExternalMovieButtonText: { // NOVO ESTILO: Texto do botão flutuante
+    addExternalMovieButtonText: {
         color: 'black',
         fontSize: 16,
         fontWeight: 'bold',

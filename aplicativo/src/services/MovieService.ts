@@ -22,7 +22,7 @@ import { TagService } from './TagService';
 
 let localTmdbMovieCache: Map<string, Movie> = new Map();
 
-export class MovieService { // Removido 'class' aqui pois já existe um 'export class'
+export class MovieService { 
     private static instance: MovieService;
     private db = getFirestore(app);
 
@@ -51,20 +51,17 @@ export class MovieService { // Removido 'class' aqui pois já existe um 'export 
     }
 
     public addTmdbMovieToCache(movie: Movie): void {
-        // Quando um filme TMDB é adicionado ao cache, ele deve ser uma cópia,
-        // e seu status (se já avaliado pelo usuário) deve ser mantido/atualizado.
-        // A lógica de preencher o status para TMDBMovies agora está em getMovieById, getPopularMovies, searchMovies.
         localTmdbMovieCache.set(movie.id, movie);
     }
 
     public async createExternalMovie(movieData: {
         title: string;
-        overview?: string | null; // Alterado para aceitar null
-        releaseYear?: string | null; // Alterado para aceitar null
-        genre?: string | null; // Alterado para aceitar null
-        duration?: number | null; // Alterado para aceitar null
-        posterUrl?: string | null; // Alterado para aceitar null
-        director?: string | null; // Adicionado para consistência
+        overview?: string | null; 
+        releaseYear?: string | null; 
+        genre?: string | null; 
+        duration?: number | null; 
+        posterUrl?: string | null; 
+        director?: string | null; 
     }): Promise<Movie> {
         const userId = this.getCurrentUserId();
         if (!userId) {
@@ -79,11 +76,11 @@ export class MovieService { // Removido 'class' aqui pois já existe um 'export 
             genre: movieData.genre ?? null,
             duration: movieData.duration ?? null,
             posterUrl: movieData.posterUrl ?? null,
-            backdropUrl: null, // Filmes externos geralmente não têm backdrop
-            director: movieData.director ?? null, // Adicionado
+            backdropUrl: null, 
+            director: movieData.director ?? null, 
             isExternal: true,
             isTmdb: false,
-            tmdbId: null, // Para filmes externos não há tmdbId
+            tmdbId: null, 
         };
 
         try {
@@ -118,14 +115,12 @@ export class MovieService { // Removido 'class' aqui pois já existe um 'export 
                     genre: updatedMovie.genre,
                     duration: updatedMovie.duration,
                     posterUrl: updatedMovie.posterUrl,
-                    backdropUrl: updatedMovie.backdropUrl, // Incluído
-                    director: updatedMovie.director, // Incluído
-                    // isExternal, isTmdb, tmdbId não devem ser alterados na atualização
+                    backdropUrl: updatedMovie.backdropUrl, 
+                    director: updatedMovie.director, 
                 };
                 await updateDoc(movieRef, dataToUpdate);
                 console.log("Filme externo atualizado no Firestore:", updatedMovie.id);
             } else if (updatedMovie.isTmdb) {
-                // Para filmes TMDB, apenas atualiza o cache local (status/tags são gerenciados pelos respectivos serviços)
                 this.addTmdbMovieToCache(updatedMovie); 
                 console.log("Filme TMDB atualizado no cache local:", updatedMovie.id);
             } else {
@@ -156,9 +151,6 @@ export class MovieService { // Removido 'class' aqui pois já existe um 'export 
                 for (const review of reviewsToDelete) {
                     await this.reviewService.deleteReview(review.id); 
                 }
-                // Implementar lógica similar para Tags quando TagService for atualizado (TagService.deleteTagsByMovieId(movieId))
-                // (Este método precisaria ser criado no TagService)
-
                 localTmdbMovieCache.delete(movieId);
 
                 return true;
@@ -240,9 +232,6 @@ export class MovieService { // Removido 'class' aqui pois já existe um 'export 
                 } else {
                     movie.status = null;
                 }
-                // // Preenche as tags do usuário (quando TagService for Firestore-based)
-                // const tags = await this.tagService.getTagsByMovieId(movie.id); // Este método precisa existir
-                // movie.tags = tags; // Supondo que Movie tenha uma propriedade 'tags'
             } catch (error) {
                 console.error(`Erro ao buscar status/tags para o filme ${movie.id}:`, error);
             }
@@ -252,24 +241,20 @@ export class MovieService { // Removido 'class' aqui pois já existe um 'export 
     }
 
     public async getPopularMovies(): Promise<Movie[]> {
-        // Passo 1: Tenta obter os filmes da API TMDB. Esta é a etapa crítica.
         let tmdbPopularMovies: Movie[];
         try {
-            tmdbPopularMovies = await getPopularMovies(); // Função do tmdb.ts
+            tmdbPopularMovies = await getPopularMovies(); 
         } catch (error) {
             console.error("ERRO CRÍTICO: Falha ao buscar filmes populares da API TMDB.", error);
-            return []; // Se a API principal falhar, retorna uma lista vazia.
+            return [];
         }
 
-        // Cacheia os filmes obtidos com sucesso.
         for (const movie of tmdbPopularMovies) {
             this.addTmdbMovieToCache(movie);
         }
 
-        // Passo 2: Tenta, de forma segura, enriquecer os filmes com os dados do usuário.
         const userId = this.getCurrentUserId();
         if (!userId) {
-            // Se o usuário não estiver logado, retorna os filmes sem status, o que é o esperado.
             return tmdbPopularMovies;
         }
 
@@ -282,7 +267,6 @@ export class MovieService { // Removido 'class' aqui pois já existe um 'export 
                 else if (r.reviewType === 'favorite') allUserReviewsMap.set(r.movieId, 'staro');
             });
 
-            // Retorna a lista de filmes com os status aplicados.
             const moviesWithUserData = tmdbPopularMovies.map(movie => {
                 const movieCopy = new Movie({ ...movie });
                 movieCopy.status = allUserReviewsMap.get(movie.id) || null;
@@ -292,13 +276,11 @@ export class MovieService { // Removido 'class' aqui pois já existe um 'export 
 
         } catch (error) {
             console.warn("AVISO: Falha ao buscar avaliações do usuário. Exibindo filmes sem status.", error);
-            // Se a busca de avaliações falhar, AINDA RETORNA OS FILMES. Este é o ponto chave da correção.
             return tmdbPopularMovies;
         }
     }
 
    public async searchMovies(query: string): Promise<Movie[]> {
-        // Passo 1: Busca na API TMDB.
         let tmdbSearchResults: Movie[];
         try {
             tmdbSearchResults = await searchTmdbMovies(query);
@@ -307,12 +289,10 @@ export class MovieService { // Removido 'class' aqui pois já existe um 'export 
             return [];
         }
 
-        // Cacheia os resultados.
         for (const movie of tmdbSearchResults) {
             this.addTmdbMovieToCache(movie);
         }
 
-        // Passo 2: Tenta enriquecer com dados do usuário.
         const userId = this.getCurrentUserId();
         if (!userId) {
             return tmdbSearchResults;
@@ -336,7 +316,6 @@ export class MovieService { // Removido 'class' aqui pois já existe um 'export 
 
         } catch (error) {
             console.warn(`AVISO: Falha ao buscar avaliações para a busca "${query}".`, error);
-            // Se falhar, retorna os resultados da busca sem os status.
             return tmdbSearchResults;
         }
     }
@@ -348,18 +327,20 @@ export class MovieService { // Removido 'class' aqui pois já existe um 'export 
         const userId = this.getCurrentUserId();
         if (!userId) return [];
 
-        let allMovies: Movie[] = [];
+        let allMoviesCollection: Movie[] = [];
         
-        // Otimização: Buscar todas as reviews do usuário de uma vez
+        // 1. Obter todas as avaliações do usuário para identificar filmes avaliados
         const allUserReviewsMap = new Map<string, MovieStatus>();
-        const reviews = await this.reviewService.getAllUserReviews(); // NOVO MÉTODO NECESSÁRIO NO ReviewService
+        const reviews = await this.reviewService.getAllUserReviews();
         reviews.forEach(r => {
             if (r.reviewType === 'like') allUserReviewsMap.set(r.movieId, 'like2');
             else if (r.reviewType === 'dislike') allUserReviewsMap.set(r.movieId, 'dislike2');
             else if (r.reviewType === 'favorite') allUserReviewsMap.set(r.movieId, 'staro');
         });
 
-        // 1. Obter filmes externos do Firestore
+        const movieIdsWithReviews = Array.from(allUserReviewsMap.keys());
+
+        // 2. Coletar filmes externos (Firebase) e preencher status
         if (sourceFilter === 'all' || sourceFilter === 'external') {
             try {
                 const q = query(this.getUserExternalMoviesCollection(userId));
@@ -381,26 +362,47 @@ export class MovieService { // Removido 'class' aqui pois já existe um 'export 
                         isTmdb: false,
                         status: allUserReviewsMap.get(docSnap.id) || null, // Preenche status
                     });
-                    allMovies.push(movie);
+                    allMoviesCollection.push(movie);
                 });
             } catch (error) {
                 console.error("Erro ao buscar filmes externos do Firestore:", error);
             }
         }
 
-        // 2. Obter filmes TMDB do cache local que o usuário interagiu
+        // 3. Proativamente buscar e cachear detalhes de filmes TMDB avaliados que não estão no cache local
+        const tmdbMovieIdsToFetch = movieIdsWithReviews.filter(movieId => 
+            !movieId.startsWith('ext-') && !localTmdbMovieCache.has(movieId) // Verifica se é TMDB e não está no cache
+        );
+        
+        const fetchedTmdbMoviesPromises = tmdbMovieIdsToFetch.map(async id => {
+            try {
+                const movie = await getMovieDetails(id);
+                if (movie) {
+                    this.addTmdbMovieToCache(movie);
+                    return movie;
+                }
+            } catch (e) {
+                console.error(`Falha ao buscar detalhes do TMDB para o filme avaliado ${id}:`, e);
+            }
+            return null;
+        });
+        await Promise.all(fetchedTmdbMoviesPromises); // Espera todas as buscas TMDB terminarem
+
+        // 4. Coletar filmes TMDB do cache local (agora mais completo) e preencher status
         if (sourceFilter === 'all' || sourceFilter === 'app_db') {
             for (const [movieId, movieFromCache] of localTmdbMovieCache.entries()) {
-                if (allUserReviewsMap.has(movieId)) { 
+                // Inclui filmes TMDB se eles foram avaliados OU se são resultados de busca recente (e podem ter status)
+                if (allUserReviewsMap.has(movieId) || movieFromCache.status !== null) { 
                     const movieCopy = new Movie({ ...movieFromCache });
                     movieCopy.status = allUserReviewsMap.get(movieId) || null;
-                    allMovies.push(movieCopy);
+                    allMoviesCollection.push(movieCopy);
                 }
             }
         }
         
-        let filteredMovies = allMovies;
+        let filteredMovies = allMoviesCollection;
 
+        // Aplica os filtros de exibição
         if (sourceFilter === 'external') {
             filteredMovies = filteredMovies.filter(movie => movie.isExternal);
         } else if (sourceFilter === 'app_db') {
@@ -416,21 +418,18 @@ export class MovieService { // Removido 'class' aqui pois já existe um 'export 
         return uniqueMovies;
     }
 
-    // Método auxiliar para obter todos os filmes do cache (para compatibilidade temporária)
-    // Este método agora é mais robusto, combinando o cache TMDB e filmes externos.
-    // Usado em PlaylistService atualmente.
     public async getAllMovies(): Promise<Movie[]> {
         const userId = this.getCurrentUserId();
         if (!userId) return [];
 
         let allCachedAndExternalMovies: Movie[] = [];
 
-        // Adiciona filmes do cache TMDB
+        // Coleta filmes do cache TMDB
         for (const movie of localTmdbMovieCache.values()) {
             allCachedAndExternalMovies.push(movie);
         }
 
-        // Adiciona filmes externos do Firestore
+        // Coleta filmes externos do Firestore
         try {
             const q = query(this.getUserExternalMoviesCollection(userId));
             const querySnapshot = await getDocs(q);
