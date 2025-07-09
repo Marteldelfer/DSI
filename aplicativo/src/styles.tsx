@@ -1,13 +1,11 @@
-// aplicativo/src/styles.tsx
+// O CONTEÚDO DESTE ARQUIVO FOI ATUALIZADO: aplicativo/src/styles.tsx
 import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0D1F2D',
-    padding: 20,
   },
-  // --- ESTILOS ADICIONADOS PARA CONSISTÊNCIA ---
   title: {
     color: '#eaeaea',
     fontSize: 24,
@@ -28,7 +26,7 @@ export const styles = StyleSheet.create({
     backgroundColor: '#1A2B3E',
     borderRadius: 25,
     paddingHorizontal: 15,
-    marginVertical: 10,
+    marginVertical: 8,
     height: 50,
     borderWidth: 1,
     borderColor: '#4A6B8A',
@@ -51,6 +49,7 @@ export const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  // Estilo genérico para texto de botões, para manter consistência
   textoBotao: {
     color: 'black',
     fontSize: 16,
