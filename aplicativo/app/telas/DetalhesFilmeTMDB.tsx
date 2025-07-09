@@ -1,3 +1,4 @@
+// aplicativo/app/telas/DetalhesFilmeTMDB.tsx
 import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, Image, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -9,8 +10,8 @@ import { MovieService } from '../../src/services/MovieService';
 import { Review } from '../../src/models/Review';
 import { ReviewService } from '../../src/services/ReviewService';
 import ComentariosColapsaveis from '../../src/componentes/ComentariosColapsaveis'; 
-// A importação de fetchTmdbMovieDetails não é mais necessária aqui, pois MovieService.getMovieById já a utiliza internamente.
-// import { getMovieDetails as fetchTmdbMovieDetails } from '../../src/api/tmdb'; 
+// CORRIGIDO: Importa a função para buscar detalhes do TMDB
+import { getMovieDetails as fetchTmdbMovieDetails } from '../../src/api/tmdb'; 
 
 function DetalhesFilmeTMDB() { 
   const router = useRouter();
@@ -62,10 +63,31 @@ function DetalhesFilmeTMDB() {
         setLoading(true);
         if (typeof movieId === 'string') {
           try {
-            // Agora, dependemos apenas de movieService.getMovieById para buscar o filme,
-            // que internamente cuidará de buscar no Firestore, cache local ou TMDB.
-            const foundMovie = await movieService.getMovieById(movieId); 
+            // Tenta obter o filme do serviço local (Firebase)
+            let foundMovie = await movieService.getMovieById(movieId); 
             
+            // CORRIGIDO: Busca os detalhes do TMDB explicitamente para garantir a duração
+            const tmdbDetails = await fetchTmdbMovieDetails(movieId);
+            if (tmdbDetails) {
+                // Atualiza o foundMovie com os detalhes do TMDB, especialmente a duração
+                // E adiciona/atualiza no cache local do MovieService
+                if (foundMovie) {
+                    foundMovie.duration = tmdbDetails.duration;
+                    // Pode querer atualizar outras propriedades também, se o foundMovie for uma versão antiga
+                    // foundMovie.genre = tmdbDetails.genre;
+                    // foundMovie.overview = tmdbDetails.overview;
+                    // foundMovie.posterUrl = tmdbDetails.posterUrl;
+                    // foundMovie.releaseYear = tmdbDetails.releaseYear;
+                    // foundMovie.title = tmdbDetails.title;
+                    movieService.addTmdbMovieToCache(foundMovie); // Atualiza o cache com a versão completa
+                } else {
+                    // Se não encontrou localmente, usa os detalhes do TMDB como o filme principal
+                    foundMovie = tmdbDetails;
+                    movieService.addTmdbMovieToCache(foundMovie); // Adiciona ao cache
+                }
+            }
+
+
             if (foundMovie) {
               setMovie(foundMovie);
               const movieReviews = await reviewService.getReviewsByMovieId(foundMovie.id); 
@@ -163,7 +185,15 @@ function DetalhesFilmeTMDB() {
 export default DetalhesFilmeTMDB; 
 
 const detalhesTmdbStyles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 40, paddingBottom: 20, backgroundColor: "#2E3D50" },
+  header: { 
+      flexDirection: 'row', 
+      alignItems: 'center', 
+      justifyContent: 'space-between', 
+      paddingHorizontal: 20, 
+      paddingTop: 40, 
+      paddingBottom: 20, 
+      backgroundColor: 'transparent', // Mantido transparente conforme sua preferência
+  },
   headerTitle: { color: "#eaeaea", fontSize: 20, fontWeight: "bold", flex: 1, marginHorizontal: 15 },
   scrollViewContent: { padding: 20, paddingBottom: 100, alignItems: 'center' },
   moviePoster: { width: 200, height: 300, borderRadius: 12, marginBottom: 20, resizeMode: 'cover' },
