@@ -1,86 +1,109 @@
-// aplicativo/app/(tabs)/MeusFilmes.tsx
-import React, { useState, useCallback } from 'react';
-import { 
-    View, 
-    Text, 
-    ScrollView, 
-    RefreshControl,
-    Pressable, 
-    TextInput, 
-    StyleSheet, 
-    Image, 
-    Alert,
-    ActivityIndicator,
-    LayoutAnimation, // Importar LayoutAnimation
-    Platform, // Importar Platform
-    UIManager // Importar UIManager
-} from 'react-native';
+// aplicativo/app/telas/MeusFilmes.tsx
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, Alert, ActivityIndicator, Image, TextInput } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { AntDesign } from '@expo/vector-icons';
+import { AntDesign, Ionicons } from '@expo/vector-icons';
+import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
+
 import { styles } from '../styles';
 import { Movie, MovieStatus } from '../../src/models/Movie'; 
 import { MovieService } from '../../src/services/MovieService';
 
-// Habilitar LayoutAnimation para Android
-if (
-    Platform.OS === 'android' &&
-    UIManager.setLayoutAnimationEnabledExperimental
-) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 type MovieSourceFilter = 'all' | 'external' | 'app_db';
 type ReviewStatusFilter = MovieStatus | 'all';
 
-function MeusFilmes() {
+
+function MeusFilmesScreen() {
     const router = useRouter();
-    const [refreshing, setRefreshing] = useState(false);
-    const [movies, setMovies] = useState<Movie[]>([]);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [allMovies, setAllMovies] = useState<Movie[]>([]); 
+    const [filteredMovies, setFilteredMovies] = useState<Movie[]>([]); 
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showFilters, setShowFilters] = useState(false); 
+
     const [sourceFilter, setSourceFilter] = useState<MovieSourceFilter>('all');
     const [statusFilter, setStatusFilter] = useState<ReviewStatusFilter>('all');
-    const [loadingInitial, setLoadingInitial] = useState(true);
-    const [showFilterOptions, setShowFilterOptions] = useState(false); // Novo estado para controlar a visibilidade dos filtros
+
 
     const movieService = MovieService.getInstance();
-
-    const fetchMovies = useCallback(async () => {
-        setRefreshing(true);
-        try {
-            const fetchedMovies = await movieService.getFilteredAndRatedMovies(sourceFilter, statusFilter);
-            const filteredBySearch = fetchedMovies.filter(movie =>
-                movie.title?.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-            setMovies(filteredBySearch);
-        } catch (error) {
-            console.error("Erro ao buscar filmes em MeusFilmes:", error);
-            Alert.alert("Erro", "Não foi possível carregar seus filmes.");
-            setMovies([]);
-        } finally {
-            setRefreshing(false);
-            setLoadingInitial(false);
-        }
-    }, [searchTerm, sourceFilter, statusFilter, movieService]);
+    const auth = getAuth();
 
     useFocusEffect(
         useCallback(() => {
-            fetchMovies();
-        }, [fetchMovies])
+            const unsubscribe = onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    setCurrentUser(user);
+                } else {
+                    setCurrentUser(null);
+                    Alert.alert("Acesso Negado", "Você precisa estar logado para ver seus filmes.");
+                    router.replace('/telas/Login');
+                }
+            });
+            return () => unsubscribe();
+        }, [auth, router])
     );
 
-    const onRefresh = useCallback(() => {
-        fetchMovies();
-    }, [fetchMovies]);
+    const loadMovies = useCallback(async () => {
+        if (!currentUser) {
+            setLoading(false);
+            return;
+        }
+        setLoading(true);
+        try {
+            const userMovies = await movieService.getFilteredAndRatedMovies('all', 'all');
+            
+            setAllMovies(userMovies); 
+        } catch (error) {
+            console.error("MeusFilmesScreen: Erro ao carregar filmes:", error);
+            Alert.alert("Erro", "Não foi possível carregar seus filmes.");
+        } finally {
+            setLoading(false);
+        }
+    }, [currentUser, movieService]); 
 
-    const handleAddMovie = () => {
-        router.push("/telas/AdicionarFilmeExterno");
-    };
+    useEffect(() => {
+        let currentFiltered = allMovies;
 
-    const navigateToMovieDetails = (movie: Movie) => {
+        if (searchQuery) {
+            const lowerCaseQuery = searchQuery.toLowerCase();
+            currentFiltered = currentFiltered.filter(movie =>
+                movie.title.toLowerCase().includes(lowerCaseQuery) ||
+                (movie.genre && movie.genre.toLowerCase().includes(lowerCaseQuery))
+            );
+        }
+
+        if (sourceFilter !== 'all') {
+            currentFiltered = currentFiltered.filter(movie => {
+                if (sourceFilter === 'external') return movie.isExternal;
+                if (sourceFilter === 'app_db') return movie.isTmdb;
+                return true; 
+            });
+        }
+
+        if (statusFilter !== 'all') {
+            currentFiltered = currentFiltered.filter(movie => movie.status === statusFilter);
+        }
+
+        setFilteredMovies(currentFiltered);
+    }, [allMovies, searchQuery, sourceFilter, statusFilter]); 
+
+    useFocusEffect(
+        useCallback(() => {
+            if (currentUser) {
+                loadMovies();
+            }
+        }, [currentUser, loadMovies])
+    );
+
+    const handleMoviePress = (movie: Movie) => { 
         if (movie.isTmdb) {
             router.push({ pathname: `/telas/DetalhesFilmeTMDB`, params: { movieId: movie.id } });
         } else if (movie.isExternal) {
             router.push({ pathname: `/telas/DetalhesFilmeExterno`, params: { movieId: movie.id } });
+        } else {
+            Alert.alert("Erro", "Tipo de filme desconhecido.");
         }
     };
 
@@ -88,286 +111,383 @@ function MeusFilmes() {
         router.push({ pathname: '/telas/Tags', params: { movieId: movieId } });
     };
 
-    const handleRemoveMovie = async (movie: Movie) => {
-        if (!movie.isExternal) {
-            Alert.alert("Ação não permitida", "Você só pode excluir filmes que foram adicionados manualmente.");
-            return;
-        }
-        Alert.alert("Excluir Filme", `Tem certeza que deseja excluir "${movie.title}"?`, [
-            { text: "Cancelar", style: "cancel" },
-            {
-                text: "Excluir",
-                onPress: async () => { 
-                    try {
-                        await movieService.deleteMovie(movie.id);
-                        Alert.alert("Sucesso", "Filme excluído!");
-                        fetchMovies(); 
-                    } catch (error) {
-                        Alert.alert("Erro", "Não foi possível excluir o filme.");
-                    }
-                },
-                style: "destructive"
-            }
-        ]);
+    const clearFilters = () => {
+        setSearchQuery('');
+        setSourceFilter('all'); 
+        setStatusFilter('all'); 
     };
 
-    const toggleFilterOptions = () => {
-        LayoutAnimation.easeInEaseOut(); // Adiciona animação
-        setShowFilterOptions(!showFilterOptions);
-    };
-    
+    if (loading || !currentUser) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center' }]}>
+                <ActivityIndicator size="large" color="#3E9C9C" />
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
             <View style={meusFilmesStyles.header}>
+                <Pressable onPress={() => router.back()} style={{ marginRight: 20 }}>
+                    <AntDesign name="arrowleft" size={24} color="#eaeaea" />
+                </Pressable>
                 <Text style={meusFilmesStyles.headerTitle}>Meus Filmes</Text>
             </View>
 
-            {/* Filters and Search - Remain outside ScrollView */}
-            <View style={meusFilmesStyles.filtersContainer}>
-                <View style={meusFilmesStyles.searchContainer}>
-                    <AntDesign name="search1" size={20} color="#7f8c8d" style={meusFilmesStyles.searchIcon} />
+            <View style={meusFilmesStyles.searchFilterContainer}>
+                <View style={meusFilmesStyles.searchBar}>
+                    <Ionicons name="search" size={20} color="#888" style={meusFilmesStyles.searchIcon} />
                     <TextInput
-                        placeholder="Buscar em Meus Filmes..."
-                        placeholderTextColor="#7f8c8d"
                         style={meusFilmesStyles.searchInput}
-                        onChangeText={setSearchTerm}
-                        value={searchTerm}
+                        placeholder="Buscar por título ou gênero..."
+                        placeholderTextColor="#888"
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
                     />
                 </View>
-
-                {/* Botão para expandir/recolher os filtros */}
-                <Pressable style={meusFilmesStyles.toggleFilterButton} onPress={toggleFilterOptions}>
-                    <AntDesign 
-                        name={showFilterOptions ? "up" : "down"} 
-                        size={16} 
-                        color="#eaeaea" 
-                        style={{marginRight: 5}}
-                    />
-                    <Text style={meusFilmesStyles.toggleFilterButtonText}>
-                        {showFilterOptions ? "Esconder Filtros" : "Mostrar Filtros"}
-                    </Text>
+                <Pressable onPress={() => setShowFilters(!showFilters)} style={meusFilmesStyles.filterButton}>
+                    <Ionicons name="filter" size={24} color="#eaeaea" />
                 </Pressable>
-
-                {/* Conteúdo dos filtros que será condicionalmente exibido */}
-                {showFilterOptions && (
-                    <View>
-                        <Text style={meusFilmesStyles.filterSectionTitle}>Fonte do Filme</Text>
-                        <View style={meusFilmesStyles.filterButtonsContainer}>
-                            <Pressable style={[meusFilmesStyles.filterButton, sourceFilter === 'all' && meusFilmesStyles.filterButtonSelected]} onPress={() => setSourceFilter('all')}><Text style={sourceFilter === 'all' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Todos</Text></Pressable>
-                            <Pressable style={[meusFilmesStyles.filterButton, sourceFilter === 'app_db' && meusFilmesStyles.filterButtonSelected]} onPress={() => setSourceFilter('app_db')}><Text style={sourceFilter === 'app_db' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>TMDB</Text></Pressable>
-                            <Pressable style={[meusFilmesStyles.filterButton, sourceFilter === 'external' && meusFilmesStyles.filterButtonSelected]} onPress={() => setSourceFilter('external')}><Text style={sourceFilter === 'external' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Manuais</Text></Pressable>
-                        </View>
-                        <Text style={meusFilmesStyles.filterSectionTitle}>Filtrar por Avaliação</Text>
-                        <View style={meusFilmesStyles.filterButtonsContainer}>
-                            <Pressable style={[meusFilmesStyles.filterButton, statusFilter === 'all' && meusFilmesStyles.filterButtonSelected]} onPress={() => setStatusFilter('all')}><Text style={statusFilter === 'all' ? meusFilmesStyles.filterButtonTextSelected : meusFilmesStyles.filterButtonText}>Todos</Text></Pressable>
-                            <Pressable style={[meusFilmesStyles.filterButton, { paddingHorizontal: 20 }, statusFilter === 'like2' && meusFilmesStyles.filterButtonSelected]} onPress={() => setStatusFilter('like2')}><AntDesign name="like2" size={16} color={statusFilter === 'like2' ? 'black' : '#eaeaea'} /></Pressable>
-                            <Pressable style={[meusFilmesStyles.filterButton, { paddingHorizontal: 20 }, statusFilter === 'dislike2' && meusFilmesStyles.filterButtonSelected]} onPress={() => setStatusFilter('dislike2')}><AntDesign name="dislike2" size={16} color={statusFilter === 'dislike2' ? 'black' : '#eaeaea'} /></Pressable>
-                            <Pressable style={[meusFilmesStyles.filterButton, { paddingHorizontal: 20 }, statusFilter === 'staro' && meusFilmesStyles.filterButtonSelected]} onPress={() => setStatusFilter('staro')}><AntDesign name="staro" size={16} color={statusFilter === 'staro' ? 'black' : '#eaeaea'} /></Pressable>
-                        </View>
-                    </View>
-                )}
             </View>
 
-            <ScrollView
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3E9C9C" />
-                }
-                contentContainerStyle={{paddingBottom: 150}}
-            >
-                {/* Botão MINHAS PLAYLISTS - Movido para DENTRO da ScrollView */}
-                <Pressable style={meusFilmesStyles.playlistButton} onPress={() => router.push('/telas/ListaPlaylists')}>
+            {/* Botões de Ação */}
+            <View style={meusFilmesStyles.actionButtonsContainer}>
+                {/* Botão MINHAS PLAYLISTS */}
+                <Pressable style={meusFilmesStyles.actionButton} onPress={() => router.push('/telas/ListaPlaylists')}>
                     <AntDesign name="menufold" size={20} color="black" style={{marginRight: 10}}/>
                     <Text style={styles.textoBotao}>MINHAS PLAYLISTS</Text>
                 </Pressable>
+            </View>
 
-                <View style={meusFilmesStyles.moviesGrid}>
-                    {loadingInitial && !refreshing ? ( 
-                        <ActivityIndicator size="large" color="#3E9C9C" style={{ marginTop: 50, width: '100%' }} />
-                    ) : movies.length > 0 ? (
-                        movies.map(movie => (
-                            <View key={movie.id} style={meusFilmesStyles.movieItem}>
-                                <Pressable onPress={() => navigateToMovieDetails(movie)}>
-                                    <View style={meusFilmesStyles.posterContainer}>
-                                        {movie.posterUrl ? (
-                                            <Image 
-                                                source={{ uri: movie.posterUrl }} 
-                                                style={meusFilmesStyles.moviePoster} 
-                                                resizeMode="contain" 
-                                            />
-                                        ) : (
-                                            <View style={meusFilmesStyles.genericPosterPlaceholder}>
-                                                <Text style={meusFilmesStyles.genericPosterText} numberOfLines={3}>
-                                                    {movie.title}
-                                                    {movie.releaseYear && ` (${movie.releaseYear})`} 
-                                                </Text>
-                                            </View>
-                                        )}
-                                        {movie.status && (
-                                            <AntDesign name={movie.status as any} size={18} color="#FFD700" style={meusFilmesStyles.statusIconWrapper} />
-                                        )}
-                                    </View>
-                                    <View style={meusFilmesStyles.movieTitleBackground}>
-                                        <Text style={meusFilmesStyles.movieTitle} numberOfLines={2}>{movie.title}</Text>
-                                    </View>
-                                </Pressable>
-                                <View style={meusFilmesStyles.interactionIconsContainer}>
-                                    <Pressable onPress={() => navigateToTags(movie.id)} style={meusFilmesStyles.iconWrapper}>
-                                        <AntDesign name="tags" size={20} color="black"/>
-                                    </Pressable>
-                                    {movie.isExternal && ( 
-                                        <Pressable onPress={() => handleRemoveMovie(movie)} style={meusFilmesStyles.iconWrapper}>
-                                            <AntDesign name="delete" size={20} color="#FF6347"/>
-                                        </Pressable>
-                                    )}
-                                </View>
-                            </View>
-                        ))
-                    ) : (
-                        <View style={meusFilmesStyles.noMoviesContainer}>
-                            <Text style={meusFilmesStyles.noMoviesText}>Nenhum filme encontrado.</Text>
-                        </View>
+
+            {showFilters && (
+                <ScrollView style={meusFilmesStyles.filtersContainer} contentContainerStyle={meusFilmesStyles.filtersContent}>
+                    {/* Filtros de Fonte do Filme */}
+                    <Text style={meusFilmesStyles.filterSectionTitle}>Fonte do Filme:</Text>
+                    <View style={meusFilmesStyles.filterOptionsRow}>
+                        <Pressable 
+                            style={[meusFilmesStyles.filterOptionButton, sourceFilter === 'all' && meusFilmesStyles.filterOptionButtonSelected]} 
+                            onPress={() => setSourceFilter('all')}
+                        >
+                            <Text style={meusFilmesStyles.filterOptionText}>Todos</Text>
+                        </Pressable>
+                        <Pressable 
+                            style={[meusFilmesStyles.filterOptionButton, sourceFilter === 'app_db' && meusFilmesStyles.filterOptionButtonSelected]} 
+                            onPress={() => setSourceFilter('app_db')}
+                        >
+                            <Text style={meusFilmesStyles.filterOptionText}>TMDB</Text>
+                        </Pressable>
+                        <Pressable 
+                            style={[meusFilmesStyles.filterOptionButton, sourceFilter === 'external' && meusFilmesStyles.filterOptionButtonSelected]} 
+                            onPress={() => setSourceFilter('external')}
+                        >
+                            <Text style={meusFilmesStyles.filterOptionText}>Manuais</Text>
+                        </Pressable>
+                    </View>
+
+                    {/* Filtros de Avaliação */}
+                    <Text style={meusFilmesStyles.filterSectionTitle}>Avaliação:</Text>
+                    <View style={meusFilmesStyles.filterOptionsRow}>
+                        <Pressable 
+                            style={[meusFilmesStyles.filterOptionButton, statusFilter === 'all' && meusFilmesStyles.filterOptionButtonSelected]} 
+                            onPress={() => setStatusFilter('all')}
+                        >
+                            <Text style={meusFilmesStyles.filterOptionText}>Todos</Text>
+                        </Pressable>
+                        <Pressable 
+                            style={[meusFilmesStyles.filterOptionButton, statusFilter === 'like2' && meusFilmesStyles.filterOptionButtonSelected]} 
+                            onPress={() => setStatusFilter('like2')}
+                        >
+                            <AntDesign name="like2" size={16} color={statusFilter === 'like2' ? 'black' : '#eaeaea'} />
+                        </Pressable>
+                        <Pressable 
+                            style={[meusFilmesStyles.filterOptionButton, statusFilter === 'dislike2' && meusFilmesStyles.filterOptionButtonSelected]} 
+                            onPress={() => setStatusFilter('dislike2')}
+                        >
+                            <AntDesign name="dislike2" size={16} color={statusFilter === 'dislike2' ? 'black' : '#eaeaea'} />
+                        </Pressable>
+                        <Pressable 
+                            style={[meusFilmesStyles.filterOptionButton, statusFilter === 'staro' && meusFilmesStyles.filterOptionButtonSelected]} 
+                            onPress={() => setStatusFilter('staro')}
+                        >
+                            <AntDesign name="staro" size={16} color={statusFilter === 'staro' ? 'black' : '#eaeaea'} />
+                        </Pressable>
+                    </View>
+
+                    {(searchQuery !== '' || sourceFilter !== 'all' || statusFilter !== 'all') && ( 
+                        <Pressable style={meusFilmesStyles.clearFiltersButton} onPress={clearFilters}>
+                            <Text style={styles.textoBotao}>Limpar Filtros</Text>
+                        </Pressable>
                     )}
-                </View>
+                </ScrollView>
+            )}
+
+            <ScrollView contentContainerStyle={meusFilmesStyles.scrollViewContent}>
+                {filteredMovies.length === 0 && !loading && (
+                    <Text style={meusFilmesStyles.noMoviesText}>Nenhum filme encontrado com os filtros aplicados.</Text>
+                )}
+                {filteredMovies.map((movie) => (
+                    <Pressable
+                        key={movie.id}
+                        style={meusFilmesStyles.movieCard}
+                        onPress={() => handleMoviePress(movie)}
+                    >
+                        {movie.posterUrl ? (
+                            <Image
+                                source={{ uri: movie.posterUrl }}
+                                style={meusFilmesStyles.moviePoster}
+                            />
+                        ) : (
+                            <View style={meusFilmesStyles.genericPosterPlaceholder}>
+                                <Text style={meusFilmesStyles.genericPosterText} numberOfLines={3}>
+                                    {movie.title}
+                                    {movie.releaseYear && ` (${movie.releaseYear})`}
+                                </Text>
+                            </View>
+                        )}
+                        <View style={meusFilmesStyles.movieInfo}>
+                            <Text style={meusFilmesStyles.movieTitle}>{movie.title}</Text>
+                            <Text style={meusFilmesStyles.movieYear}>{movie.releaseYear || 'Ano Desconhecido'}</Text>
+                            {/* Exibição do status do filme (like, dislike, favorite) */}
+                            {movie.status && (
+                                <AntDesign 
+                                    name={movie.status} 
+                                    size={20} 
+                                    color="#FFD700" 
+                                    style={meusFilmesStyles.movieStatusIcon} 
+                                />
+                            )}
+                            {/* Botão de Tags por filme */}
+                            <Pressable style={meusFilmesStyles.tagButtonPerMovie} onPress={() => navigateToTags(movie.id)}>
+                                <AntDesign name="tags" size={18} color="#eaeaea" />
+                                <Text style={meusFilmesStyles.tagButtonPerMovieText}>Tags</Text>
+                            </Pressable>
+                        </View>
+                    </Pressable>
+                ))}
             </ScrollView>
-            
-            {/* BOTÃO Adicionar Filme - Já estava fora da ScrollView */}
-            <Pressable style={meusFilmesStyles.addExternalMovieButton} onPress={handleAddMovie}>
-                <AntDesign name="plus" size={18} color="black" style={{marginRight: 8}}/>
-                <Text style={meusFilmesStyles.addExternalMovieButtonText}>Adicionar Filme</Text>
+
+            {/* BOTÃO Adicionar Filme Externo - Flutuante */}
+            <Pressable style={meusFilmesStyles.addExternalMovieButton} onPress={() => router.push('/telas/AdicionarFilmeExterno')}>
+                <Text style={meusFilmesStyles.addExternalMovieButtonText}>Adicionar filme externo +</Text>
             </Pressable>
         </View>
     );
 }
 
+export default MeusFilmesScreen;
+
 const meusFilmesStyles = StyleSheet.create({
-    header: { 
-        paddingTop: 50, 
-        paddingBottom: 20, 
-        backgroundColor: 'transparent', // REMOVIDO o background escuro
-    },
-    headerTitle: { color: "#eaeaea", fontSize: 24, fontWeight: "bold", textAlign: 'center' },
-    filtersContainer: {
-        backgroundColor: '#2E3D50', 
-        paddingHorizontal: 20,
-        paddingTop: 10,
-        paddingBottom: 10,
-    },
-    searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#2E3D50', borderRadius: 25, paddingHorizontal: 15, marginVertical: 10, borderWidth: 1, borderColor: '#4A6B8A' },
-    searchIcon: { marginRight: 10, color: '#7f8c8d' },
-    searchInput: { flex: 1, color: '#eaeaea', fontSize: 16, height: 45 },
-    
-    toggleFilterButton: {
+    header: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#4A6B8A', 
-        paddingVertical: 10,
-        borderRadius: 20,
-        marginTop: 5,
+        justifyContent: 'flex-start',
+        paddingHorizontal: 20,
+        paddingTop: 50,
+        paddingBottom: 20,
+        backgroundColor: 'transparent',
+    },
+    headerTitle: {
+        color: "#eaeaea",
+        fontSize: 20,
+        fontWeight: "bold",
+        marginLeft: 20,
+    },
+    searchFilterContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
         marginBottom: 15,
+        width: '100%',
     },
-    toggleFilterButtonText: {
+    searchBar: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#2E3D50',
+        borderRadius: 25,
+        paddingHorizontal: 15,
+        marginRight: 10,
+        height: 45,
+    },
+    searchIcon: {
+        marginRight: 10,
+    },
+    searchInput: {
+        flex: 1,
         color: '#eaeaea',
-        fontWeight: 'bold',
-        fontSize: 14,
+        fontSize: 16,
     },
-
-    filterSectionTitle: { color: '#b0b0b0', fontSize: 14, marginLeft: 5, marginTop: 10, marginBottom: 10 },
-    filterButtonsContainer: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 15, gap: 10 },
-    filterButton: { backgroundColor: '#2E3D50', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 20, borderWidth: 1, borderColor: '#4A6B8A', alignItems: 'center', justifyContent: 'center' },
-    filterButtonSelected: { backgroundColor: '#3E9C9C', borderColor: '#3E9C9C' },
-    filterButtonText: { color: '#eaeaea', fontWeight: 'bold', fontSize: 12 },
-    filterButtonTextSelected: { color: 'black', fontWeight: 'bold', fontSize: 12 },
-    playlistButton: {
+    filterButton: {
+        backgroundColor: '#3E9C9C',
+        borderRadius: 25,
+        padding: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: 45,
+        width: 45,
+    },
+    actionButtonsContainer: { 
+        flexDirection: 'row',
+        justifyContent: 'space-around', 
+        paddingHorizontal: 20,
+        marginBottom: 15,
+        width: '100%',
+    },
+    actionButton: { 
         backgroundColor: "#3E9C9C", 
-        padding: 12, 
+        paddingVertical: 12, 
+        paddingHorizontal: 15, 
         borderRadius: 26, 
         flexDirection: 'row', 
         alignItems: 'center', 
         justifyContent: 'center',
-        marginTop: 5,
+        flex: 1, 
+        marginHorizontal: 5, 
+    },
+    filtersContainer: {
+        width: '100%',
+        paddingHorizontal: 20,
+        marginBottom: 15,
+        maxHeight: 300, 
+    },
+    filtersContent: {
+        paddingBottom: 10,
+    },
+    filterSectionTitle: {
+        color: '#eaeaea',
+        fontSize: 15,
+        fontWeight: 'bold',
+        marginTop: 10,
+        marginBottom: 8,
+    },
+    filterOptionsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
         marginBottom: 10,
-        marginHorizontal: 10, 
+    },
+    filterOptionButton: {
+        backgroundColor: '#4A6B8A',
+        paddingVertical: 8,
+        paddingHorizontal: 15,
+        borderRadius: 20,
+        marginRight: 8,
+        marginBottom: 8,
+        borderWidth: 2,
+        borderColor: 'transparent',
+    },
+    filterOptionButtonSelected: {
+        borderColor: '#3E9C9C',
+    },
+    filterOptionText: {
+        color: '#eaeaea',
+        fontWeight: 'bold',
+        fontSize: 13,
+    },
+    clearFiltersButton: {
+        backgroundColor: '#FF6347',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 25,
+        marginTop: 15,
+        alignSelf: 'center',
+        width: '60%',
+        alignItems: 'center',
+    },
+    scrollViewContent: {
+        paddingHorizontal: 20,
+        paddingBottom: 100, 
+    },
+    movieCard: {
+        flexDirection: 'row',
+        backgroundColor: '#1A2B3E',
+        borderRadius: 10,
+        marginBottom: 15,
+        overflow: 'hidden',
+        alignItems: 'center',
+    },
+    moviePoster: {
+        width: 90,
+        height: 135,
+        borderRadius: 8,
+        margin: 10,
+        resizeMode: 'cover', 
+    },
+    genericPosterPlaceholder: { 
+        width: 90,
+        height: 135,
+        borderRadius: 8,
+        margin: 10,
+        backgroundColor: '#1A2B3E', 
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 5, 
+    },
+    genericPosterText: { 
+        color: '#eaeaea',
+        fontSize: 12, 
+        fontWeight: 'bold',
+        textAlign: 'center',
+    },
+    movieInfo: {
+        flex: 1,
+        padding: 10,
+        justifyContent: 'center',
+    },
+    movieTitle: {
+        color: '#eaeaea',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 5,
+    },
+    movieYear: {
+        color: '#b0b0b0',
+        fontSize: 14,
+    },
+    movieStatusIcon: { 
+        position: 'absolute', 
+        top: 10, 
+        right: 10, 
+        backgroundColor: 'rgba(0,0,0,0.5)', 
+        borderRadius: 15,
+        padding: 5,
+        zIndex: 1,
+    },
+    tagButtonPerMovie: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#4A6B8A',
+        borderRadius: 15,
+        paddingVertical: 5,
+        paddingHorizontal: 10,
+        marginTop: 5,
+        alignSelf: 'flex-start',
+    },
+    tagButtonPerMovieText: {
+        color: '#eaeaea',
+        fontSize: 12,
+        marginLeft: 5,
+        fontWeight: 'bold',
+    },
+    noMoviesText: {
+        color: '#b0b0b0',
+        fontSize: 16,
+        textAlign: 'center',
+        marginTop: 50,
     },
     addExternalMovieButton: {
         position: 'absolute',
         bottom: 30,
         right: 20,
         backgroundColor: '#3E9C9C',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 26,
-        flexDirection: 'row', 
-        alignItems: 'center',
-        justifyContent: 'center',
+        padding: 15,
+        borderRadius: 30,
         elevation: 8,
         zIndex: 10,
     },
-    addExternalMovieButtonText: { 
+    addExternalMovieButtonText: {
         color: 'black',
         fontSize: 16,
         fontWeight: 'bold',
     },
-    moviesGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        paddingHorizontal: 10,
-        paddingTop: 10,
-    },
-    movieItem: { 
-        width: '48%', 
-        marginBottom: 20, 
-        backgroundColor: '#2E3D50', 
-        borderRadius: 12, 
-        overflow: 'hidden',
-    },
-    posterContainer: { 
-        width: '100%', 
-        height: 240, 
-        position: 'relative', 
-        backgroundColor: '#4A6B8A' 
-    },
-    moviePoster: { 
-        width: '100%', 
-        height: '100%', 
-        resizeMode: 'contain' 
-    },
-    genericPosterPlaceholder: { 
-        width: '100%', 
-        height: 240, 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        padding: 10,
-        backgroundColor: '#1A2B3E', 
-    },
-    genericPosterText: { 
-        color: '#eaeaea', 
-        fontSize: 16, 
-        fontWeight: 'bold', 
-        textAlign: 'center' 
-    },
-    
-    movieTitleBackground: {
-        backgroundColor: '#4A6B8A', 
-        paddingVertical: 8, 
-        paddingHorizontal: 5, 
-        borderBottomLeftRadius: 12, 
-        borderBottomRightRadius: 12, 
-    },
-    movieTitle: { 
-        color: "#eaeaea", 
-        fontSize: 14, 
-        fontWeight: '600', 
-        textAlign: 'center', 
-        height: 35, 
-    },
-
-    statusIconWrapper: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.7)', padding: 5, borderRadius: 15, zIndex: 1 },
-    interactionIconsContainer: { flexDirection: "row", justifyContent: 'space-evenly', alignItems: 'center', width: '100%', marginTop: 10 },
-    iconWrapper: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#4A6B8A", justifyContent: 'center', alignItems: 'center' },
-    noMoviesContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%', marginTop: 50, paddingHorizontal: 20 },
-    noMoviesText: { color: '#eaeaea', fontSize: 16, textAlign: 'center' },
 });
-
-export default MeusFilmes;
