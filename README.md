@@ -10,11 +10,11 @@
   <img src="https://github.com/user-attachments/assets/84f061f4-12eb-48fd-9872-fe48e744f082" width="200"/>
 </p>
 
-Este é o repositório visa registrar nossas contribuições para a disciplina de DSI III matéria ministrada pelo professor Dr Gabriel Alves no curso de Sistemas de Informação na Universidade Federal Rural de Pernambuco (UFRPE).
+Este é o repositório visa registrar nossas contribuições para a disciplina de DSI, matéria ministrada pelo professor Dr. Gabriel Alves no curso de Sistemas de Informação na Universidade Federal Rural de Pernambuco **(UFRPE)**.
 
-Nesta disciplina desenvolvemos o aplicativo mobile multiplataforma *Filmeia*, um app de avaliação e recomendação de filmes. 
+Nesta disciplina, desenvolvemos o aplicativo mobile multiplataforma *Filmeia*, um app de avaliação e recomendação de filmes. 
 
-O aplicativo foi desenvolvido utilizando JavaScript React-Native, utilizando o framework Expo.
+O aplicativo foi desenvolvido utilizando **JavaScript**, **React-Native**, utilizando o **framework Expo**.
 
 ## Iniciando
 
@@ -23,7 +23,7 @@ O aplicativo foi desenvolvido utilizando JavaScript React-Native, utilizando o f
     cd aplicativo
    ``` 
 
-2. Instalar dependencias
+2. Instalar dependências
 ```
    npm install
  ```  
@@ -33,7 +33,7 @@ O aplicativo foi desenvolvido utilizando JavaScript React-Native, utilizando o f
    npx expo start
 ```   
 
-Para executar o app em android ou IOS:
+Para executar o app no android ou IOS:
 
 - [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
 - [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
