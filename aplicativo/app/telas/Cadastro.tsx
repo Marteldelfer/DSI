@@ -151,7 +151,7 @@ function Cadastro(): React.JSX.Element {
 const estilos = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#0D1F2D',
+        backgroundColor: '#2E3D50',
     },
     scrollContainer: {
         flexGrow: 1,
