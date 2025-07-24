@@ -17,8 +17,8 @@ import {
 import { useRouter } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
 import { styles } from '../styles';
-import { Movie, MovieStatus } from '../../src/models/Movie'; // Importe MovieStatus
-import { MovieService } from '../../src/services/MovieService';
+import { Movie, MovieStatus } from '../../src/models/Movie';
+import { MovieService } from '../../src/services/MovieService'; // Certifique-se que MovieService está importado
 import * as ImagePicker from 'expo-image-picker';
 
 function AdicionarFilmeExterno() {
@@ -68,7 +68,7 @@ function AdicionarFilmeExterno() {
     };
 
     const handleAddPhotoOptions = () => {
-        const options = ["Escolher da Galeria", "Colar URL", "Cancelar"];
+        const options = ["Escolher da Galeria", "Colar URL"];
         const cancelButtonIndex = 2;
 
         if (Platform.OS === 'ios') {
@@ -92,7 +92,6 @@ function AdicionarFilmeExterno() {
                 [
                     { text: "Escolher da Galeria", onPress: pickImageFromGallery },
                     { text: "Colar URL", onPress: promptForUrl },
-                    { text: "Cancelar", style: "cancel" }
                 ],
                 { cancelable: true }
             );
@@ -107,29 +106,40 @@ function AdicionarFilmeExterno() {
         setNovaFotoTemp(undefined);
     };
 
-    // ALTERADO: Função assíncrona para salvar no Firestore
     const handleSaveAndEvaluate = async () => {
         if (!titulo || !anoLancamento || !duracao || !genero || !sinopse) {
             Alert.alert('Erro', 'Por favor, preencha todos os campos obrigatórios antes de avaliar.');
             return;
         }
 
+        let finalPosterUrl: string | null = null;
+        if (posterUri) {
+            try {
+                // Ao criar um filme externo, o ID ainda não existe, então usaremos um placeholder
+                // O MovieService terá a lógica para lidar com isso ou você pode gerar um UUID temporário aqui
+                finalPosterUrl = await movieService.uploadMoviePoster(posterUri, `new-movie-${Date.now()}`);
+            } catch (error) {
+                console.error("Erro ao fazer upload do pôster:", error);
+                Alert.alert('Erro', 'Não foi possível fazer upload da imagem do pôster.');
+                return;
+            }
+        }
+
         try {
-            // Cria o filme externo no Firestore e obtém o objeto Movie com o ID real do Firestore
-            const newExternalMovie = await movieService.createExternalMovie({ // USANDO AWAIT
+            const newExternalMovie = await movieService.createExternalMovie({
                 title: titulo,
                 releaseYear: anoLancamento,
-                director: "Não informado", 
-                duration: parseInt(duracao, 10), // Converte para número
+                director: "Não informado",
+                duration: parseInt(duracao, 10),
                 genre: genero,
                 overview: sinopse,
-                posterUrl: posterUri,
+                posterUrl: finalPosterUrl, // Usa a URL pública do Supabase
             });
 
             Alert.alert('Sucesso', 'Filme adicionado! Agora avalie-o.');
             router.replace({
                 pathname: "/telas/CriarAvaliacao",
-                params: { movieId: newExternalMovie.id }, // Passa o ID real do Firestore
+                params: { movieId: newExternalMovie.id },
             });
         } catch (error) {
             console.error("Erro ao salvar filme externo:", error);
@@ -190,10 +200,6 @@ function AdicionarFilmeExterno() {
 
                             <Pressable style={[addExternalMovieStyles.modalButton, {backgroundColor: '#6C7A89'}]} onPress={handleAplicarFotoUrl}>
                                 <Text style={addExternalMovieStyles.modalButtonText}>Aplicar URL</Text>
-                            </Pressable>
-
-                            <Pressable style={[addExternalMovieStyles.modalButton, addExternalMovieStyles.modalCancelButton]} onPress={() => { setModalFotoVisivel(false); setNovaFotoTemp(undefined); }}>
-                                <Text style={addExternalMovieStyles.modalButtonText}>Cancelar</Text>
                             </Pressable>
                         </View>
                     </View>
@@ -360,9 +366,6 @@ const addExternalMovieStyles = StyleSheet.create({
         color: 'black',
         fontSize: 16,
         fontWeight: 'bold',
-    },
-    modalCancelButton: {
-        backgroundColor: '#FF6347',
     },
     evaluateButton: {
         flexDirection: "row",

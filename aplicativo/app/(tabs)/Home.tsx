@@ -1,13 +1,14 @@
 // aplicativo/app/(tabs)/Home.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, ScrollView, FlatList, Pressable, Image, StyleSheet, ActivityIndicator, Alert, Dimensions } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { AntDesign, FontAwesome } from '@expo/vector-icons';
 import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 
 // Importações do react-native-chart-kit
 import {
-    PieChart,
+    PieChart, 
+    BarChart, 
 } from 'react-native-chart-kit';
 
 import { Movie } from '../../src/models/Movie';
@@ -20,7 +21,7 @@ import { styles } from '../../app/styles';
 const screenWidth = Dimensions.get("window").width;
 
 // Define uma constante para o número de gêneros principais a serem exibidos no PieChart
-const TOP_N_GENRES_PIE = 5;
+const TOP_N_GENRES_PIE = 4; // Alterado para 4 gêneros principais
 // Define uma constante para o número de gêneros principais a serem exibidos no texto
 const TOP_N_GENRES_TEXT = 3;
 
@@ -38,22 +39,24 @@ export default function Home() {
     const [isSearching, setIsSearching] = useState(false);
 
     // Estados para os dados dos gráficos (formatos adaptados para react-native-chart-kit)
-    const [genrePieChartData, setGenrePieChartData] = useState<any[]>([]); // Para PieChart (agora é de gêneros)
-    const [topGenresText, setTopGenresText] = useState<string>(''); // Novo estado para o texto dos top 3 gêneros
-    const [averageFavoriteDuration, setAverageFavoriteDuration] = useState<string>(''); // Estado para a duração média favorita
-    const [idealMovieDuration, setIdealMovieDuration] = useState<string>(''); // NOVO: Estado para a duração ideal
+    const [genrePieChartData, setGenrePieChartData] = useState<any[]>([]); 
+    // Estado para os dados do BarChart
+    const [genreBarChartData, setGenreBarChartData] = useState<{ labels: string[], datasets: { data: number[] }[] }>({ labels: [], datasets: [{ data: [] }] });
+    const [topGenresText, setTopGenresText] = useState<string>(''); 
+    const [averageFavoriteDuration, setAverageFavoriteDuration] = useState<string>(''); 
+    const [idealMovieDuration, setIdealMovieDuration] = useState<string>(''); 
 
 
     // Configuração base para os gráficos
     const chartConfig = {
-        backgroundGradientFrom: '#1A2B3E', // Cor de fundo do container do gráfico
-        backgroundGradientTo: '#1A2B3E', // Cor de fundo do container do gráfico
-        color: (opacity = 1) => `rgba(234, 234, 234, ${opacity})`, // Cor dos rótulos e eixos
-        labelColor: (opacity = 1) => `rgba(234, 234, 234, ${opacity})`, // Cor dos rótulos
-        strokeWidth: 2, // Largura da linha do gráfico
-        barPercentage: 0.5, // Porcentagem de largura da barra
-        useShadowColorFromDataset: false, // Não usa sombra das cores do dataset
-        decimalPlaces: 0, // Sem casas decimais nos rótulos
+        backgroundGradientFrom: '#1A2B3E', 
+        backgroundGradientTo: '#1A2B3E', 
+        color: (opacity = 1) => `rgba(234, 234, 234, ${opacity})`, 
+        labelColor: (opacity = 1) => `rgba(234, 234, 234, ${opacity})`, 
+        strokeWidth: 2, 
+        barPercentage: 0.7, 
+        useShadowColorFromDataset: false, 
+        decimalPlaces: 0, 
     };
 
     // Monitora o estado de autenticação do usuário
@@ -90,7 +93,7 @@ export default function Home() {
             const moviesById = new Map<string, Movie>();
             allUserMovies.forEach(movie => moviesById.set(movie.id, movie));
 
-            // --- Processamento para o Gráfico de Gêneros Avaliados (PieChart) ---
+            // --- Processamento para o Gráfico de Gêneros Avaliados (dados brutos) ---
             const genreDistributionCounts: { [key: string]: number } = {};
             allUserReviews.forEach(review => {
                 const movie = moviesById.get(review.movieId);
@@ -102,31 +105,31 @@ export default function Home() {
                 }
             });
 
-            // Cores para o gráfico de pizza (pode expandir ou gerar dinamicamente se houver muitos gêneros)
-            const genrePieChartColors = [
-                "#3E9C9C", // Azul esverdeado
-                "#FFD700", // Amarelo ouro
-                "#FF6347", // Vermelho coral
-                "#4682B4", // Azul aço
-                "#9370DB", // Roxo médio
-                "#FFA07A", // Salmão claro
-                "#20B2AA", // Verde mar claro
-                "#8A2BE2", // Azul violeta
-                "#FF4500", // Laranja avermelhado
-                "#00CED1", // Turquesa escuro
-                "#808080", // Cinza para "Outros"
+            // Cores para o gráfico (agora serão usadas principalmente para a legenda manual)
+            const genreChartColors = [
+                "#3E9C9C", 
+                "#FFD700", 
+                "#FF6347", 
+                "#4682B4", 
+                "#9370DB", 
+                "#FFA07A", 
+                "#20B2AA", 
+                "#8A2BE2", 
+                "#FF4500", 
+                "#00CED1", 
+                "#808080", 
             ];
             
-            const sortedGenresPie = Object.entries(genreDistributionCounts)
-                .sort(([, countA], [, countB]) => countB - countA); // Ordena por contagem decrescente
+            const sortedGenres = Object.entries(genreDistributionCounts)
+                .sort(([, countA], [, countB]) => countB - countA); 
 
-            const topGenresPie = sortedGenresPie.slice(0, TOP_N_GENRES_PIE); // Pega os 5 primeiros gêneros para o Pie Chart
-            const otherGenresCountPie = sortedGenresPie.slice(TOP_N_GENRES_PIE).reduce((sum, [, count]) => sum + count, 0); // Soma o restante
+            const topGenresForChart = sortedGenres.slice(0, TOP_N_GENRES_PIE); 
+            const otherGenresCount = sortedGenres.slice(TOP_N_GENRES_PIE).reduce((sum, [, count]) => sum + count, 0); 
 
-            let colorIndexPie = 0;
-            const genreDistributionData = topGenresPie.map(([genre, count]) => {
-                const color = genrePieChartColors[colorIndexPie % (genrePieChartColors.length -1)]; // -1 para não usar a cor de "Outros" ainda
-                colorIndexPie++;
+            let colorIndex = 0;
+            const genreDataFormatted = topGenresForChart.map(([genre, count]) => {
+                const color = genreChartColors[colorIndex % (genreChartColors.length -1)]; 
+                colorIndex++;
                 return {
                     name: genre,
                     population: count,
@@ -136,24 +139,35 @@ export default function Home() {
                 };
             });
 
-            if (otherGenresCountPie > 0) {
-                genreDistributionData.push({
+            if (otherGenresCount > 0) {
+                genreDataFormatted.push({
                     name: "Outros",
-                    population: otherGenresCountPie,
-                    color: genrePieChartColors[genrePieChartColors.length -1], // Última cor para "Outros"
+                    population: otherGenresCount,
+                    color: genreChartColors[genreChartColors.length -1], 
                     legendFontColor: "#eaeaea",
                     legendFontSize: 12
                 });
             }
             
-            setGenrePieChartData(genreDistributionData); // Usando o estado para o PieChart
+            setGenrePieChartData(genreDataFormatted); 
 
-            // --- Processamento para o Texto dos Top 3 Gêneros ---
+            // NOVO: Preparar dados para o BarChart
+            const barChartLabels = genreDataFormatted.map(d => d.name);
+            const barChartValues = genreDataFormatted.map(d => d.population);
+            setGenreBarChartData({
+                labels: barChartLabels,
+                datasets: [{
+                    data: barChartValues,
+                }]
+            });
+
+
+            // --- Processamento para o Texto dos Top 3 Gêneros e Duração Ideal ---
             const genreRawCounts: { [key: string]: { likes: number, dislikes: number, favorites: number, total: number } } = {};
-            let totalFavoriteDuration = 0; // Para calcular a duração média
-            let favoriteMovieCount = 0; // Para contar filmes favoritos
-            let totalLikedDuration = 0; // NOVO: Para calcular a duração média de filmes gostei
-            let likedMovieCount = 0; // NOVO: Para contar filmes gostei
+            let totalFavoriteDuration = 0; 
+            let favoriteMovieCount = 0; 
+            let totalLikedDuration = 0; 
+            let likedMovieCount = 0; 
 
 
             allUserReviews.forEach(review => {
@@ -167,7 +181,7 @@ export default function Home() {
                         if (review.reviewType === 'like') genreRawCounts[primaryGenre].likes++;
                         else if (review.reviewType === 'dislike') genreRawCounts[primaryGenre].dislikes++;
                         else if (review.reviewType === 'favorite') genreRawCounts[primaryGenre].favorites++;
-                        genreRawCounts[primaryGenre].total++; // Incrementa o total para ordenação
+                        genreRawCounts[primaryGenre].total++; 
                     }
                 }
                 // Coleta dados para a duração média favorita
@@ -194,9 +208,9 @@ export default function Home() {
                         return countsB.likes - countsA.likes;
                     }
                     // Critério de desempate final: Não Gostei
-                    return countsB.dislikes - countsA.dislikes;
+                    return countsB.dislikes - countsB.dislikes;
                 })
-                .slice(0, TOP_N_GENRES_TEXT); // Pega os 3 primeiros gêneros para o texto
+                .slice(0, TOP_N_GENRES_TEXT); 
 
             if (sortedGenresForText.length > 0) {
                 // Formata o texto com enumeração
@@ -204,7 +218,7 @@ export default function Home() {
                 sortedGenresForText.forEach(([,], index) => {
                     formattedText.push(`${index + 1}. ${sortedGenresForText[index][0]}`);
                 });
-                setTopGenresText(formattedText.join('\n')); // Junta as linhas com quebra de linha
+                setTopGenresText(formattedText.join('\n')); 
             } else {
                 setTopGenresText('Avalie filmes para ver seus gêneros principais aqui!');
             }
@@ -255,11 +269,13 @@ export default function Home() {
         loadPopularMovies();
     }, [loadPopularMovies]);
 
-    useEffect(() => {
-        if (currentUser) {
-            loadChartData();
-        }
-    }, [currentUser, loadChartData]);
+    useFocusEffect(
+        useCallback(() => {
+            if (currentUser) {
+                loadChartData();
+            }
+        }, [currentUser, loadChartData])
+    );
 
     useEffect(() => {
         const handler = setTimeout(() => {
@@ -382,27 +398,45 @@ export default function Home() {
                                 {topGenresText.split('\n').slice(1).map((line, index) => (
                                     <Text key={index} style={homeStyles.topGenresText}>{line}</Text>
                                 ))}
-                        </View>
-                    ) : (
-                        <Text style={homeStyles.emptyChartText}>Avalie filmes para ver seus gêneros principais aqui!</Text>
-                    )}
+                            </View>
+                        ) : (
+                            <Text style={homeStyles.emptyChartText}>Avalie filmes para ver seus gêneros principais aqui!</Text>
+                        )}
 
 
-                            {/* Renderiza gráfico de pizza de gêneros */}
-                            {genrePieChartData.length > 0 && (
+                            {/* Renderiza gráfico de barras de gêneros */}
+                            {genreBarChartData.labels.length > 0 && (
                                 <>
                                     <Text style={homeStyles.chartTitle}>Gêneros de Filmes Avaliados</Text>
-                                    <PieChart
-                                        data={genrePieChartData}
-                                        width={screenWidth - 40}
-                                        height={200}
-                                        chartConfig={chartConfig}
-                                        accessor="population"
-                                        backgroundColor="transparent"
-                                        paddingLeft="15"
-                                        center={[0, 0]}
-                                        absolute
+                                    <BarChart 
+                                        data={genreBarChartData}
+                                        width={screenWidth - 40} 
+                                        height={250} 
+                                        yAxisLabel="" 
+                                        yAxisSuffix="" 
+                                        chartConfig={{
+                                            ...chartConfig,
+                                            decimalPlaces: 0, 
+                                            barPercentage: 0.7, 
+                                            propsForBackgroundLines: {
+                                                strokeDasharray: '', 
+                                                stroke: '#4A6B8A', 
+                                            },
+                                            propsForLabels: {
+                                                fill: 'rgba(0, 0, 0, 0)', 
+                                            },
+                                            color: (opacity = 0) => `rgba(255, 215, 0, ${opacity})`, 
+                                            barRadius: 5, 
+                                        }}
+                                        verticalLabelRotation={0} 
+                                        fromZero={true} 
+                                        showValuesOnTopOfBars={true} 
+                                        style={{
+                                            marginVertical: 8,
+                                            borderRadius: 16
+                                        }}
                                     />
+                                    {/* REMOVIDO: Legenda Manual para Gêneros com Cores */}
                                 </>
                             )}
                             
@@ -564,30 +598,30 @@ const homeStyles = StyleSheet.create({
         marginTop: 5,
         paddingHorizontal: 20,
     },
-    barChartLegendContainer: {
+    barChartLegendContainer: { // Este estilo será removido do JSX
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'center',
         marginTop: 10,
         marginBottom: 10,
     },
-    legendItem: {
+    legendItem: { // Este estilo será removido do JSX
         flexDirection: 'row',
         alignItems: 'center',
         marginHorizontal: 10,
         marginBottom: 5,
     },
-    legendColorBox: {
+    legendColorBox: { // Este estilo será removido do JSX
         width: 12,
         height: 12,
         borderRadius: 6,
         marginRight: 5,
     },
-    legendText: {
+    legendText: { // Este estilo será removido do JSX
         color: '#eaeaea',
         fontSize: 12,
     },
-    topGenresText: { // Estilo existente para o texto dos top gêneros
+    topGenresText: {
         color: '#eaeaea',
         fontSize: 16,
         textAlign: 'center',
@@ -595,7 +629,7 @@ const homeStyles = StyleSheet.create({
         marginBottom: 10,
         paddingHorizontal: 18,
     },
-    idealDurationText: { // NOVO ESTILO: Para a duração ideal
+    idealDurationText: {
         color: '#eaeaea',
         fontSize: 16,
         fontWeight: 'bold',

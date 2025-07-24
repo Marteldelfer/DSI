@@ -1,35 +1,35 @@
 // aplicativo/app/telas/EditarFilmeExterno.tsx
 import React, { useState, useCallback } from 'react';
-import { 
-    View, 
-    Text, 
-    TextInput, 
-    Pressable, 
-    StyleSheet, 
-    Alert, 
-    ScrollView, 
-    Image, 
+import {
+    View,
+    Text,
+    TextInput,
+    Pressable,
+    StyleSheet,
+    Alert,
+    ScrollView,
+    Image,
     TouchableOpacity,
-    Modal, 
+    Modal,
     ActivityIndicator,
 } from 'react-native';
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router'; 
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
-import { styles } from '../styles'; 
-import { Movie, MovieStatus } from '../../src/models/Movie'; 
-import { MovieService } from '../../src/services/MovieService'; 
-import * as ImagePicker from 'expo-image-picker'; 
+import { styles } from '../styles';
+import { Movie, MovieStatus } from '../../src/models/Movie';
+import { MovieService } from '../../src/services/MovieService';
+import * as ImagePicker from 'expo-image-picker';
 
 function EditarFilmeExterno() {
     const router = useRouter();
-    const { movieId: paramMovieId } = useLocalSearchParams(); 
-    
-    const [movie, setMovie] = useState<Movie | null>(null); 
+    const { movieId: paramMovieId } = useLocalSearchParams();
+
+    const [movie, setMovie] = useState<Movie | null>(null);
     const [titulo, setTitulo] = useState('');
     const [anoLancamento, setAnoLancamento] = useState('');
     const [duracao, setDuracao] = useState('');
     const [genero, setGenero] = useState('');
-    const [sinopse, setSinopse] = useState(''); 
+    const [sinopse, setSinopse] = useState('');
     const [posterUri, setPosterUri] = useState<string | null>(null);
 
     const [modalFotoVisivel, setModalFotoVisivel] = useState(false);
@@ -39,14 +39,14 @@ function EditarFilmeExterno() {
 
     useFocusEffect(
         useCallback(() => {
-            const loadMovieData = async () => { // TORNADO ASYNC
+            const loadMovieData = async () => {
                 if (paramMovieId) {
-                    const foundMovie = await movieService.getMovieById(paramMovieId as string); // USANDO AWAIT
+                    const foundMovie = await movieService.getMovieById(paramMovieId as string);
                     if (foundMovie && foundMovie.isExternal) {
-                        setMovie(foundMovie); 
+                        setMovie(foundMovie);
                         setTitulo(foundMovie.title);
                         setAnoLancamento(foundMovie.releaseYear || '');
-                        setDuracao(foundMovie.duration?.toString() || ''); // Convertendo number para string
+                        setDuracao(foundMovie.duration?.toString() || '');
                         setGenero(foundMovie.genre || '');
                         setSinopse(foundMovie.overview || '');
                         setPosterUri(foundMovie.posterUrl || null);
@@ -64,28 +64,28 @@ function EditarFilmeExterno() {
     );
 
     const pickImageFromGallery = async () => {
-        setModalFotoVisivel(false); 
+        setModalFotoVisivel(false);
         let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
-            aspect: [2, 3], 
+            aspect: [2, 3],
             quality: 1,
         });
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
-            setPosterUri(result.assets[0].uri); 
+            setPosterUri(result.assets[0].uri);
         }
     };
 
     const handleAplicarFotoUrl = () => {
         if (novaFotoTemp) {
-            setPosterUri(novaFotoTemp); 
+            setPosterUri(novaFotoTemp);
         }
-        setModalFotoVisivel(false); 
-        setNovaFotoTemp(undefined); 
+        setModalFotoVisivel(false);
+        setNovaFotoTemp(undefined);
     };
 
-    const handleRemoverFoto = () => {
+    const handleRemoverFoto = async () => { // Tornar assíncrona
         Alert.alert(
             "Remover Foto",
             "Tem certeza que deseja remover a foto do pôster?",
@@ -93,10 +93,13 @@ function EditarFilmeExterno() {
                 { text: "Cancelar", style: "cancel" },
                 {
                     text: "Remover",
-                    onPress: () => {
-                        setPosterUri(null); 
-                        setModalFotoVisivel(false); 
-                        setNovaFotoTemp(undefined); 
+                    onPress: async () => { // Usando async aqui também
+                        if (posterUri) {
+                            await movieService.deleteMoviePoster(posterUri); // Deleta do Supabase Storage
+                        }
+                        setPosterUri(null);
+                        setModalFotoVisivel(false);
+                        setNovaFotoTemp(undefined);
                     },
                     style: "destructive",
                 },
@@ -104,8 +107,8 @@ function EditarFilmeExterno() {
         );
     };
 
-    const handleSaveMovie = async () => { // TORNADO ASYNC
-        if (!movie) { 
+    const handleSaveMovie = async () => {
+        if (!movie) {
             Alert.alert('Erro', 'Filme não carregado para edição.');
             return;
         }
@@ -114,21 +117,35 @@ function EditarFilmeExterno() {
             return;
         }
 
-        const updatedMovieData = new Movie({ // Criar um objeto Movie completo para a atualização
-            ...movie, 
-            id: movie.id, 
+        let finalPosterUrl: string | null = posterUri;
+
+        // Se o posterUri mudou e não é uma URL externa, faz o upload
+        if (posterUri && !(posterUri.startsWith('http://') || posterUri.startsWith('https://')) && posterUri !== movie.posterUrl) {
+            try {
+                finalPosterUrl = await movieService.uploadMoviePoster(posterUri, movie.id);
+            } catch (error) {
+                console.error("Erro ao fazer upload do pôster:", error);
+                Alert.alert('Erro', 'Não foi possível fazer upload da nova imagem do pôster.');
+                return;
+            }
+        } else if (!posterUri && movie.posterUrl) { // Se o usuário removeu a foto
+            finalPosterUrl = null;
+        }
+
+        const updatedMovieData = new Movie({
+            ...movie,
+            id: movie.id,
             title: titulo,
             releaseYear: anoLancamento,
-            director: movie.director, // Mantendo o diretor existente ou null
-            duration: parseInt(duracao, 10), // Convertendo para number
+            director: movie.director,
+            duration: parseInt(duracao, 10),
             genre: genero,
             overview: sinopse,
-            posterUrl: posterUri,
-            // isExternal e isTmdb são mantidos do objeto original 'movie'
+            posterUrl: finalPosterUrl, // Usa a URL pública do Supabase
         });
 
         try {
-            await movieService.updateMovie(updatedMovieData); // USANDO AWAIT
+            await movieService.updateMovie(updatedMovieData);
             Alert.alert('Sucesso', 'Filme atualizado com sucesso!');
             router.back();
         } catch (error) {
@@ -137,7 +154,7 @@ function EditarFilmeExterno() {
         }
     };
 
-    const handleDeleteMovie = async () => { // TORNADO ASYNC
+    const handleDeleteMovie = async () => {
         if (!movie) return;
 
         Alert.alert(
@@ -147,9 +164,10 @@ function EditarFilmeExterno() {
                 { text: 'Cancelar', style: 'cancel' },
                 {
                     text: 'Excluir',
-                    onPress: async () => { // Usando async aqui também
+                    onPress: async () => {
                         try {
-                            await movieService.deleteMovie(movie.id); // USANDO AWAIT
+                            // O MovieService.deleteMovie já lida com a exclusão do pôster do Supabase
+                            await movieService.deleteMovie(movie.id);
                             Alert.alert('Sucesso', 'Filme excluído com sucesso!');
                             router.back();
                         } catch (error) {
@@ -163,10 +181,10 @@ function EditarFilmeExterno() {
         );
     };
 
-    if (!movie) { 
+    if (!movie) {
         return (
             <View style={[styles.container, { justifyContent: 'center' }]}>
-                <ActivityIndicator size="large" color="#3E9C9C" /> 
+                <ActivityIndicator size="large" color="#3E9C9C" />
                 <Text style={{color: '#eaeaea', marginTop: 10}}>Carregando detalhes do filme...</Text>
             </View>
         );
@@ -185,18 +203,18 @@ function EditarFilmeExterno() {
             </View>
 
             <ScrollView contentContainerStyle={editarFilmeStyles.scrollViewContent}>
-                <View style={editarFilmeStyles.posterPreviewArea}> 
+                <View style={editarFilmeStyles.posterPreviewArea}>
                     {posterUri ? (
                         <Image source={{ uri: posterUri }} style={editarFilmeStyles.posterPreviewImage} />
                     ) : (
                         <View style={editarFilmeStyles.posterPlaceholder}>
-                            <Text style={editarFilmeStyles.posterPlaceholderText}>Pôster</Text> 
+                            <Text style={editarFilmeStyles.posterPlaceholderText}>Pôster</Text>
                         </View>
                     )}
                 </View>
 
                 <Pressable style={editarFilmeStyles.addPhotoButton} onPress={() => setModalFotoVisivel(true)}>
-                    <Text style={editarFilmeStyles.addPhotoButtonText}>Alterar Foto</Text> 
+                    <Text style={editarFilmeStyles.addPhotoButtonText}>Alterar Foto</Text>
                 </Pressable>
 
                 <Modal
@@ -208,7 +226,7 @@ function EditarFilmeExterno() {
                     <View style={editarFilmeStyles.centeredView}>
                         <View style={editarFilmeStyles.modalView}>
                             <Text style={editarFilmeStyles.modalTitle}>Alterar Foto do Pôster</Text>
-                            
+
                             <View style={styles.textInput}>
                                 <TextInput
                                     placeholder="Colar URL da foto"
@@ -216,7 +234,7 @@ function EditarFilmeExterno() {
                                     style={styles.input}
                                     value={novaFotoTemp}
                                     onChangeText={setNovaFotoTemp}
-                                    onSubmitEditing={handleAplicarFotoUrl} 
+                                    onSubmitEditing={handleAplicarFotoUrl}
                                 />
                             </View>
 
@@ -228,15 +246,11 @@ function EditarFilmeExterno() {
                                 <Text style={editarFilmeStyles.modalButtonText}>Aplicar URL</Text>
                             </Pressable>
 
-                            {posterUri && ( 
+                            {posterUri && (
                                 <Pressable style={[editarFilmeStyles.modalButton, editarFilmeStyles.modalDeleteButton]} onPress={handleRemoverFoto}>
                                     <Text style={editarFilmeStyles.modalButtonText}>Remover Foto</Text>
                                 </Pressable>
                             )}
-
-                            <Pressable style={[editarFilmeStyles.modalButton, editarFilmeStyles.modalCancelButton]} onPress={() => { setModalFotoVisivel(false); setNovaFotoTemp(undefined); }}>
-                                <Text style={editarFilmeStyles.modalButtonText}>Cancelar</Text>
-                            </Pressable>
                         </View>
                     </View>
                 </Modal>
@@ -320,15 +334,15 @@ const editarFilmeStyles = StyleSheet.create({
         paddingBottom: 100,
         alignItems: 'center',
     },
-    posterPreviewArea: { 
+    posterPreviewArea: {
         width: 150,
         height: 225,
         borderRadius: 12,
-        backgroundColor: '#4A6B8A', 
+        backgroundColor: '#4A6B8A',
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
-        marginBottom: 10, 
+        marginBottom: 10,
     },
     posterPreviewImage: {
         width: '100%',
@@ -343,16 +357,16 @@ const editarFilmeStyles = StyleSheet.create({
     },
     posterPlaceholderText: {
         color: '#eaeaea',
-        fontSize: 18, 
+        fontSize: 18,
         fontWeight: 'bold',
     },
-    addPhotoButton: { 
+    addPhotoButton: {
         backgroundColor: '#4A6B8A',
         paddingVertical: 12,
         paddingHorizontal: 20,
         borderRadius: 25,
-        marginBottom: 20, 
-        width: '80%', 
+        marginBottom: 20,
+        width: '80%',
         alignItems: 'center',
     },
     addPhotoButtonText: {
@@ -364,7 +378,7 @@ const editarFilmeStyles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.6)', 
+        backgroundColor: 'rgba(0,0,0,0.6)',
     },
     modalView: {
         margin: 20,
@@ -380,7 +394,7 @@ const editarFilmeStyles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 4,
         elevation: 5,
-        width: '80%', 
+        width: '80%',
     },
     modalTitle: {
         color: '#eaeaea',
@@ -389,7 +403,7 @@ const editarFilmeStyles = StyleSheet.create({
         marginBottom: 20,
     },
     modalButton: {
-        backgroundColor: '#3E9C9C', 
+        backgroundColor: '#3E9C9C',
         paddingVertical: 12,
         paddingHorizontal: 20,
         borderRadius: 25,
@@ -398,15 +412,15 @@ const editarFilmeStyles = StyleSheet.create({
         alignItems: 'center',
     },
     modalButtonText: {
-        color: 'black', 
+        color: 'black',
         fontSize: 16,
         fontWeight: 'bold',
     },
     modalCancelButton: {
-        backgroundColor: '#FF6347', 
+        backgroundColor: '#FF6347',
     },
-    modalDeleteButton: { 
-        backgroundColor: '#D9534F', 
+    modalDeleteButton: {
+        backgroundColor: '#D9534F',
     },
     saveButton: {
         backgroundColor: '#3E9C9C',

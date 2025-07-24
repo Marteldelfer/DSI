@@ -1,13 +1,16 @@
 // GARANTA QUE ESTE É O CONTEÚDO DE: aplicativo/app/(tabs)/Perfil.tsx
 import React, { useState, useEffect } from 'react';
-import { Text, View, Pressable, Image, Alert, StyleSheet, Modal, TextInput, TouchableOpacity } from 'react-native'; // Adicionado TouchableOpacity
+import { Text, View, Pressable, Image, Alert, StyleSheet, Modal, TextInput, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AntDesign, Feather } from '@expo/vector-icons';
 import { deleteUser, getAuth, onAuthStateChanged, signOut, updatePassword, updateProfile } from 'firebase/auth';
 import { styles } from '../styles';
 import { BarraForcaSenha } from '../componentes/BarraForcaSenha';
 import { validarSenha } from '../validacao/Validacao';
-import * as ImagePicker from 'expo-image-picker'; // Importar ImagePicker
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system'; // Importar FileSystem do Expo
+import { decode } from 'base64-arraybuffer'; // Importar decode para ArrayBuffer
+import { supabase } from '../../src/config/supabaseConfig'; // Importar Supabase
 
 function TelaPerfil() {
   const router = useRouter();
@@ -16,10 +19,10 @@ function TelaPerfil() {
   const [fotoUrl, setFotoUrl] = useState<string | undefined>(undefined);
 
   const [modalExcluirVisivel, setModalExcluirVisivel] = useState(false);
-  
+
   const [modalFotoVisivel, setModalFotoVisivel] = useState(false);
-  const [novaFoto, setNovaFoto] = useState<string | undefined>(undefined);
-  
+  const [novaFotoTemp, setNovaFotoTemp] = useState<string | undefined>(undefined); // Alterado para NovaFotoTemp
+
   const [modalNomeVisivel, setModalNomeVisivel] = useState(false);
   const [novoNomeUsuario, setNovoNomeUsuario] = useState("");
 
@@ -46,8 +49,72 @@ function TelaPerfil() {
     return () => unsubscribe();
   }, []);
 
-  // Nova função para selecionar imagem da galeria
-  const pickImage = async () => {
+  // Nova função para fazer upload da imagem para o Supabase Storage
+  const uploadProfilePicture = async (uri: string): Promise<string | null> => {
+    if (!user) {
+        Alert.alert('Erro', 'Usuário não autenticado.');
+        return null;
+    }
+    try {
+        // Verifica se a URI é uma URL externa (http/https)
+        if (uri.startsWith('http://') || uri.startsWith('https://')) {
+            return uri; // Se já é uma URL externa, retorna ela mesma
+        }
+
+        const fileExtension = uri.split('.').pop();
+        const fileName = `${user.uid}-${Date.now()}.${fileExtension}`;
+        const filePath = `profile_pictures/${user.uid}/${fileName}`; // Caminho: bucket/userId/fileName
+
+        // Lê o arquivo local como base64 e decodifica para ArrayBuffer
+        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+        const arrayBuffer = decode(base64);
+
+        const { data, error } = await supabase.storage
+            .from('photos') // Nome do bucket: 'photos'
+            .upload(filePath, arrayBuffer, {
+                contentType: `image/${fileExtension}`,
+                upsert: true,
+            });
+
+        if (error) {
+            throw error;
+        }
+
+        const publicUrl = supabase.storage.from('photos').getPublicUrl(filePath);
+        return publicUrl.data.publicUrl;
+
+    } catch (error: any) {
+        console.error('Erro ao fazer upload da foto de perfil para o Supabase:', error.message);
+        Alert.alert('Erro', 'Não foi possível fazer upload da foto de perfil. Tente novamente.');
+        return null;
+    }
+  };
+
+  // Função para deletar a foto de perfil do Supabase Storage
+  const deleteProfilePicture = async (photoUrl: string): Promise<void> => {
+    if (!user) return;
+
+    // Verifica se a URL é de um arquivo Supabase antes de tentar deletar
+    if (photoUrl.includes('byifuavvmafihjbxtmyq.supabase.co/storage/v1/object/public/photos/')) {
+        try {
+            // Extrai o caminho do arquivo do URL público
+            const pathInBucket = photoUrl.split('byifuavvmafihjbxtmyq.supabase.co/storage/v1/object/public/photos/')[1];
+            const { error } = await supabase.storage.from('photos').remove([pathInBucket]);
+
+            if (error) {
+                console.error('Erro ao deletar foto de perfil do Supabase Storage:', error.message);
+                throw error;
+            }
+            console.log('Foto de perfil deletada do Supabase Storage:', photoUrl);
+        } catch (error) {
+            console.error('Erro no processo de deleção da foto de perfil do Supabase:', error);
+        }
+    }
+  };
+
+
+  const pickImageFromGallery = async () => {
+    setModalFotoVisivel(false);
     let result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -56,23 +123,45 @@ function TelaPerfil() {
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-        setNovaFoto(result.assets[0].uri);
+        setNovaFotoTemp(result.assets[0].uri);
+        handleAtualizarFoto(result.assets[0].uri); // Chamar a atualização com a URI local
     }
   };
 
-  const handleAtualizarFoto = async () => {
-    if (user && novaFoto) {
-      setModalFotoVisivel(false);
-      setFotoUrl(novaFoto);
+  const handleAplicarFotoUrl = (url: string) => {
+    setModalFotoVisivel(false);
+    setNovaFotoTemp(url);
+    handleAtualizarFoto(url); // Chamar a atualização com a URL
+  };
+
+  const handleAtualizarFoto = async (uriOrUrl?: string) => {
+    const photoSource = uriOrUrl || novaFotoTemp; // Usar a URI passada ou a do estado
+    if (!user || !photoSource) {
+      Alert.alert('Erro', 'Nenhuma foto selecionada ou usuário não autenticado.');
+      return;
+    }
+    
+    // Se já existe uma foto e ela é do Supabase, deleta a antiga primeiro
+    if (fotoUrl && fotoUrl.includes('byifuavvmafihjbxtmyq.supabase.co/storage/v1/object/public/photos/')) {
+        await deleteProfilePicture(fotoUrl);
+    }
+
+    const publicUrl = await uploadProfilePicture(photoSource);
+    if (publicUrl) {
+      setFotoUrl(publicUrl);
       try {
-        await updateProfile(user, {photoURL: novaFoto});
+        await updateProfile(user, {photoURL: publicUrl});
         Alert.alert('Sucesso', 'Foto de perfil atualizada!');
       } catch (error: any) {
-        Alert.alert('Erro', 'Não foi possível atualizar a foto de perfil. Tente novamente.');
-        console.error('Erro ao atualizar foto:', error.message);
+        Alert.alert('Erro', 'Não foi possível atualizar a foto de perfil no Firebase. Tente novamente.');
+        console.error('Erro ao atualizar foto no Firebase:', error.message);
       }
     }
-  }
+    setModalFotoVisivel(false);
+    setNovaFotoTemp(undefined);
+  };
+
+
   const handleAtualizarNome = async () => { if (user && novoNomeUsuario) {
     setModalNomeVisivel(false);
     setNomeUsuario(novoNomeUsuario);
@@ -91,7 +180,16 @@ function TelaPerfil() {
       setMensagemErro("Senha muito curta")
     }
   };
-  const handleExcluirConta = () => {if (user) {deleteUser(user); handleLogout()}};
+  const handleExcluirConta = async () => { // Tornar assíncrona
+    if (user) {
+        // Antes de excluir a conta, se houver uma foto de perfil no Supabase, tente excluí-la
+        if (fotoUrl && fotoUrl.includes('byifuavvmafihjbxtmyq.supabase.co/storage/v1/object/public/photos/')) {
+            await deleteProfilePicture(fotoUrl); // Não espera para não bloquear a exclusão da conta
+        }
+        await deleteUser(user); // Espera a exclusão da conta
+        handleLogout();
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -124,16 +222,16 @@ function TelaPerfil() {
                   placeholder="URL da foto"
                   style={[styles.input, { flex: 1 }]}
                   placeholderTextColor={"black"}
-                  value={novaFoto}
-                  onChangeText={setNovaFoto}
-                  onSubmitEditing={handleAtualizarFoto}
+                  value={novaFotoTemp} // Usar novaFotoTemp
+                  onChangeText={setNovaFotoTemp} // Atualizar novaFotoTemp
+                  onSubmitEditing={() => handleAplicarFotoUrl(novaFotoTemp || '')} // Chamar handleAplicarFotoUrl
                 />
               </View>
               {/* Novo botão para escolher da galeria */}
-              <TouchableOpacity style={perfilStyles.uploadButton} onPress={pickImage}>
+              <TouchableOpacity style={perfilStyles.uploadButton} onPress={pickImageFromGallery}>
                   <Text style={perfilStyles.uploadButtonText}>Escolher da Galeria</Text>
               </TouchableOpacity>
-              <Pressable style={styles.Botao} onPress={handleAtualizarFoto}><Text style={styles.textoBotao}>Atualizar Foto</Text></Pressable>
+              <Pressable style={styles.Botao} onPress={() => handleAplicarFotoUrl(novaFotoTemp || '')}><Text style={styles.textoBotao}>Atualizar Foto</Text></Pressable>
             </View></View>
           </Modal>
         </View>

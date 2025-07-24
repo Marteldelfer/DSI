@@ -1,28 +1,31 @@
 // aplicativo/src/services/MovieService.ts
 import { Movie, MovieStatus } from '../models/Movie';
 import { getPopularMovies, getMovieDetails, searchMovies as searchTmdbMovies } from '../api/tmdb';
-import { 
-    getFirestore, 
-    collection, 
-    doc, 
-    addDoc, 
-    getDocs, 
-    updateDoc, 
-    deleteDoc, 
-    query, 
-    where, 
+import {
+    getFirestore,
+    collection,
+    doc,
+    addDoc,
+    getDocs,
+    updateDoc,
+    deleteDoc,
+    query,
+    where,
     orderBy,
     getDoc // Importe getDoc
 } from 'firebase/firestore';
 import { app } from '../config/firebaseConfig';
 import { getAuth } from 'firebase/auth';
 
-import { ReviewService } from './ReviewService'; 
-import { TagService } from './TagService'; 
+import { ReviewService } from './ReviewService';
+import { TagService } from './TagService';
+import { supabase } from '../config/supabaseConfig'; // Importe o cliente Supabase
+import * as FileSystem from 'expo-file-system'; // Importe FileSystem do Expo
+import { decode } from 'base64-arraybuffer'; // Importe decode
 
 let localTmdbMovieCache: Map<string, Movie> = new Map();
 
-export class MovieService { 
+export class MovieService {
     private static instance: MovieService;
     private db = getFirestore(app);
 
@@ -54,19 +57,97 @@ export class MovieService {
         localTmdbMovieCache.set(movie.id, movie);
     }
 
+    // NOVA FUNÇÃO: Upload de pôster para o Supabase Storage
+    public async uploadMoviePoster(uri: string, movieId: string): Promise<string | null> {
+        const userId = this.getCurrentUserId();
+        if (!userId) {
+            console.error("Usuário não autenticado. Não é possível fazer upload de pôster.");
+            throw new Error("Usuário não autenticado.");
+        }
+
+        try {
+            // Verifica se a URI é uma URL externa ou um arquivo local
+            if (uri.startsWith('http://') || uri.startsWith('https://')) {
+                // Se for uma URL externa, simplesmente retorna, não precisamos fazer upload
+                return uri;
+            }
+
+            const fileExtension = uri.split('.').pop();
+            const fileName = `${movieId}-${Date.now()}.${fileExtension}`;
+            const filePath = `posters/${userId}/${fileName}`; // Caminho: bucket/userId/fileName
+
+            // Lê o arquivo local como base64 e depois decodifica para ArrayBuffer
+            const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+            const arrayBuffer = decode(base64);
+
+            const { data, error } = await supabase.storage
+                .from('photos') // Nome do bucket: 'photos'
+                .upload(filePath, arrayBuffer, {
+                    contentType: `image/${fileExtension}`, // Define o tipo de conteúdo
+                    upsert: true, // Para sobrescrever se o arquivo já existir
+                });
+
+            if (error) {
+                throw error;
+            }
+
+            const publicUrl = supabase.storage.from('photos').getPublicUrl(filePath);
+            return publicUrl.data.publicUrl;
+
+        } catch (error: any) {
+            console.error('Erro ao fazer upload do pôster para o Supabase:', error.message);
+            throw error;
+        }
+    }
+
+    // NOVA FUNÇÃO: Deletar pôster do Supabase Storage
+    public async deleteMoviePoster(posterUrl: string): Promise<void> {
+        const userId = this.getCurrentUserId();
+        if (!userId) {
+            console.error("Usuário não autenticado. Não é possível deletar pôster.");
+            return;
+        }
+
+        // Verifica se a URL é de um arquivo Supabase antes de tentar deletar
+        if (posterUrl.includes('byifuavvmafihjbxtmyq.supabase.co/storage/v1/object/public/photos/')) {
+            try {
+                // Extrai o caminho do arquivo do URL público
+                const pathInBucket = posterUrl.split('byifuavvmafihjbxtmyq.supabase.co/storage/v1/object/public/photos/')[1];
+                const { error } = await supabase.storage.from('photos').remove([pathInBucket]);
+
+                if (error) {
+                    console.error('Erro ao deletar pôster do Supabase Storage:', error.message);
+                    throw error;
+                }
+                console.log('Pôster deletado do Supabase Storage:', posterUrl);
+            } catch (error) {
+                console.error('Erro no processo de deleção do pôster do Supabase:', error);
+            }
+        }
+    }
+
     public async createExternalMovie(movieData: {
         title: string;
-        overview?: string | null; 
-        releaseYear?: string | null; 
-        genre?: string | null; 
-        duration?: number | null; 
-        posterUrl?: string | null; 
-        director?: string | null; 
+        overview?: string | null;
+        releaseYear?: string | null;
+        genre?: string | null;
+        duration?: number | null;
+        posterUrl?: string | null;
+        director?: string | null;
     }): Promise<Movie> {
         const userId = this.getCurrentUserId();
         if (!userId) {
             console.error("Usuário não autenticado. Não é possível criar filme externo.");
             throw new Error("Usuário não autenticado.");
+        }
+
+        let finalPosterUrl: string | null = movieData.posterUrl ?? null;
+        // Se houver posterUri e não for uma URL externa, faz o upload
+        if (movieData.posterUrl && !(movieData.posterUrl.startsWith('http://') || movieData.posterUrl.startsWith('https://'))) {
+            // Temporariamente, cria um ID antes de salvar no Firestore para usar no nome do arquivo
+            // Isso pode ser ajustado para usar o ID do docRef.id após a criação
+            const tempMovieId = `temp-${Date.now()}`;
+            finalPosterUrl = await this.uploadMoviePoster(movieData.posterUrl, tempMovieId);
         }
 
         const newExternalMovieData = {
@@ -75,25 +156,29 @@ export class MovieService {
             releaseYear: movieData.releaseYear ?? null,
             genre: movieData.genre ?? null,
             duration: movieData.duration ?? null,
-            posterUrl: movieData.posterUrl ?? null,
-            backdropUrl: null, 
-            director: movieData.director ?? null, 
+            posterUrl: finalPosterUrl, // Usa a URL pública do Supabase
+            backdropUrl: null,
+            director: movieData.director ?? null,
             isExternal: true,
             isTmdb: false,
-            tmdbId: null, 
+            tmdbId: null,
         };
 
         try {
             const docRef = await addDoc(this.getUserExternalMoviesCollection(userId), newExternalMovieData);
             const newMovie = new Movie({
-                id: docRef.id, 
+                id: docRef.id,
                 ...newExternalMovieData,
-                status: null, 
+                status: null,
             });
             console.log("Filme externo criado com sucesso no Firestore com ID:", docRef.id);
             return newMovie;
         } catch (e) {
             console.error("Erro ao criar filme externo: ", e);
+            // Se o filme falhar ao ser criado no Firestore, tente deletar o pôster do Storage
+            if (finalPosterUrl && finalPosterUrl.includes('byifuavvmafihjbxtmyq.supabase.co/storage/v1/object/public/photos/')) {
+                 this.deleteMoviePoster(finalPosterUrl); // Não espera, para não bloquear o erro principal
+            }
             throw e;
         }
     }
@@ -108,20 +193,42 @@ export class MovieService {
         try {
             if (updatedMovie.isExternal) {
                 const movieRef = doc(this.db, `users/${userId}/externalMovies`, updatedMovie.id);
+                const currentMovieSnap = await getDoc(movieRef);
+                const currentMovieData = currentMovieSnap.data();
+                const oldPosterUrl = currentMovieData?.posterUrl;
+
+                let finalPosterUrl: string | null = updatedMovie.posterUrl ?? null;
+
+                // Se o posterUri mudou e não é uma URL externa, faz o upload
+                if (updatedMovie.posterUrl && !(updatedMovie.posterUrl.startsWith('http://') || updatedMovie.posterUrl.startsWith('https://')) && updatedMovie.posterUrl !== oldPosterUrl) {
+                    finalPosterUrl = await this.uploadMoviePoster(updatedMovie.posterUrl, updatedMovie.id);
+                    // Se a foto antiga era do Supabase, deleta
+                    if (oldPosterUrl && oldPosterUrl.includes('byifuavvmafihjbxtmyq.supabase.co/storage/v1/object/public/photos/')) {
+                         this.deleteMoviePoster(oldPosterUrl);
+                    }
+                } else if (!updatedMovie.posterUrl && oldPosterUrl && oldPosterUrl.includes('byifuavvmafihjbxtmyq.supabase.co/storage/v1/object/public/photos/')) {
+                    // Se o usuário removeu a foto, deleta do Supabase
+                    this.deleteMoviePoster(oldPosterUrl);
+                } else if (updatedMovie.posterUrl === oldPosterUrl) {
+                    // Se a URL não mudou, mantém a mesma (pode ser uma URL externa ou já do Supabase)
+                    finalPosterUrl = oldPosterUrl;
+                }
+
+
                 const dataToUpdate = {
                     title: updatedMovie.title,
                     overview: updatedMovie.overview,
                     releaseYear: updatedMovie.releaseYear,
                     genre: updatedMovie.genre,
                     duration: updatedMovie.duration,
-                    posterUrl: updatedMovie.posterUrl,
-                    backdropUrl: updatedMovie.backdropUrl, 
-                    director: updatedMovie.director, 
+                    posterUrl: finalPosterUrl, // Usa a URL pública do Supabase
+                    backdropUrl: updatedMovie.backdropUrl,
+                    director: updatedMovie.director,
                 };
                 await updateDoc(movieRef, dataToUpdate);
                 console.log("Filme externo atualizado no Firestore:", updatedMovie.id);
             } else if (updatedMovie.isTmdb) {
-                this.addTmdbMovieToCache(updatedMovie); 
+                this.addTmdbMovieToCache(updatedMovie);
                 console.log("Filme TMDB atualizado no cache local:", updatedMovie.id);
             } else {
                 console.warn("Tentativa de atualizar filme de tipo desconhecido:", updatedMovie.id);
@@ -141,15 +248,23 @@ export class MovieService {
 
         try {
             const movieRef = doc(this.db, `users/${userId}/externalMovies`, movieId);
-            const docSnap = await getDoc(movieRef); 
+            const docSnap = await getDoc(movieRef);
 
             if (docSnap.exists() && docSnap.data().isExternal) {
+                const movieData = docSnap.data();
+                const posterUrlToDelete = movieData.posterUrl;
+
                 await deleteDoc(movieRef);
                 console.log("Filme externo deletado do Firestore:", movieId);
+
+                // Tenta deletar o pôster do Supabase Storage se ele existir
+                if (posterUrlToDelete) {
+                    await this.deleteMoviePoster(posterUrlToDelete);
+                }
                 
                 const reviewsToDelete = await this.reviewService.getReviewsByMovieId(movieId);
                 for (const review of reviewsToDelete) {
-                    await this.reviewService.deleteReview(review.id); 
+                    await this.reviewService.deleteReview(review.id);
                 }
                 localTmdbMovieCache.delete(movieId);
 
@@ -198,7 +313,7 @@ export class MovieService {
         } catch (error) {
             console.error(`Erro ao buscar filme externo ${movieId} no Firestore:`, error);
         }
-        
+
         // 2. Se não encontrado como externo, tenta no cache local (TMDB)
         if (!movie && localTmdbMovieCache.has(movieId)) {
             movie = localTmdbMovieCache.get(movieId);
@@ -206,12 +321,12 @@ export class MovieService {
         }
 
         // 3. Se ainda não encontrado, e o ID não parece ser de filme externo, busca na API do TMDB
-        if (!movie && !movieId.startsWith('ext-')) { 
+        if (!movie && !movieId.startsWith('ext-')) {
             try {
                 const tmdbMovie = await getMovieDetails(movieId);
                 if (tmdbMovie) {
                     movie = tmdbMovie;
-                    this.addTmdbMovieToCache(movie); 
+                    this.addTmdbMovieToCache(movie);
                     console.log("Filme encontrado na API do TMDB:", movieId);
                 }
             } catch (error) {
@@ -236,14 +351,14 @@ export class MovieService {
                 console.error(`Erro ao buscar status/tags para o filme ${movie.id}:`, error);
             }
         }
-        
+
         return movie;
     }
 
     public async getPopularMovies(): Promise<Movie[]> {
         let tmdbPopularMovies: Movie[];
         try {
-            tmdbPopularMovies = await getPopularMovies(); 
+            tmdbPopularMovies = await getPopularMovies();
         } catch (error) {
             console.error("ERRO CRÍTICO: Falha ao buscar filmes populares da API TMDB.", error);
             return [];
@@ -328,7 +443,7 @@ export class MovieService {
         if (!userId) return [];
 
         let allMoviesCollection: Movie[] = [];
-        
+
         // 1. Obter todas as avaliações do usuário para identificar filmes avaliados
         const allUserReviewsMap = new Map<string, MovieStatus>();
         const reviews = await this.reviewService.getAllUserReviews();
@@ -370,10 +485,10 @@ export class MovieService {
         }
 
         // 3. Proativamente buscar e cachear detalhes de filmes TMDB avaliados que não estão no cache local
-        const tmdbMovieIdsToFetch = movieIdsWithReviews.filter(movieId => 
+        const tmdbMovieIdsToFetch = movieIdsWithReviews.filter(movieId =>
             !movieId.startsWith('ext-') && !localTmdbMovieCache.has(movieId) // Verifica se é TMDB e não está no cache
         );
-        
+
         const fetchedTmdbMoviesPromises = tmdbMovieIdsToFetch.map(async id => {
             try {
                 const movie = await getMovieDetails(id);
@@ -392,14 +507,14 @@ export class MovieService {
         if (sourceFilter === 'all' || sourceFilter === 'app_db') {
             for (const [movieId, movieFromCache] of localTmdbMovieCache.entries()) {
                 // Inclui filmes TMDB se eles foram avaliados OU se são resultados de busca recente (e podem ter status)
-                if (allUserReviewsMap.has(movieId) || movieFromCache.status !== null) { 
+                if (allUserReviewsMap.has(movieId) || movieFromCache.status !== null) {
                     const movieCopy = new Movie({ ...movieFromCache });
                     movieCopy.status = allUserReviewsMap.get(movieId) || null;
                     allMoviesCollection.push(movieCopy);
                 }
             }
         }
-        
+
         let filteredMovies = allMoviesCollection;
 
         // Aplica os filtros de exibição

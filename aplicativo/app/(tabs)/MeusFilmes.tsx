@@ -240,7 +240,7 @@ function MeusFilmesScreen() {
             </Modal>
 
             <Pressable style={meusFilmesStyles.addExternalMovieButton} onPress={() => router.push('/telas/AdicionarFilmeExterno')}>
-                <Text style={meusFilmesStyles.addExternalMovieButtonText}>Adicionar filme externo +</Text>
+                <Text style={meusFilmesStyles.addExternalMovieButtonText}>Filme Externo</Text>
             </Pressable>
         </View>
     );
