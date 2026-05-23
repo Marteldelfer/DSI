@@ -113,6 +113,38 @@ function CriarEventoScreen() {
         return dateObj.toISOString();
     };
 
+    // Auto-formatação do campo de data (DD/MM/AAAA)
+    const handleDataChange = (text: string) => {
+        // Remove tudo que não é número
+        const cleaned = text.replace(/\D/g, '');
+        let formatted = '';
+
+        if (cleaned.length <= 2) {
+            formatted = cleaned;
+        } else if (cleaned.length <= 4) {
+            formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
+        } else {
+            formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
+        }
+
+        setData(formatted);
+    };
+
+    // Auto-formatação do campo de hora (HH:MM)
+    const handleHoraChange = (text: string) => {
+        // Remove tudo que não é número
+        const cleaned = text.replace(/\D/g, '');
+        let formatted = '';
+
+        if (cleaned.length <= 2) {
+            formatted = cleaned;
+        } else {
+            formatted = `${cleaned.slice(0, 2)}:${cleaned.slice(2, 4)}`;
+        }
+
+        setHora(formatted);
+    };
+
     // Handler para salvar o evento
     const handleSalvar = async () => {
         // Validação dos campos obrigatórios
@@ -219,7 +251,7 @@ function CriarEventoScreen() {
                                     placeholder="DD/MM/AAAA"
                                     placeholderTextColor="#B0C4DE"
                                     value={data}
-                                    onChangeText={setData}
+                                    onChangeText={handleDataChange}
                                     keyboardType="numeric"
                                     maxLength={10}
                                 />
@@ -235,7 +267,7 @@ function CriarEventoScreen() {
                                     placeholder="HH:MM"
                                     placeholderTextColor="#B0C4DE"
                                     value={hora}
-                                    onChangeText={setHora}
+                                    onChangeText={handleHoraChange}
                                     keyboardType="numeric"
                                     maxLength={5}
                                 />

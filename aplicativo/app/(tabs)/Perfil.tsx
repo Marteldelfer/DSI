@@ -8,9 +8,10 @@ import { styles } from '../styles';
 import { BarraForcaSenha } from '../componentes/BarraForcaSenha';
 import { validarSenha } from '../validacao/Validacao';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system'; // Importar FileSystem do Expo
-import { decode } from 'base64-arraybuffer'; // Importar decode para ArrayBuffer
-import { supabase } from '../../src/config/supabaseConfig'; // Importar Supabase
+import * as FileSystem from 'expo-file-system';
+import { decode } from 'base64-arraybuffer';
+import { storage } from '../../src/config/firebaseConfig';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 function TelaPerfil() {
   const router = useRouter();
@@ -49,7 +50,7 @@ function TelaPerfil() {
     return () => unsubscribe();
   }, []);
 
-  // Upload da imagem para o Supabase Storage com retry
+  // Upload da imagem para o Firebase Storage com retry
   const uploadProfilePicture = async (uri: string): Promise<string | null> => {
     if (!user) {
         Alert.alert('Erro', 'Usuário não autenticado.');
@@ -60,7 +61,6 @@ function TelaPerfil() {
             return uri;
         }
 
-        // Verifica se o arquivo existe
         const fileInfo = await FileSystem.getInfoAsync(uri);
         if (!fileInfo.exists) {
             console.error('Arquivo de imagem não encontrado:', uri);
@@ -92,30 +92,23 @@ function TelaPerfil() {
         const maxRetries = 3;
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                console.log(`Upload perfil tentativa ${attempt}/${maxRetries}...`);
-                const { data, error } = await supabase.storage
-                    .from('photos')
-                    .upload(filePath, arrayBuffer, {
-                        contentType: contentType,
-                        upsert: true,
-                    });
+                console.log(`Upload perfil tentativa ${attempt}/${maxRetries} para Firebase Storage...`);
+                const storageRef = ref(storage, filePath);
+                const metadata = { contentType };
+                await uploadBytes(storageRef, arrayBuffer, metadata);
 
-                if (error) {
-                    console.error(`Upload perfil erro (tentativa ${attempt}):`, error.message);
-                    throw error;
-                }
-
-                const publicUrl = supabase.storage.from('photos').getPublicUrl(filePath);
-                console.log('Upload perfil sucesso! URL:', publicUrl.data.publicUrl);
-                return publicUrl.data.publicUrl;
+                const downloadUrl = await getDownloadURL(storageRef);
+                console.log('Upload perfil sucesso! URL:', downloadUrl);
+                return downloadUrl;
             } catch (uploadError: any) {
                 const errorMsg = uploadError?.message || '';
                 const isNetworkError = errorMsg.includes('Network request failed') ||
-                                        uploadError?.name === 'StorageUnknownError' ||
-                                        errorMsg.includes('Failed to fetch');
+                                        errorMsg.includes('Failed to fetch') ||
+                                        errorMsg.includes('timeout') ||
+                                        uploadError?.code === 'storage/retry-limit-exceeded';
                 if (isNetworkError && attempt < maxRetries) {
                     const delay = attempt * 2000;
-                    console.warn(`Upload perfil tentativa ${attempt} falhou (rede). Retentando em ${delay/1000}s...`);
+                    console.warn(`Upload perfil tentativa ${attempt} falhou (rede: ${errorMsg}). Retentando em ${delay/1000}s...`);
                     await new Promise(resolve => setTimeout(resolve, delay));
                 } else {
                     throw uploadError;
@@ -124,30 +117,27 @@ function TelaPerfil() {
         }
         return null;
     } catch (error: any) {
-        console.error('Erro ao fazer upload da foto de perfil para o Supabase:', error.message || error);
+        console.error('Erro ao fazer upload da foto de perfil:', error.message || error);
         Alert.alert('Erro', 'Não foi possível fazer upload da foto de perfil. Verifique sua conexão e tente novamente.');
         return null;
     }
   };
 
-  // Função para deletar a foto de perfil do Supabase Storage
+  // Função para deletar a foto de perfil do Firebase Storage
   const deleteProfilePicture = async (photoUrl: string): Promise<void> => {
     if (!user) return;
 
-    // Verifica se a URL é de um arquivo Supabase antes de tentar deletar
-    if (photoUrl.includes('byifuavvmafihjbxtmyq.supabase.co/storage/v1/object/public/photos/')) {
+    if (photoUrl.includes('firebasestorage.googleapis.com')) {
         try {
-            // Extrai o caminho do arquivo do URL público
-            const pathInBucket = photoUrl.split('byifuavvmafihjbxtmyq.supabase.co/storage/v1/object/public/photos/')[1];
-            const { error } = await supabase.storage.from('photos').remove([pathInBucket]);
-
-            if (error) {
-                console.error('Erro ao deletar foto de perfil do Supabase Storage:', error.message);
-                throw error;
+            const storageRef = ref(storage, photoUrl);
+            await deleteObject(storageRef);
+            console.log('Foto de perfil deletada do Firebase Storage:', photoUrl);
+        } catch (error: any) {
+            if (error?.code === 'storage/object-not-found') {
+                console.log('Foto já não existe no Storage.');
+            } else {
+                console.error('Erro ao deletar foto de perfil:', error);
             }
-            console.log('Foto de perfil deletada do Supabase Storage:', photoUrl);
-        } catch (error) {
-            console.error('Erro no processo de deleção da foto de perfil do Supabase:', error);
         }
     }
   };
@@ -181,8 +171,8 @@ function TelaPerfil() {
       return;
     }
     
-    // Se já existe uma foto e ela é do Supabase, deleta a antiga primeiro
-    if (fotoUrl && fotoUrl.includes('byifuavvmafihjbxtmyq.supabase.co/storage/v1/object/public/photos/')) {
+    // Se já existe uma foto no Firebase Storage, deleta a antiga primeiro
+    if (fotoUrl && fotoUrl.includes('firebasestorage.googleapis.com')) {
         await deleteProfilePicture(fotoUrl);
     }
 
@@ -222,9 +212,9 @@ function TelaPerfil() {
   };
   const handleExcluirConta = async () => { // Tornar assíncrona
     if (user) {
-        // Antes de excluir a conta, se houver uma foto de perfil no Supabase, tente excluí-la
-        if (fotoUrl && fotoUrl.includes('byifuavvmafihjbxtmyq.supabase.co/storage/v1/object/public/photos/')) {
-            await deleteProfilePicture(fotoUrl); // Não espera para não bloquear a exclusão da conta
+        // Antes de excluir a conta, se houver uma foto de perfil no Firebase Storage, tente excluí-la
+        if (fotoUrl && fotoUrl.includes('firebasestorage.googleapis.com')) {
+            await deleteProfilePicture(fotoUrl);
         }
         await deleteUser(user); // Espera a exclusão da conta
         handleLogout();

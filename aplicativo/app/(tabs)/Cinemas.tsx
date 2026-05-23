@@ -78,13 +78,13 @@ export default function Cinemas() {
   };
 
   const buscarCinemasOSM = async (lat: number, lon: number) => {
-    // Raio de 50km para cobrir a RMR inteira
+    // Raio de 15km para busca rápida + cinemas RMR adicionados como fallback
     const queryStr = `
-      [out:json][timeout:30];
+      [out:json][timeout:25];
       (
-        node["amenity"="cinema"](around:50000,${lat},${lon});
-        way["amenity"="cinema"](around:50000,${lat},${lon});
-        relation["amenity"="cinema"](around:50000,${lat},${lon});
+        node["amenity"="cinema"](around:15000,${lat},${lon});
+        way["amenity"="cinema"](around:15000,${lat},${lon});
+        relation["amenity"="cinema"](around:15000,${lat},${lon});
       );
       out center;
     `;
@@ -99,7 +99,7 @@ export default function Cinemas() {
     for (const endpoint of endpoints) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 35000);
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
 
         const res = await fetch(endpoint, {
           method: "POST",

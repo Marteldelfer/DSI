@@ -1,0 +1,19 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Qualquer usuário autenticado pode ler imagens
+    match /{allPaths=**} {
+      allow read: if true;
+    }
+    
+    // Pôsters de filmes - apenas o dono pode criar/editar/deletar
+    match /posters/{userId}/{fileName} {
+      allow write, delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Fotos de perfil - apenas o dono pode criar/editar/deletar
+    match /profile_pictures/{userId}/{fileName} {
+      allow write, delete: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
