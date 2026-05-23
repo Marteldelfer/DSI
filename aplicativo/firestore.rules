@@ -1,0 +1,92 @@
+rules_version = '2';
+
+// =============================================================
+// Regras de Segurança do Firestore - Projeto Filmeia
+// =============================================================
+// IMPORTANTE: Copie estas regras para o console do Firebase:
+// 1. Acesse https://console.firebase.google.com
+// 2. Selecione o projeto "filmeia"
+// 3. Vá em Firestore Database → Regras
+// 4. Cole o conteúdo abaixo e publique
+// =============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ========================
+    // Filmes Externos do Usuário
+    // ========================
+    // Cada usuário pode ler/escrever apenas seus próprios filmes
+    match /users/{userId}/externalMovies/{movieId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ========================
+    // Avaliações (Reviews)
+    // ========================
+    match /users/{userId}/reviews/{reviewId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ========================
+    // Tags do Usuário
+    // ========================
+    match /users/{userId}/tags/{tagId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ========================
+    // Playlists do Usuário
+    // ========================
+    match /users/{userId}/playlists/{playlistId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ========================
+    // Comentários
+    // ========================
+    match /users/{userId}/comments/{commentId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ========================
+    // Eventos de Cinema
+    // ========================
+    match /users/{userId}/eventos/{eventoId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ========================
+    // Grupos de Amigos (coleção de nível raiz)
+    // ========================
+    // Qualquer usuário autenticado pode criar grupos
+    // Leitura: membros do grupo (via array memberIds)
+    // Escrita: membros do grupo podem atualizar; dono pode excluir
+    match /groups/{groupId} {
+      // Permite criar se o usuário está autenticado
+      allow create: if request.auth != null;
+
+      // Permite ler se o usuário é membro do grupo
+      allow read: if request.auth != null
+                   && request.auth.uid in resource.data.memberIds;
+
+      // Permite atualizar se o usuário é membro do grupo
+      allow update: if request.auth != null
+                     && request.auth.uid in resource.data.memberIds;
+
+      // Permite excluir se o usuário é o dono do grupo
+      allow delete: if request.auth != null
+                     && request.auth.uid == resource.data.ownerId;
+    }
+
+    // ========================
+    // Perfis de Usuário (para busca de membros por email)
+    // ========================
+    match /userProfiles/{profileId} {
+      // Qualquer usuário autenticado pode ler perfis (para buscar membros por email)
+      allow read: if request.auth != null;
+      // Apenas o próprio usuário pode criar/atualizar seu perfil
+      allow write: if request.auth != null && request.auth.uid == profileId;
+    }
+  }
+}
