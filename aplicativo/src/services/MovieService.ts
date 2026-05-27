@@ -14,9 +14,9 @@ import {
     orderBy,
     getDoc // Importe getDoc
 } from 'firebase/firestore';
-import { app, storage } from '../config/firebaseConfig';
+import { app } from '../config/firebaseConfig';
 import { getAuth } from 'firebase/auth';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { supabase } from '../config/supabaseConfig';
 
 import { ReviewService } from './ReviewService';
 import { TagService } from './TagService';
@@ -57,7 +57,7 @@ export class MovieService {
         localTmdbMovieCache.set(movie.id, movie);
     }
 
-    // Upload de pôster para o Firebase Storage com retry e diagnóstico
+    // Upload de pôster para o Supabase Storage com retry e diagnóstico
     public async uploadMoviePoster(uri: string, movieId: string): Promise<string | null> {
         const userId = this.getCurrentUserId();
         if (!userId) {
@@ -87,7 +87,7 @@ export class MovieService {
 
             // Lê o arquivo local como base64
             const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-            
+
             if (!base64 || base64.length === 0) {
                 console.error('Falha ao ler arquivo como base64 - conteúdo vazio');
                 throw new Error('Falha ao ler arquivo de imagem.');
@@ -97,7 +97,6 @@ export class MovieService {
 
             const arrayBuffer = decode(base64);
 
-            // Content type mapping
             const contentTypeMap: Record<string, string> = {
                 'jpg': 'image/jpeg',
                 'jpeg': 'image/jpeg',
@@ -113,22 +112,33 @@ export class MovieService {
 
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
-                    console.log(`Upload tentativa ${attempt}/${maxRetries} para Firebase Storage...`);
+                    console.log(`Upload tentativa ${attempt}/${maxRetries} para Supabase Storage...`);
 
-                    const storageRef = ref(storage, filePath);
-                    const metadata = { contentType };
-                    await uploadBytes(storageRef, arrayBuffer, metadata);
+                    const { data, error } = await supabase.storage
+                        .from('photos')
+                        .upload(filePath, arrayBuffer, {
+                            contentType: contentType,
+                            upsert: true,
+                        });
 
-                    const downloadUrl = await getDownloadURL(storageRef);
-                    console.log('Upload sucesso! URL pública:', downloadUrl);
-                    return downloadUrl;
+                    if (error) {
+                        console.error(`Upload erro (tentativa ${attempt}):`, JSON.stringify({
+                            message: error.message,
+                            name: (error as any).name,
+                        }));
+                        throw error;
+                    }
+
+                    const publicUrl = supabase.storage.from('photos').getPublicUrl(filePath);
+                    console.log('Upload sucesso! URL pública:', publicUrl.data.publicUrl);
+                    return publicUrl.data.publicUrl;
                 } catch (uploadError: any) {
                     lastError = uploadError;
                     const errorMsg = uploadError?.message || '';
                     const isNetworkError = errorMsg.includes('Network request failed') ||
+                                            uploadError?.name === 'StorageUnknownError' ||
                                             errorMsg.includes('Failed to fetch') ||
-                                            errorMsg.includes('timeout') ||
-                                            uploadError?.code === 'storage/retry-limit-exceeded';
+                                            errorMsg.includes('timeout');
 
                     if (isNetworkError && attempt < maxRetries) {
                         const delay = attempt * 2000;
@@ -142,12 +152,12 @@ export class MovieService {
 
             throw lastError;
         } catch (error: any) {
-            console.error('Erro ao fazer upload do pôster para o Firebase Storage:', error.message || error);
+            console.error('Erro ao fazer upload do pôster para o Supabase:', error.message || error);
             throw error;
         }
     }
 
-    // Deletar pôster do Firebase Storage
+    // Deletar pôster do Supabase Storage
     public async deleteMoviePoster(posterUrl: string): Promise<void> {
         const userId = this.getCurrentUserId();
         if (!userId) {
@@ -155,19 +165,19 @@ export class MovieService {
             return;
         }
 
-        // Verifica se a URL é de um arquivo Firebase Storage antes de tentar deletar
-        if (posterUrl.includes('firebasestorage.googleapis.com')) {
+        // Verifica se a URL é do Supabase antes de tentar deletar
+        if (posterUrl.includes('supabase.co/storage/v1/object/public/photos/')) {
             try {
-                const storageRef = ref(storage, posterUrl);
-                await deleteObject(storageRef);
-                console.log('Pôster deletado do Firebase Storage:', posterUrl);
-            } catch (error: any) {
-                // Ignora erro se o arquivo já não existe
-                if (error?.code === 'storage/object-not-found') {
-                    console.warn('Pôster já não existe no Firebase Storage:', posterUrl);
+                const pathInBucket = posterUrl.split('/storage/v1/object/public/photos/')[1];
+                const { error } = await supabase.storage.from('photos').remove([pathInBucket]);
+
+                if (error) {
+                    console.error('Erro ao deletar pôster do Supabase Storage:', error.message);
                 } else {
-                    console.error('Erro no processo de deleção do pôster do Firebase Storage:', error);
+                    console.log('Pôster deletado do Supabase Storage:', posterUrl);
                 }
+            } catch (error: any) {
+                console.error('Erro no processo de deleção do pôster:', error);
             }
         }
     }
@@ -248,15 +258,15 @@ export class MovieService {
                 // Se o posterUri mudou e não é uma URL externa, faz o upload
                 if (updatedMovie.posterUrl && !(updatedMovie.posterUrl.startsWith('http://') || updatedMovie.posterUrl.startsWith('https://')) && updatedMovie.posterUrl !== oldPosterUrl) {
                     finalPosterUrl = await this.uploadMoviePoster(updatedMovie.posterUrl, updatedMovie.id);
-                    // Se a foto antiga era do Firebase Storage, deleta
-                    if (oldPosterUrl && oldPosterUrl.includes('firebasestorage.googleapis.com')) {
+                    // Se a foto antiga era do Supabase, deleta
+                    if (oldPosterUrl && oldPosterUrl.includes('supabase.co/storage/v1/object/public/photos/')) {
                          this.deleteMoviePoster(oldPosterUrl);
                     }
-                } else if (!updatedMovie.posterUrl && oldPosterUrl && oldPosterUrl.includes('firebasestorage.googleapis.com')) {
-                    // Se o usuário removeu a foto, deleta do Firebase Storage
+                } else if (!updatedMovie.posterUrl && oldPosterUrl && oldPosterUrl.includes('supabase.co/storage/v1/object/public/photos/')) {
+                    // Se o usuário removeu a foto, deleta do Supabase Storage
                     this.deleteMoviePoster(oldPosterUrl);
                 } else if (updatedMovie.posterUrl === oldPosterUrl) {
-                    // Se a URL não mudou, mantém a mesma (pode ser uma URL externa ou já do Firebase Storage)
+                    // Se a URL não mudou, mantém a mesma
                     finalPosterUrl = oldPosterUrl;
                 }
 

@@ -133,7 +133,7 @@ function AdicionarFilmeExterno() {
                 duration: parseInt(duracao, 10),
                 genre: genero,
                 overview: sinopse,
-                posterUrl: finalPosterUrl, // Usa a URL pública do Firebase Storage
+                posterUrl: finalPosterUrl, // Usa a URL pública do Supabase
             });
 
             Alert.alert('Sucesso', 'Filme adicionado! Agora avalie-o.');

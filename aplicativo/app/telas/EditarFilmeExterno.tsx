@@ -95,7 +95,7 @@ function EditarFilmeExterno() {
                     text: "Remover",
                     onPress: async () => { // Usando async aqui também
                         if (posterUri) {
-                            await movieService.deleteMoviePoster(posterUri); // Deleta do Firebase Storage
+                            await movieService.deleteMoviePoster(posterUri); // Deleta do Supabase Storage
                         }
                         setPosterUri(null);
                         setModalFotoVisivel(false);
@@ -141,7 +141,7 @@ function EditarFilmeExterno() {
             duration: parseInt(duracao, 10),
             genre: genero,
             overview: sinopse,
-            posterUrl: finalPosterUrl, // Usa a URL pública do Firebase Storage
+            posterUrl: finalPosterUrl, // Usa a URL pública do Supabase
         });
 
         try {
@@ -166,7 +166,7 @@ function EditarFilmeExterno() {
                     text: 'Excluir',
                     onPress: async () => {
                         try {
-                            // O MovieService.deleteMovie já lida com a exclusão do pôster do Firebase Storage
+                            // O MovieService.deleteMovie já lida com a exclusão do pôster do Supabase
                             await movieService.deleteMovie(movie.id);
                             Alert.alert('Sucesso', 'Filme excluído com sucesso!');
                             router.back();
